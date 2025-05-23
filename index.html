@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Sign-In</title>
+
+  <!-- Load Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <h1>Welcome</h1>
+  <div id="g_id_onload"
+       data-client_id="237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com"
+       data-login_uri="http://localhost:3000/success.html"
+       data-auto_prompt="false">
+  </div>
+
+  <div class="g_id_signin"
+       data-type="standard"
+       data-shape="rectangular"
+       data-theme="outline"
+       data-text="sign_in_with"
+       data-size="large">
+  </div>
+</body>
+</html>
