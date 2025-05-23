@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
 
 @app.route('/')
 def home():
@@ -9,6 +10,11 @@ def home():
 @app.route('/success')
 def success():
     return render_template('success.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
 
 @app.route('/login', methods=['POST'])
 def login():
