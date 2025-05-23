@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Sign-In</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    function handleCredentialResponse(response) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/login';
+
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'credential';
+      input.value = response.credential;
+
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: "237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com",
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("buttonDiv"),
+        { theme: "outline", size: "large" }
+      );
+    };
+  </script>
+</head>
+<body>
+  <h1>Welcome</h1>
+  <div id="buttonDiv"></div>
+</body>
+</html>

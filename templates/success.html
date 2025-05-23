@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Success</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    function handleLogout() {
+      // Clear the user's session or stored data here if needed
+
+      // Sign out of Google
+      google.accounts.id.disableAutoSelect();
+
+      // Redirect to home (or login page)
+      window.location.href = '/';
+    }
+  </script>
+</head>
+<body>
+  <h1>You have successfully logged in!</h1>
+  <button onclick="handleLogout()">Logout</button>
+</body>
+</html>
