@@ -400,7 +400,7 @@ def logout():
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting AIDIY Flask Server...")
-    print("📱 Frontend URL: http://localhost:3000")
-    print("🔗 API Base URL: http://localhost:5500/api")
+    print(" Starting AIDIY Flask Server...")
+    print(" Frontend URL: http://localhost:3000")
+    print(" API Base URL: http://localhost:5500/api")
     app.run(host="localhost", port=5500, debug=True)
