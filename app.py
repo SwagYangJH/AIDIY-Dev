@@ -234,7 +234,9 @@ def google_login():
         return jsonify(error="Token invalid"), 400
 
     email = info["email"]
-    user  = users_col.find_one({"email": email})
+    user = users_col.find_one({"email": email})
+
+    # New user — create account and send OTP
     if not user:
         user = {
             "email": email,
@@ -243,14 +245,52 @@ def google_login():
             "lastName":  info.get("family_name"),
             "picture":   info.get("picture"),
             "login_type":"google",
-            "isVerified":True,
+            "isVerified": False,  # Require OTP
             "password":  None,
         }
         users_col.insert_one(user)
+        create_or_replace_otp(email, purpose="verify")
+        return jsonify(success=True, otpRequired=True, message="OTP sent to email"), 200
 
+    # Existing user but not verified
+    if not user.get("isVerified"):
+        create_or_replace_otp(email, purpose="verify")
+        return jsonify(success=True, otpRequired=True, message="OTP sent again"), 200
+
+    # User already verified
     tok = generate_jwt_token(user)
-    return jsonify(success=True, user={"email": email, "name": user["name"]},
+    return jsonify(success=True,
+                   user={"email": email, "name": user["name"]},
                    appToken=tok)
+
+@app.route("/auth/google/verify-otp", methods=["POST"])
+def google_verify_otp():
+    d = request.get_json() or {}
+    email, otp_input = d.get("email"), d.get("otp")
+
+    rec = otps_col.find_one({"email": email})
+    if not rec or rec["purpose"] != "verify":
+        return jsonify(error="Invalid or missing OTP"), 400
+    if datetime.utcnow() > rec["expires_at"]:
+        return jsonify(error="OTP expired"), 400
+    if rec["attempts"] >= MAX_OTP_ATTEMPTS:
+        return jsonify(error="Too many attempts"), 403
+    if otp_input != rec["otp"]:
+        otps_col.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        return jsonify(error="Incorrect OTP"), 400
+
+    # OTP is correct: update user
+    users_col.update_one({"email": email}, {"$set": {"isVerified": True}})
+    otps_col.delete_one({"email": email})
+
+    user = users_col.find_one({"email": email})
+    tok = generate_jwt_token(user)
+
+    return jsonify(success=True,
+                   message="OTP verified, login complete.",
+                   appToken=tok,
+                   user={"email": user["email"], "name": user["name"]})
+
 
 # ───────── 7  Kid login (unchanged) ──────────────────────────────────────────
 @app.route("/api/auth/kid-login", methods=["POST"])
