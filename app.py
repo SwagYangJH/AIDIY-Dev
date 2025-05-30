@@ -3,8 +3,10 @@ from flask_cors import CORS
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import jwt
-import datetime
+from datetime import datetime, timedelta
 import json
+import random
+import string
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_change_this_in_production'
@@ -18,6 +20,7 @@ JWT_SECRET = 'your_jwt_secret_key_change_this_in_production'
 # Mock database (in production, use real database)
 users_db = {}
 children_db = {}
+otp_store = {}  # Store OTPs temporarily
 
 def generate_jwt_token(user_data):
     """Generate JWT token for user"""
@@ -25,7 +28,7 @@ def generate_jwt_token(user_data):
         'user_id': user_data['email'],
         'name': user_data['name'],
         'email': user_data['email'],
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        'exp': datetime.utcnow() + timedelta(hours=24)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 
@@ -39,13 +42,17 @@ def verify_jwt_token(token):
     except jwt.InvalidTokenError:
         return None
 
+def generate_otp():
+    """Generate a 6-digit OTP"""
+    return ''.join(random.choices(string.digits, k=6))
+
 # Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({
         'status': 'OK',
         'message': 'AIDIY Flask Server is running!',
-        'timestamp': datetime.datetime.utcnow().isoformat()
+        'timestamp': datetime.utcnow().isoformat()
     })
 
 # Google OAuth login
@@ -118,6 +125,49 @@ def email_login():
         print(f"Email login error: {e}")
         return jsonify({'error': 'Login failed'}), 400
 
+# Register new user
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    try:
+        data = request.get_json()
+        first_name = data.get('firstName')
+        last_name = data.get('lastName')
+        email = data.get('email')
+        phone_number = data.get('phoneNumber')
+        password = data.get('password')
+        
+        # Check if user already exists
+        if email in users_db:
+            return jsonify({'error': 'User already exists'}), 400
+        
+        # Create new user (in production, hash password and save to database)
+        user_data = {
+            'email': email,
+            'firstName': first_name,
+            'lastName': last_name,
+            'name': f"{first_name} {last_name}",
+            'phoneNumber': phone_number,
+            'password': password,  # In production, hash this!
+            'verified': False,
+            'picture': None,
+            'login_type': 'email'
+        }
+        
+        users_db[email] = user_data
+        
+        return jsonify({
+            'success': True,
+            'message': 'Registration successful. Please verify your email.',
+            'user': {
+                'email': email,
+                'name': user_data['name']
+            }
+        })
+        
+    except Exception as e:
+        print(f"Registration error: {e}")
+        return jsonify({'error': 'Registration failed'}), 400
+
 # Kid login with code
 @app.route('/api/auth/kid-login', methods=['POST'])
 def kid_login():
@@ -158,13 +208,27 @@ def send_otp():
         data = request.get_json()
         email = data.get('email')
         
-        # Mock OTP sending (in production, send real email)
-        otp_code = '12345'  # Mock OTP
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        # Generate OTP
+        otp_code = generate_otp()
+        
+        # Store OTP with expiration (5 minutes)
+        otp_store[email] = {
+            'code': otp_code,
+            'expires_at': datetime.utcnow() + timedelta(minutes=5),
+            'attempts': 0
+        }
+        
+        # In production, send real email
+        print(f"OTP for {email}: {otp_code}")
         
         return jsonify({
             'success': True,
             'message': 'OTP sent successfully',
-            'otp': otp_code  # Don't return this in production!
+            # Don't return OTP in production!
+            'otp': otp_code if app.debug else None
         })
         
     except Exception as e:
@@ -179,13 +243,41 @@ def verify_otp():
         email = data.get('email')
         otp = data.get('otp')
         
-        # Mock OTP verification
-        if otp == '12345':
+        if not email or not otp:
+            return jsonify({'error': 'Email and OTP are required'}), 400
+        
+        # Check if OTP exists
+        if email not in otp_store:
+            return jsonify({'error': 'No OTP found for this email'}), 401
+        
+        stored_otp = otp_store[email]
+        
+        # Check if OTP expired
+        if datetime.utcnow() > stored_otp['expires_at']:
+            del otp_store[email]
+            return jsonify({'error': 'OTP has expired'}), 401
+        
+        # Check attempts
+        if stored_otp['attempts'] >= 3:
+            del otp_store[email]
+            return jsonify({'error': 'Too many failed attempts'}), 401
+        
+        # Verify OTP
+        if otp == stored_otp['code']:
+            # Mark user as verified
+            if email in users_db:
+                users_db[email]['verified'] = True
+            
+            # Clear OTP
+            del otp_store[email]
+            
             return jsonify({
                 'success': True,
                 'message': 'OTP verified successfully'
             })
         else:
+            # Increment attempts
+            otp_store[email]['attempts'] += 1
             return jsonify({'error': 'Invalid OTP'}), 401
             
     except Exception as e:
@@ -308,7 +400,7 @@ def logout():
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting AIDIY Flask Server...")
-    print("📱 Frontend URL: http://localhost:3000")
-    print("🔗 API Base URL: http://localhost:5500/api")
+    print(" Starting AIDIY Flask Server...")
+    print(" Frontend URL: http://localhost:3000")
+    print(" API Base URL: http://localhost:5500/api")
     app.run(host="localhost", port=5500, debug=True)
