@@ -1,257 +1,105 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { tw } from '@twind/core';
 
 const ForgotPassword = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: Enter email, 2: Reset password
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const validateEmail = () => {
-    const newErrors = {};
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validatePassword = () => {
-    const newErrors = {};
-    
-    if (!formData.newPassword) {
-      newErrors.newPassword = 'Password is required';
-    } else if (formData.newPassword.length < 6) {
-      newErrors.newPassword = 'Password must be at least 6 characters';
-    }
-    
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSendOTP = async (e) => {
+  const handleResetPassword = (e) => {
     e.preventDefault();
-    
-    if (!validateEmail()) {
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match!');
       return;
     }
-    
-    setLoading(true);
-    
-    try {
-      const response = await fetch('http://localhost:5500/api/auth/send-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: formData.email }),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Navigate to OTP verification with reset password context
-        navigate('/otp-verification', { 
-          state: { 
-            email: formData.email,
-            isPasswordReset: true 
-          } 
-        });
-      } else {
-        setErrors({ submit: data.error || 'Failed to send OTP' });
-      }
-    } catch (error) {
-      setErrors({ submit: 'Network error. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    
-    if (!validatePassword()) {
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      const response = await fetch('http://localhost:5500/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          newPassword: formData.newPassword
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        navigate('/login', { 
-          state: { message: 'Password reset successfully! Please login with your new password.' } 
-        });
-      } else {
-        setErrors({ submit: data.error || 'Failed to reset password' });
-      }
-    } catch (error) {
-      setErrors({ submit: 'Network error. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
+    console.log('Reset password for:', email);
   };
 
   return (
-    <div className={tw('min-h-screen bg-gradient-to-br from-sky-100 to-teal-100 flex items-center justify-center p-4')}>
-      <div className={tw('w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden')}>
-        <div className={tw('bg-gradient-to-r from-sky-100 to-teal-100 p-6')}>
-          <h1 className={tw('text-4xl font-bold text-sky-400 text-center')}>AIDIY</h1>
+    <div className={tw('min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark')}>
+      {/* Header */}
+      <header className={tw('bg-white shadow-sm')}>
+        <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
+          <div className={tw('flex items-center justify-between h-20')}>
+            <Link to="/" className={tw('flex items-center space-x-2')}>
+              <span className={tw('text-3xl font-bold text-primary-turquoise')}>AI</span>
+              <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
+            </Link>
+          </div>
         </div>
-        
-        <div className={tw('p-8 md:p-12')}>
-          <div className={tw('grid md:grid-cols-2 gap-8 items-center')}>
-            {/* Form Section */}
-            <div>
-              <Link to="/login" className={tw('inline-flex items-center text-purple-600 hover:underline mb-6 font-medium')}>
+      </header>
+
+      {/* Forgot Password Content */}
+      <div className={tw('flex items-center justify-center min-h-[calc(100vh-5rem)] py-12 px-4 sm:px-6 lg:px-8')}>
+        <div className={tw('max-w-5xl w-full')}>
+          <div className={tw('grid grid-cols-1 lg:grid-cols-2 gap-8 items-center')}>
+            {/* Forgot Password Card */}
+            <div className={tw('bg-white rounded-2xl shadow-xl p-8')}>
+              <Link to="/login" className={tw('inline-flex items-center text-primary-turquoise hover:underline mb-6 font-medium')}>
                 ← Back to login
               </Link>
               
               <h2 className={tw('text-3xl font-bold text-gray-800 mb-3')}>Forgot Password</h2>
-              <p className={tw('text-gray-600 mb-8')}>
+              <p className={tw('text-gray-500 mb-8 leading-relaxed')}>
                 Forgot your password? Don't worry—Let us help you to reset your password.
               </p>
 
-              <form onSubmit={step === 1 ? handleSendOTP : handleResetPassword}>
-                <div className={tw('space-y-4')}>
+              <form onSubmit={handleResetPassword}>
+                <div className={tw('space-y-5')}>
                   <div>
-                    <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>
-                      Email
-                    </label>
+                    <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Email</label>
                     <input
                       type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="Enter your Email id"
-                      className={tw('w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:border-sky-400 transition-colors')}
-                      disabled={step === 2}
+                      className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
                     />
-                    {errors.email && (
-                      <p className={tw('text-red-500 text-xs mt-1')}>{errors.email}</p>
-                    )}
                   </div>
 
-                  {step === 2 && (
-                    <>
-                      <div>
-                        <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>
-                          Enter new password
-                        </label>
-                        <input
-                          type="password"
-                          name="newPassword"
-                          value={formData.newPassword}
-                          onChange={handleChange}
-                          placeholder="Enter your new password"
-                          className={tw('w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:border-sky-400 transition-colors')}
-                        />
-                        {errors.newPassword && (
-                          <p className={tw('text-red-500 text-xs mt-1')}>{errors.newPassword}</p>
-                        )}
-                      </div>
+                  <div>
+                    <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Enter new password</label>
+                    <input
+                      type="password"
+                      className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                      placeholder="Enter your new password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                  </div>
 
-                      <div>
-                        <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>
-                          Confirm password
-                        </label>
-                        <input
-                          type="password"
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          placeholder="Confirm your password"
-                          className={tw('w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:border-sky-400 transition-colors')}
-                        />
-                        {errors.confirmPassword && (
-                          <p className={tw('text-red-500 text-xs mt-1')}>{errors.confirmPassword}</p>
-                        )}
-                      </div>
-                    </>
-                  )}
+                  <div>
+                    <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Confirm password</label>
+                    <input
+                      type="password"
+                      className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-
-                {errors.submit && (
-                  <p className={tw('text-red-500 text-sm text-center mt-4')}>{errors.submit}</p>
-                )}
 
                 <button 
                   type="submit" 
-                  disabled={loading}
-                  className={tw('w-full mt-6 py-3 bg-gradient-to-r from-teal-400 to-purple-400 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed')}
+                  className={tw('w-full mt-8 py-4 px-6 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold text-lg rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300')}
                 >
-                  {loading ? 'Processing...' : (step === 1 ? 'Send OTP' : 'Reset my password')}
+                  Reset my password
                 </button>
               </form>
             </div>
-            
-            {/* Image Section */}
-            <div className={tw('hidden md:flex items-center justify-center')}>
-              <div className={tw('relative')}>
-                <div className={tw('absolute inset-0 bg-gradient-to-br from-purple-200 to-teal-200 rounded-full blur-3xl opacity-50')}></div>
-                <div className={tw('relative z-10 bg-gray-100 rounded-3xl p-12')}>
-                  <div className={tw('flex items-center justify-center space-x-4')}>
-                    <div className={tw('text-6xl')}>🔐</div>
-                    <div className={tw('text-6xl')}>📧</div>
-                  </div>
-                  <div className={tw('mt-8 flex justify-center')}>
-                    <div className={tw('bg-yellow-300 px-4 py-2 rounded-lg flex items-center space-x-2')}>
-                      <span className={tw('text-2xl')}>✓</span>
-                      <div className={tw('flex space-x-1')}>
-                        {[...Array(8)].map((_, i) => (
-                          <span key={i} className={tw('text-xl')}>*</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={tw('mt-4 flex justify-center space-x-2')}>
-                    <div className={tw('text-3xl')}>🔑</div>
-                    <div className={tw('text-3xl')}>⚙️</div>
-                  </div>
-                </div>
+
+            {/* Forgot Password Illustration */}
+            <div className={tw('hidden lg:flex items-center justify-center p-8')}>
+              <div className={tw('relative w-80 h-80 bg-white/10 rounded-3xl flex items-center justify-center')}>
+                <div className={tw('text-7xl mb-4 animate-pulse')}>🛡️</div>
+                <div className={tw('absolute top-10 left-10 text-5xl animate-float')}>🔒</div>
+                <div className={tw('absolute top-10 right-10 text-5xl animate-float')} style={{ animationDelay: '-0.5s' }}>🔑</div>
+                <div className={tw('absolute bottom-10 left-1/2 transform -translate-x-1/2 text-5xl animate-float')} style={{ animationDelay: '-1.5s' }}>📧</div>
               </div>
             </div>
           </div>
