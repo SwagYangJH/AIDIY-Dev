@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
 import { tw } from '@twind/core';
+import api from '../api';
 
 const ProfilePage = () => {
   const [isManageMode, setIsManageMode] = useState(false);
@@ -15,8 +17,27 @@ const ProfilePage = () => {
     loginCode: ['', '', '', '']
   });
 
+  const [kids, setKids] = useState([]);
+
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  useEffect(() => {
+  const fetchKids = async () => {
+    try {
+      const response = await api.get('/api/users/children'); // make sure this endpoint works in your backend
+      console.log('Fetched kids data:', response.data); 
+      setKids(response.data.children); // update kids state
+    } catch (error) {
+      console.error('Error fetching kids:', error);
+    }
+  };
+
+  fetchKids(); // call the function when component mounts
+}, []);
+
+  
 
   const handleLogout = async () => {
     try {
@@ -56,11 +77,24 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSaveChild = (e) => {
-    e.preventDefault();
-    console.log('Saving child data:', childData);
-    setShowChildForm(false);
-  };
+const handleSaveChild = async (e) => {
+  e.preventDefault();
+
+  try {
+    const response = await api.post('/api/users/children', childData);
+
+    if (response.data.success) {
+      console.log('Child saved:', response.data.child);
+      setShowChildForm(false);
+      setKids([...kids, response.data.child]);
+      // Optionally clear form here
+    } else {
+      console.error('Error saving child:', response.data);
+    }
+  } catch (error) {
+    console.error('Network or server error:', error.response?.data || error.message);
+  }
+};
 
   // Mock data
   const parents = [
@@ -68,10 +102,10 @@ const ProfilePage = () => {
     { id: 2, name: 'Mother', avatar: '👩‍💼', isEditable: true }
   ];
 
-  const kids = [
-    { id: 1, name: 'Sweety', avatar: '👧', isEditable: true },
-    { id: 2, name: 'Child 2', avatar: '👦', isEditable: true }
-  ];
+  // const kids = [
+  //   { id: 1, name: 'Sweety', avatar: '👧', isEditable: true },
+  //   { id: 2, name: 'Child 2', avatar: '👦', isEditable: true }
+  // ];
 
   return (
     <div className={tw('min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark')}>
@@ -145,35 +179,41 @@ const ProfilePage = () => {
             </div>
 
             {/* Kids Section */}
-            <div>
-              <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>Kids</h3>
-              <div className={tw('grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6')}>
-                {kids.map(kid => (
-                  <div key={kid.id} className={tw('text-center cursor-pointer group')}>
-                    <div className={tw('relative w-20 h-20 mx-auto mb-3 bg-accent-pink rounded-full flex items-center justify-center border-3 border-transparent group-hover:border-primary-turquoise transition-all duration-300')}>
-                      <span className={tw('text-3xl')}>{kid.avatar}</span>
-                      {isManageMode && (
-                        <button className={tw('absolute -top-1 -right-1 w-6 h-6 bg-primary-turquoise text-white rounded-full flex items-center justify-center text-xs')}>
-                          ✏️
-                        </button>
-                      )}
-                    </div>
-                    <p className={tw('text-sm font-medium text-gray-700')}>{kid.name}</p>
-                  </div>
-                ))}
-                {isManageMode && (
-                  <div 
-                    className={tw('text-center cursor-pointer group')}
-                    onClick={() => setShowChildForm(true)}
-                  >
-                    <div className={tw('w-20 h-20 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 group-hover:border-primary-turquoise transition-colors')}>
-                      <span className={tw('text-2xl text-gray-400')}>+</span>
-                    </div>
-                    <p className={tw('text-sm text-gray-500')}>Add kid profile</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Kids Section */}
+<div>
+  <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>Kids</h3>
+  <div className={tw('grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6')}>
+    {kids.map(kid => (
+      <div key={kid.id} className={tw('text-center cursor-pointer group')}>
+        <div className={tw('relative w-20 h-20 mx-auto mb-3 bg-accent-pink rounded-full flex items-center justify-center border-3 border-transparent group-hover:border-primary-turquoise transition-all duration-300')}>
+          <span className={tw('text-3xl')}>{kid.avatar}</span>
+          {isManageMode && (
+            <button
+              className={tw('absolute -top-1 -right-1 w-6 h-6 bg-primary-turquoise text-white rounded-full flex items-center justify-center text-xs')}
+            >
+              ✏️
+            </button>
+            
+          )}
+        </div>
+        <p className={tw('text-sm font-medium text-gray-700')}>{kid.firstName}</p>
+      </div>
+    ))}
+
+    {isManageMode && (
+      <div
+        className={tw('text-center cursor-pointer group')}
+        onClick={() => setShowChildForm(true)}
+      >
+        <div className={tw('w-20 h-20 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 group-hover:border-primary-turquoise transition-colors')}>
+          <span className={tw('text-2xl text-gray-400')}>+</span>
+        </div>
+        <p className={tw('text-sm text-gray-500')}>Add kid profile</p>
+      </div>
+    )}
+  </div>
+</div>
+
           </div>
         </div>
       </div>

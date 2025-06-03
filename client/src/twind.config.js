@@ -31,7 +31,9 @@ export default defineConfig({
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
       },
+
       animation: {
         'float': 'float 6s ease-in-out infinite',
         'pulse': 'pulse 2s ease-in-out infinite',

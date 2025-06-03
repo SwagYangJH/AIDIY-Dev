@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000', // your backend URL
+  baseURL: 'http://localhost:5500', // your backend URL
 });
 
 // Request interceptor to attach JWT

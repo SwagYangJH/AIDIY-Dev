@@ -34,7 +34,7 @@ app.config.update(
 mail = Mail(app)
 
 # ─────────────────────────────── MongoDB  ─────────────────────────────────────
-client         = MongoClient(os.getenv("MONGO_URI"))
+client         = MongoClient(os.getenv("MONGO_URI"), tls=True)
 db             = client["aidiy_app"]
 users_col      = db["users"]
 pending_col    = db["pending_users"]      # temp store before email verified
