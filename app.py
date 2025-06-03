@@ -67,17 +67,25 @@ MAX_OTP_ATTEMPTS  = 3
 # ──────────────────────── OTP helpers  ───────────────────────────────────────
 def send_otp_email(email, code):
     try:
-        mail.send(Message(
+        body_text = (
+            f"Your OTP code is: {code}\n"
+            f"It expires in {OTP_EXP_MIN} minutes.\n\n"
+            "If you did not request this, please ignore this email."
+        )
+
+        body_text = body_text.encode("utf-8", errors="replace").decode("utf-8")
+
+        msg = Message(
             subject="Your AIDIY OTP Code",
+            sender=app.config["MAIL_USERNAME"],  # 👈 Explicit sender added
             recipients=[email],
-            body=(
-                f"Your OTP code is: {code}\n"
-                f"It expires in {OTP_EXP_MIN} minutes.\n\n"
-                "If you did not request this, please ignore this email."
-            ),
-        ))
+            body=body_text
+        )
+        mail.send(msg)
+
     except Exception as e:
         print(f"[MAIL] Could not send OTP to {email}: {e}")
+
 
 def create_or_replace_otp(email, purpose):
     code       = random_otp()
