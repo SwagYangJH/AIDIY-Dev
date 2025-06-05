@@ -257,13 +257,17 @@ def google_login():
             "password":  None,
         }
         users_col.insert_one(user)
-        create_or_replace_otp(email, purpose="verify")
-        return jsonify(success=True, otpRequired=True, message="OTP sent to email"), 200
+        send_verification_email(email)
+        return jsonify(success=True, verifyLinkSent=True, message="Verification email sent"), 200
+
+
 
     # Existing user but not verified
     if not user.get("isVerified"):
-        create_or_replace_otp(email, purpose="verify")
-        return jsonify(success=True, otpRequired=True, message="OTP sent again"), 200
+        send_verification_email(email)
+        return jsonify(success=True, verifyLinkSent=True, message="Verification email sent"), 200
+
+
 
     # User already verified
     tok = generate_jwt_token(user)
@@ -271,34 +275,51 @@ def google_login():
                    user={"email": email, "name": user["name"]},
                    appToken=tok)
 
-@app.route("/auth/google/verify-otp", methods=["POST"])
-def google_verify_otp():
-    d = request.get_json() or {}
-    email, otp_input = d.get("email"), d.get("otp")
+@app.route("/auth/google/verify-link", methods=["POST"])
+def google_verify_link():
+    token = (request.get_json() or {}).get("token")
+    try:
+        data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        if data.get("type") != "verify":
+            raise ValueError("Invalid token type")
+    except Exception:
+        return jsonify(error="Invalid or expired token"), 400
 
-    rec = otps_col.find_one({"email": email})
-    if not rec or rec["purpose"] != "verify":
-        return jsonify(error="Invalid or missing OTP"), 400
-    if datetime.utcnow() > rec["expires_at"]:
-        return jsonify(error="OTP expired"), 400
-    if rec["attempts"] >= MAX_OTP_ATTEMPTS:
-        return jsonify(error="Too many attempts"), 403
-    if otp_input != rec["otp"]:
-        otps_col.update_one({"email": email}, {"$inc": {"attempts": 1}})
-        return jsonify(error="Incorrect OTP"), 400
-
-    # OTP is correct: update user
+    email = data.get("email")
     users_col.update_one({"email": email}, {"$set": {"isVerified": True}})
-    otps_col.delete_one({"email": email})
-
     user = users_col.find_one({"email": email})
-    tok = generate_jwt_token(user)
+    app_token = generate_jwt_token(user)
 
-    return jsonify(success=True,
-                   message="OTP verified, login complete.",
-                   appToken=tok,
-                   user={"email": user["email"], "name": user["name"]})
+    return jsonify(success=True, message="Email verified via link!", appToken=app_token, user={"email": email, "name": user["name"]})
 
+def generate_verification_token(email):
+    return jwt.encode(
+        {
+            "email": email,
+            "exp": datetime.utcnow() + timedelta(minutes=15),
+            "type": "verify"
+        },
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+
+def send_verification_email(email):
+    token = generate_verification_token(email)
+    verify_link = f"http://localhost:3000/verify-email?token={token}"
+
+    try:
+        mail.send(Message(
+            subject="Verify your AIDIY account",
+            recipients=[email],
+            html=(
+                f"<p>Hello!</p>"
+                f"<p>Click the button below to verify your email address and activate your account:</p>"
+                f'<p><a href="{verify_link}" style="background-color:#28a745;color:white;padding:10px 15px;text-decoration:none;">Verify Email</a></p>'
+                f"<p>This link will expire in 15 minutes.</p>"
+            )
+        ))
+    except Exception as e:
+        print(f"[MAIL] Failed to send email to {email}: {e}")
 
 # ───────── 7  Kid login (unchanged) ──────────────────────────────────────────
 @app.route("/api/auth/kid-login", methods=["POST"])

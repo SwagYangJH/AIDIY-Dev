@@ -8,6 +8,7 @@ import SignUpPage from './components/SignUpPage';
 import OTPVerification from './components/OTPVerification';
 import ForgotPassword from './components/ForgotPassword';
 import ProfilePage from './components/ProfilePage';
+import VerifyEmailPage from './components/VerifyEmailPage';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/features" element={<div>Features Page</div>} />
             <Route path="/about" element={<div>About Us Page</div>} />
             <Route path="/contact" element={<div>Contact Us Page</div>} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
           </Routes>
         </div>
       </Router>
