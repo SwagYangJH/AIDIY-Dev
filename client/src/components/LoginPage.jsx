@@ -14,25 +14,32 @@ const GOOGLE_CLIENT_ID =
   '237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com';
 
 const LoginPage = () => {
-  /* ---------------------------- local state ---------------------------- */
+  /* ───────────────────────────── local state ───────────────────────────── */
   const [activeTab, setActiveTab] = useState('parent');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [kidCode, setKidCode] = useState(['', '', '', '']);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(''); // inline message
 
-  /* --------------------------- redux helpers --------------------------- */
+  // parent
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+
+  // kid
+  const [kidUsername, setKidUsername] = useState('');
+  const [kidCode, setKidCode]         = useState(['', '', '', '']);
+
+  // misc
+  const [rememberMe, setRememberMe] = useState(false);
+  const [errorMsg,   setErrorMsg]   = useState('');
+
+  /* ─────────────────────────── redux / nav helpers ─────────────────────── */
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading } = useSelector((state) => state.auth);
+  const { loading } = useSelector((s) => s.auth);
 
   const resetErrors = () => {
     setErrorMsg('');
     dispatch(clearError());
   };
 
-  /* ----------------------- Google-One-Tap handler ---------------------- */
+  /* ────────────────────── Google One-Tap callback ──────────────────────── */
   const handleCredentialResponse = useCallback(
     async (response) => {
       const idToken = response.credential;
@@ -42,18 +49,16 @@ const LoginPage = () => {
         dispatch(loginStart());
         resetErrors();
 
-        const res = await fetch('http://localhost:5500/auth/google', {
+        const res   = await fetch('http://localhost:5500/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: idToken }),
         });
-        const data = await res.json();
+        const data  = await res.json();
 
         if (data.success) {
           sessionStorage.setItem('app_token', data.appToken);
-          dispatch(
-            loginSuccess({ user: data.user, token: data.appToken }),
-          );
+          dispatch(loginSuccess({ user: data.user, token: data.appToken }));
           navigate('/profile');
         } else {
           dispatch(loginFailure(data.error || 'Google login failed'));
@@ -68,7 +73,7 @@ const LoginPage = () => {
     [dispatch, navigate],
   );
 
-  /* ---------------------- init Google One-Tap script ------------------- */
+  /* ─────────────────────── init Google script ──────────────────────────── */
   useEffect(() => {
     const initGoogle = () => {
       if (window.google?.accounts && activeTab === 'parent') {
@@ -77,37 +82,35 @@ const LoginPage = () => {
             client_id: GOOGLE_CLIENT_ID,
             callback: handleCredentialResponse,
           });
-
           const div = document.getElementById('google-signin');
           if (div) {
             div.innerHTML = '';
             window.google.accounts.id.renderButton(div, {
               theme: 'outline',
-              size: 'large',
+              size:  'large',
               width: '100%',
             });
           }
-        } catch (err) {
-          console.error('Google init error:', err);
+        } catch (e) {
+          console.error('Google init error:', e);
         }
       } else {
         setTimeout(initGoogle, 800);
       }
     };
-
     const t = setTimeout(initGoogle, 400);
     return () => clearTimeout(t);
   }, [activeTab, handleCredentialResponse]);
 
-  /* ----------------------------- handlers ------------------------------ */
-  /* parent-login ------------------------------------- */
+  /* ─────────────────────────── handlers ────────────────────────────────── */
+  // parent login
   const handleParentLogin = async (e) => {
     e.preventDefault();
     try {
       dispatch(loginStart());
       resetErrors();
 
-      const res = await fetch('http://localhost:5500/api/auth/login', {
+      const res  = await fetch('http://localhost:5500/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -116,9 +119,7 @@ const LoginPage = () => {
 
       if (data.success) {
         sessionStorage.setItem('app_token', data.appToken);
-        dispatch(
-          loginSuccess({ user: data.user, token: data.appToken }),
-        );
+        dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         navigate('/profile');
       } else {
         dispatch(loginFailure(data.error || 'Invalid email or password'));
@@ -131,7 +132,7 @@ const LoginPage = () => {
     }
   };
 
-  /* kid-login --------------------------------------- */
+  // kid login
   const handleKidLogin = async (e) => {
     e.preventDefault();
     const code = kidCode.join('');
@@ -140,22 +141,20 @@ const LoginPage = () => {
       dispatch(loginStart());
       resetErrors();
 
-      const res = await fetch('http://localhost:5500/api/auth/kid-login', {
+      const res  = await fetch('http://localhost:5500/api/auth/kid-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ username: kidUsername.trim(), code }),
       });
       const data = await res.json();
 
       if (data.success) {
         sessionStorage.setItem('app_token', data.appToken);
-        dispatch(
-          loginSuccess({ user: data.user, token: data.appToken }),
-        );
+        dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         navigate('/profile');
       } else {
-        dispatch(loginFailure(data.error || 'Invalid kid code'));
-        setErrorMsg(data.error || 'Invalid kid code');
+        dispatch(loginFailure(data.error || 'Invalid kid credentials'));
+        setErrorMsg(data.error || 'Invalid kid credentials');
       }
     } catch (err) {
       console.error(err);
@@ -164,58 +163,38 @@ const LoginPage = () => {
     }
   };
 
-  /* kid code input focus-jump ------------------------ */
-  const handleKidCodeChange = (index, value) => {
-    if (value.length <= 1 && /^[0-9]*$/.test(value)) {
+  // 4-digit focus-jump
+  const handleKidCodeChange = (idx, val) => {
+    if (val.length <= 1 && /^[0-9]*$/.test(val)) {
       const copy = [...kidCode];
-      copy[index] = value;
+      copy[idx]  = val;
       setKidCode(copy);
 
-      if (value && index < 3) {
-        document.getElementById(`code-${index + 1}`)?.focus();
+      if (val && idx < 3) {
+        document.getElementById(`code-${idx + 1}`)?.focus();
       }
     }
   };
 
-  /* =============================== UI =============================== */
+  /* ─────────────────────────────── UI ─────────────────────────────────── */
   return (
-    <div
-      className={tw(
-        'min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark',
-      )}
-    >
+    <div className={tw('min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark')}>
       {/* ───── Header ───── */}
       <header className={tw('bg-white shadow-sm')}>
         <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
           <div className={tw('flex items-center justify-between h-20')}>
             <Link to="/" className={tw('flex items-center space-x-2')}>
-              <span
-                className={tw('text-3xl font-bold text-primary-turquoise')}
-              >
-                AI
-              </span>
-              <span
-                className={tw('text-3xl font-bold text-accent-purple')}
-              >
-                DIY
-              </span>
+              <span className={tw('text-3xl font-bold text-primary-turquoise')}>AI</span>
+              <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
             </Link>
           </div>
         </div>
       </header>
 
       {/* ───── Body ───── */}
-      <div
-        className={tw(
-          'flex items-center justify-center min-h-[calc(100vh-5rem)] py-12 px-4 sm:px-6 lg:px-8',
-        )}
-      >
+      <div className={tw('flex items-center justify-center min-h-[calc(100vh-5rem)] py-12 px-4 sm:px-6 lg:px-8')}>
         <div className={tw('max-w-5xl w-full')}>
-          <div
-            className={tw(
-              'grid grid-cols-1 lg:grid-cols-2 gap-8 items-center',
-            )}
-          >
+          <div className={tw('grid grid-cols-1 lg:grid-cols-2 gap-8 items-center')}>
             {/* ───── Card ───── */}
             <div className={tw('bg-white rounded-2xl shadow-xl overflow-hidden')}>
               {/* tabs */}
@@ -240,14 +219,10 @@ const LoginPage = () => {
               {/* ───── Parent form ───── */}
               {activeTab === 'parent' && (
                 <div className={tw('p-8')}>
-                  <h2 className={tw('text-2xl font-bold text-gray-800 mb-2')}>
-                    Parent Login
-                  </h2>
-                  <p className={tw('text-gray-500 mb-6')}>
-                    Login or access your AI DIY account.
-                  </p>
+                  <h2 className={tw('text-2xl font-bold text-gray-800 mb-2')}>Parent Login</h2>
+                  <p className={tw('text-gray-500 mb-6')}>Login or access your AI DIY account.</p>
 
-                  {/* social */}
+                  {/* Google / FB */}
                   <div className={tw('space-y-3 mb-6')}>
                     <div id="google-signin" className={tw('w-full')} />
                     <button
@@ -272,9 +247,7 @@ const LoginPage = () => {
                       <div className={tw('w-full border-t border-gray-300')} />
                     </div>
                     <div className={tw('relative flex justify-center text-sm')}>
-                      <span className={tw('px-2 bg-white text-gray-500')}>
-                        Or login with email
-                      </span>
+                      <span className={tw('px-2 bg-white text-gray-500')}>Or login with email</span>
                     </div>
                   </div>
 
@@ -282,18 +255,10 @@ const LoginPage = () => {
                     <div className={tw('space-y-4')}>
                       {/* email */}
                       <div>
-                        <label
-                          className={tw(
-                            'block text-sm font-medium text-gray-700 mb-1',
-                          )}
-                        >
-                          Email
-                        </label>
+                        <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>Email</label>
                         <input
                           type="email"
-                          className={tw(
-                            'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                          )}
+                          className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
                           placeholder="Enter your email id"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -303,18 +268,10 @@ const LoginPage = () => {
 
                       {/* password */}
                       <div>
-                        <label
-                          className={tw(
-                            'block text-sm font-medium text-gray-700 mb-1',
-                          )}
-                        >
-                          Password
-                        </label>
+                        <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>Password</label>
                         <input
                           type="password"
-                          className={tw(
-                            'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                          )}
+                          className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
                           placeholder="Enter your password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -331,29 +288,16 @@ const LoginPage = () => {
                             checked={rememberMe}
                             onChange={(e) => setRememberMe(e.target.checked)}
                           />
-                          <span className={tw('text-sm text-gray-600')}>
-                            I agree to the terms
-                          </span>
+                          <span className={tw('text-sm text-gray-600')}>I agree to the terms</span>
                         </label>
-                        <Link
-                          to="/forgot-password"
-                          className={tw(
-                            'text-sm text-primary-turquoise hover:underline',
-                          )}
-                        >
+                        <Link to="/forgot-password" className={tw('text-sm text-primary-turquoise hover:underline')}>
                           Forgot Password?
                         </Link>
                       </div>
 
                       {/* error msg */}
                       {errorMsg && (
-                        <p
-                          className={tw(
-                            'text-sm text-red-600 text-center mt-2',
-                          )}
-                        >
-                          {errorMsg}
-                        </p>
+                        <p className={tw('text-sm text-red-600 text-center mt-2')}>{errorMsg}</p>
                       )}
 
                       {/* submit */}
@@ -371,10 +315,7 @@ const LoginPage = () => {
 
                   <p className={tw('text-center text-gray-600 mt-6')}>
                     First time here?{' '}
-                    <Link
-                      to="/signup"
-                      className={tw('text-primary-turquoise hover:underline')}
-                    >
+                    <Link to="/signup" className={tw('text-primary-turquoise hover:underline')}>
                       Sign up
                     </Link>
                   </p>
@@ -384,49 +325,44 @@ const LoginPage = () => {
               {/* ───── Kid form ───── */}
               {activeTab === 'kid' && (
                 <div className={tw('p-8')}>
-                  <h2 className={tw('text-2xl font-bold text-gray-800 mb-2')}>
-                    Kid Login
-                  </h2>
-                  <p className={tw('text-gray-500 mb-2')}>
-                    Login to access your AI DIY account.
-                  </p>
-                  <p className={tw('text-gray-500 mb-2')}>
-                    You need code from your parent to get started
-                  </p>
-                  <p className={tw('text-gray-500 mb-6')}>
-                    Enter your code to login
-                  </p>
+                  <h2 className={tw('text-2xl font-bold text-gray-800 mb-2')}>Kid Login</h2>
+                  <p className={tw('text-gray-500 mb-2')}>Login to access your AI DIY account.</p>
+                  <p className={tw('text-gray-500 mb-2')}>Ask your parent for your username and code.</p>
 
                   <form onSubmit={handleKidLogin}>
+                    {/* username */}
+                    <div className={tw('mb-6')}>
+                      <label className={tw('block text-sm font-medium text-gray-700 mb-1')}>User name</label>
+                      <input
+                        type="text"
+                        placeholder="Your user name"
+                        value={kidUsername}
+                        onChange={(e) => setKidUsername(e.target.value)}
+                        className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                        required
+                      />
+                    </div>
+
+                    {/* 4-digit code */}
                     <div className={tw('flex justify-center gap-4 mb-6')}>
-                      {kidCode.map((digit, idx) => (
+                      {kidCode.map((d, idx) => (
                         <input
                           key={idx}
                           id={`code-${idx}`}
-                          maxLength="1"
                           type="text"
-                          value={digit}
-                          onChange={(e) =>
-                            handleKidCodeChange(idx, e.target.value)
-                          }
-                          className={tw(
-                            'w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                          )}
+                          maxLength={1}
+                          value={d}
+                          onChange={(e) => handleKidCodeChange(idx, e.target.value)}
+                          className={tw('w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
                         />
                       ))}
                     </div>
 
                     {errorMsg && (
-                      <p
-                        className={tw('text-sm text-red-600 text-center mb-4')}
-                      >
-                        {errorMsg}
-                      </p>
+                      <p className={tw('text-sm text-red-600 text-center mb-4')}>{errorMsg}</p>
                     )}
 
-                    <label
-                      className={tw('flex items-center justify-center mb-6')}
-                    >
+                    <label className={tw('flex items-center justify-center mb-6')}>
                       <input type="checkbox" className={tw('mr-2')} />
                       <span className={tw('text-gray-600')}>Remember Me</span>
                     </label>
@@ -446,27 +382,11 @@ const LoginPage = () => {
             </div>
 
             {/* ───── Illustration ───── */}
-            <div
-              className={tw(
-                'hidden lg:flex items-center justify-center p-8',
-              )}
-            >
-              <div
-                className={tw(
-                  'relative w-64 h-96 bg-gradient-to-br from-purple-600 to-purple-800 rounded-3xl p-5 shadow-2xl',
-                )}
-              >
-                <div
-                  className={tw(
-                    'w-full h-full bg-white rounded-2xl flex items-center justify-center',
-                  )}
-                >
+            <div className={tw('hidden lg:flex items-center justify-center p-8')}>
+              <div className={tw('relative w-64 h-96 bg-gradient-to-br from-purple-600 to-purple-800 rounded-3xl p-5 shadow-2xl')}>
+                <div className={tw('w-full h-full bg-white rounded-2xl flex items-center justify-center')}>
                   <div className={tw('text-center')}>
-                    <div
-                      className={tw(
-                        'w-20 h-20 mx-auto mb-6 bg-green-400 rounded-full flex items-center justify-center text-white text-3xl animate-pulse',
-                      )}
-                    >
+                    <div className={tw('w-20 h-20 mx-auto mb-6 bg-green-400 rounded-full flex items-center justify-center text-white text-3xl animate-pulse')}>
                       ✓
                     </div>
                     <div className={tw('text-5xl mb-4 opacity-30')}>🔒</div>
@@ -475,9 +395,7 @@ const LoginPage = () => {
                         <div
                           key={i}
                           style={{ animationDelay: `${i * 0.2}s` }}
-                          className={tw(
-                            'w-3 h-3 bg-primary-turquoise rounded-full animate-dot-blink',
-                          )}
+                          className={tw('w-3 h-3 bg-primary-turquoise rounded-full animate-dot-blink')}
                         />
                       ))}
                     </div>
@@ -485,7 +403,7 @@ const LoginPage = () => {
                 </div>
               </div>
             </div>
-            {/* ───── END grid ───── */}
+            {/* ──── END grid ──── */}
           </div>
         </div>
       </div>
