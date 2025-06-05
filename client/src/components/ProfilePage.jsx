@@ -387,7 +387,7 @@ const NicknameInput = ({ childData, setChildData }) => (
 
 const UsernameInput = ({ childData, setChildData }) => (
   <div className={tw('mb-4')}>
-    <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>User name (unique)</label>
+    <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>User name </label>
     <input
       type="text"
       placeholder="sweety123"
