@@ -1,4 +1,4 @@
-# app.py
+# backend/app.py
 import os, random, string
 from datetime import datetime, timedelta
 
@@ -11,61 +11,65 @@ import bcrypt, jwt
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-# ───────────────────  ENV / Flask / CORS  ───────────────────
+# ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
 
-CORS(app,
-     resources={r"/*": {"origins": "http://localhost:3000"}},
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"])
+CORS(
+    app,
+    resources={r"/*": {"origins": "http://localhost:3000"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+)
 
-# ───────────────────  Flask-Mail  ───────────────────────────
+# ────────────── Flask-Mail ──────────────────────────
 app.config.update(
-    MAIL_SERVER      = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_PORT        = int(os.getenv("MAIL_PORT", 587)),
-    MAIL_USE_TLS     = os.getenv("MAIL_USE_TLS", "True") == "True",
-    MAIL_USE_SSL     = os.getenv("MAIL_USE_SSL", "False") == "True",
-    MAIL_USERNAME    = os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD    = os.getenv("MAIL_PASSWORD"),
-    MAIL_DEFAULT_SENDER = os.getenv("MAIL_USERNAME"),
+    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
+    MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "True") == "True",
+    MAIL_USE_SSL=os.getenv("MAIL_USE_SSL", "False") == "True",
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_DEFAULT_SENDER=os.getenv("MAIL_USERNAME"),
 )
 mail = Mail(app)
 
-# ───────────────────  MongoDB  ───────────────────────────────
-client       = MongoClient(os.getenv("MONGO_URI"))
-db           = client["aidiy_app"]
-users_col    = db["users"]
-pending_col  = db["pending_users"]
-otps_col     = db["otps"]
+# ────────────── MongoDB ─────────────────────────────
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["aidiy_app"]
+users_col = db["users"]
+pending_col = db["pending_users"]
+otps_col = db["otps"]
 children_col = db["children"]
 
-# enforce kid-username uniqueness (only once)
+# enforce kid-username uniqueness
 try:
     children_col.create_index("username", unique=True)
 except errors.OperationFailure:
     pass
 
-# ───────────────────  Security helpers  ─────────────────────
-JWT_SECRET        = os.getenv("JWT_SECRET", "CHANGE_ME_TOO")
+# ────────────── Security helpers ────────────────────
+JWT_SECRET = os.getenv("JWT_SECRET", "CHANGE_ME_TOO")
 JWT_EXPIRES_HOURS = 24
 
 def generate_jwt_token(payload: dict) -> str:
     return jwt.encode(
         {**payload, "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRES_HOURS)},
-        JWT_SECRET, algorithm="HS256"
+        JWT_SECRET,
+        algorithm="HS256",
     )
 
 verify_jwt_token = lambda t: jwt.decode(t, JWT_SECRET, algorithms=["HS256"]) if t else None
-hash_password    = lambda p: bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
-check_password   = lambda p, h: bcrypt.checkpw(p.encode(), h.encode())
-random_otp       = lambda: "".join(random.choices(string.digits, k=6))
+hash_password = lambda p: bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
+check_password = lambda p, h: bcrypt.checkpw(p.encode(), h.encode())
+random_otp = lambda: "".join(random.choices(string.digits, k=6))
 
-OTP_EXP_MIN      = 5
+OTP_EXP_MIN = 5
 MAX_OTP_ATTEMPTS = 3
 
-# ───────────────────  OTP helpers  ──────────────────────────
+# ────────────── OTP helpers ─────────────────────────
 def send_otp_email(email, code):
     try:
         body = (
@@ -77,29 +81,38 @@ def send_otp_email(email, code):
         print(f"[MAIL] Could not send OTP → {email}: {e}")
 
 def create_or_replace_otp(email, purpose):
-    code       = random_otp()
+    code = random_otp()
     expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXP_MIN)
     otps_col.update_one(
         {"email": email},
-        {"$set": {"email": email, "otp": code, "purpose": purpose,
-                  "expires_at": expires_at, "attempts": 0, "validated": False}},
+        {
+            "$set": {
+                "email": email,
+                "otp": code,
+                "purpose": purpose,
+                "expires_at": expires_at,
+                "attempts": 0,
+                "validated": False,
+            }
+        },
         upsert=True,
     )
     send_otp_email(email, code)
     return code
 
-# ───────────────────  Routes  ───────────────────────────────
+# ────────────── Routes ──────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify(status="OK", time=datetime.utcnow().isoformat())
 
-# ───── 1  Registration  ─────────────────────────────────────
+# ---------- 1  Registration ---------- #
+REQUIRED_FIELDS = ("firstName", "lastName", "email", "password")  # slimmed down
+
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     d = request.get_json() or {}
-    for f in ("firstName", "lastName", "birthDate", "loginCode", "username", "avatar"):
-        if not d.get(f):
-            return jsonify(error="Missing required fields"), 400
+    if not all(d.get(f) for f in REQUIRED_FIELDS):
+        return jsonify(error="Missing required fields"), 400
 
     email = d["email"]
     if users_col.find_one({"email": email}):
@@ -107,29 +120,43 @@ def register():
 
     pending_col.update_one(
         {"email": email},
-        {"$set": {
-            "email": email,
-            "firstName": d["firstName"],
-            "lastName":  d["lastName"],
-            "name":      f"{d['firstName']} {d['lastName']}",
-            "phoneNumber": d.get("phoneNumber"),
-            "password": hash_password(d["password"]),
-            "created_at": datetime.utcnow(),
-        }},
+        {
+            "$set": {
+                "email": email,
+                "firstName": d["firstName"],
+                "lastName": d["lastName"],
+                "name": f"{d['firstName']} {d['lastName']}",
+                "phoneNumber": d.get("phoneNumber"),
+                "password": hash_password(d["password"]),
+                # sensible defaults so backend is happy later
+                "birthDate": d.get("birthDate", ""),
+                "username": d.get("username", ""),
+                "loginCode": d.get("loginCode", ""),
+                "avatar": d.get("avatar", "🙂"),
+                "created_at": datetime.utcnow(),
+            }
+        },
         upsert=True,
     )
-    return jsonify(success=True,
-                   message="Registration saved. Call /send-otp to get code."), 201
+    return (
+        jsonify(success=True, message="Registration saved. Call /send-otp to get code."),
+        201,
+    )
 
-# ───── 2  Send / Resend OTP  ────────────────────────────────
+# ---------- 2  Send / Resend OTP ---------- #
 @app.route("/api/auth/send-otp", methods=["POST"])
 def send_otp():
     email = (request.get_json() or {}).get("email")
     if not email:
         return jsonify(error="Email required"), 400
 
-    purpose = ("reset" if users_col.find_one({"email": email}) else
-               "verify" if pending_col.find_one({"email": email}) else None)
+    purpose = (
+        "reset"
+        if users_col.find_one({"email": email})
+        else "verify"
+        if pending_col.find_one({"email": email})
+        else None
+    )
     if not purpose:
         return jsonify(error="Email not found"), 404
 
@@ -140,7 +167,7 @@ def send_otp():
 def resend_otp():
     return send_otp()
 
-# ───── 3  Verify OTP  ───────────────────────────────────────
+# ---------- 3  Verify OTP ---------- #
 @app.route("/api/auth/verify-otp", methods=["POST"])
 def verify_otp():
     d = request.get_json() or {}
@@ -166,14 +193,14 @@ def verify_otp():
         users_col.insert_one(pending)
         pending_col.delete_one({"email": email})
     else:  # reset password flow
-        otps_col.update_one({"email": email},
-                            {"$set": {"validated": True},
-                             "$unset": {"otp": ""}})
+        otps_col.update_one(
+            {"email": email}, {"$set": {"validated": True}, "$unset": {"otp": ""}}
+        )
 
     otps_col.delete_one({"email": email})
     return jsonify(success=True, message="OTP verified."), 200
 
-# ───── 4  Reset password  ───────────────────────────────────
+# ---------- 4  Reset password ---------- #
 @app.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
     d = request.get_json() or {}
@@ -185,12 +212,11 @@ def reset_password():
     if not doc:
         return jsonify(error="OTP not validated"), 403
 
-    users_col.update_one({"email": email},
-                         {"$set": {"password": hash_password(new_pwd)}})
+    users_col.update_one({"email": email}, {"$set": {"password": hash_password(new_pwd)}})
     otps_col.delete_one({"email": email})
     return jsonify(success=True, message="Password reset successfully"), 200
 
-# ───── 5  Parent email/password login  ─────────────────────
+# ---------- 5  Parent login ---------- #
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     d = request.get_json() or {}
@@ -203,17 +229,17 @@ def login():
         return jsonify(error="Invalid credentials"), 401
 
     tok = generate_jwt_token({"email": email, "name": user["name"]})
-    return jsonify(success=True,
-                   user={"email": email, "name": user["name"]},
-                   appToken=tok)
+    return jsonify(
+        success=True,
+        user={"email": email, "name": user["name"]},
+        appToken=tok,
+    )
 
-# ───── 5a  Logout (simple client-side helper)  ─────────────
 @app.route("/api/auth/logout", methods=["POST"])
 def logout_route():
-    # nothing server-side to do with stateless JWT; just acknowledge
     return jsonify(success=True)
 
-# ───── 6  Google login  ────────────────────────────────────
+# ---------- 6  Google sign-in ---------- #
 CLIENT_ID = "237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com"
 
 @app.route("/auth/google", methods=["POST"])
@@ -227,30 +253,34 @@ def google_login():
         return jsonify(error="Token invalid"), 400
 
     email = info["email"]
-    user  = users_col.find_one({"email": email})
+    user = users_col.find_one({"email": email})
 
     if not user:
         user = {
             "email": email,
             "name": info.get("name"),
             "firstName": info.get("given_name"),
-            "lastName":  info.get("family_name"),
-            "picture":   info.get("picture"),
-            "login_type":"google",
+            "lastName": info.get("family_name"),
+            "picture": info.get("picture"),
+            "login_type": "google",
             "isVerified": False,
-            "password":  None,
+            "password": None,
         }
         users_col.insert_one(user)
 
     if not user.get("isVerified"):
         create_or_replace_otp(email, "verify")
-        return jsonify(success=True, otpRequired=True,
-                       message="OTP sent to email"), 200
+        return (
+            jsonify(success=True, otpRequired=True, message="OTP sent to email"),
+            200,
+        )
 
     tok = generate_jwt_token({"email": email, "name": user["name"]})
-    return jsonify(success=True,
-                   user={"email": email, "name": user["name"]},
-                   appToken=tok)
+    return jsonify(
+        success=True,
+        user={"email": email, "name": user["name"]},
+        appToken=tok,
+    )
 
 @app.route("/auth/google/verify-otp", methods=["POST"])
 def google_verify_otp():
@@ -272,17 +302,19 @@ def google_verify_otp():
     otps_col.delete_one({"email": email})
 
     user = users_col.find_one({"email": email})
-    tok  = generate_jwt_token({"email": email, "name": user["name"]})
-    return jsonify(success=True,
-                   user={"email": email, "name": user["name"]},
-                   appToken=tok)
+    tok = generate_jwt_token({"email": email, "name": user["name"]})
+    return jsonify(
+        success=True,
+        user={"email": email, "name": user["name"]},
+        appToken=tok,
+    )
 
-# ───── 7  Kid login (username + 4-digit code)  ─────────────
+# ---------- 7  Kid login ---------- #
 @app.route("/api/auth/kid-login", methods=["POST"])
 def kid_login():
     d = request.get_json() or {}
     username = d.get("username", "").strip()
-    code     = d.get("code", "")
+    code = d.get("code", "")
     if not username or len(code) != 4 or not code.isdigit():
         return jsonify(error="Username and 4-digit code required"), 400
 
@@ -290,14 +322,22 @@ def kid_login():
     if not child:
         return jsonify(error="Invalid kid credentials"), 401
 
-    tok = generate_jwt_token({"email": f"{username}@kids.aidiy",
-                              "name":  child.get("nickName") or child["firstName"]})
-    return jsonify(success=True,
-                   user={"username": username,
-                         "name": child.get("nickName") or child["firstName"]},
-                   appToken=tok)
+    tok = generate_jwt_token(
+        {
+            "email": f"{username}@kids.aidiy",
+            "name": child.get("nickName") or child["firstName"],
+        }
+    )
+    return jsonify(
+        success=True,
+        user={
+            "username": username,
+            "name": child.get("nickName") or child["firstName"],
+        },
+        appToken=tok,
+    )
 
-# ───── 8  Auth decorator  ─────────────────────────────────
+# ---------- 8  Auth decorator ---------- #
 def auth_required(fn):
     def inner(*a, **kw):
         hdr = request.headers.get("Authorization", "")
@@ -310,6 +350,7 @@ def auth_required(fn):
         except Exception:
             return jsonify(error="Invalid token"), 401
         return fn(*a, **kw)
+
     inner.__name__ = fn.__name__
     return inner
 
@@ -319,14 +360,15 @@ def profile():
     user = users_col.find_one({"email": request.user["email"]}, {"_id": 0, "password": 0})
     return jsonify(success=True, user=user)
 
-# ---------- Get children list ----------
+# ---------- Children management ---------- #
 @app.route("/api/users/children")
 @auth_required
 def children_get():
-    kids = list(children_col.find({"parent_email": request.user["email"]}, {"_id": 0}))
+    kids = list(
+        children_col.find({"parent_email": request.user["email"]}, {"_id": 0})
+    )
     return jsonify(success=True, children=kids)
 
-# ---------- Add new child ----------
 @app.route("/api/users/children", methods=["POST"])
 @auth_required
 def children_add():
@@ -339,27 +381,26 @@ def children_add():
         return jsonify(error="Username already taken"), 409
 
     child = {
-        "parent_email":     request.user["email"],
-        "id":               d["loginCode"],
-        "username":         d["username"],
-        "firstName":        d["firstName"],
-        "lastName":         d["lastName"],
-        "nickName":         d.get("nickName", ""),
-        "avatar":           d.get("avatar", "👧"),
-        "birthDate":        d["birthDate"],
-        "loginCode":        d["loginCode"],
+        "parent_email": request.user["email"],
+        "id": d["loginCode"],
+        "username": d["username"],
+        "firstName": d["firstName"],
+        "lastName": d["lastName"],
+        "nickName": d.get("nickName", ""),
+        "avatar": d.get("avatar", "👧"),
+        "birthDate": d["birthDate"],
+        "loginCode": d["loginCode"],
         "moneyAccumulated": 0,
-        "tasksAssigned":    0,
-        "tasksCompleted":   0,
-        "created_at":       datetime.utcnow(),
+        "tasksAssigned": 0,
+        "tasksCompleted": 0,
+        "created_at": datetime.utcnow(),
     }
 
     children_col.insert_one(child)
-    child.pop("_id", None)          # strip ObjectId for JSON
+    child.pop("_id", None)
     return jsonify(success=True, child=child), 201
 
-
-# ───────────────────  Run  ────────────────────────────────
+# ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
     print("Starting AIDIY Flask Server on http://localhost:5500")
     app.run(host="localhost", port=5500, debug=True)
