@@ -167,53 +167,77 @@ def send_otp():
 def resend_otp():
     return send_otp()
 
-# ---------- 3  Verify OTP ---------- #
+# ---------- 3  Verify OTP (handles sign-up + password-reset) ---------- #
 @app.route("/api/auth/verify-otp", methods=["POST"])
 def verify_otp():
     d = request.get_json() or {}
     email, otp_input = d.get("email"), d.get("otp")
 
+    # Find the OTP doc (any purpose) -----------------------------------
     rec = otps_col.find_one({"email": email})
     if not rec:
         return jsonify(error="No OTP found"), 404
     if datetime.utcnow() > rec["expires_at"]:
-        otps_col.delete_one({"email": email})
+        otps_col.delete_one({"_id": rec["_id"]})
         return jsonify(error="OTP expired"), 400
     if rec["attempts"] >= MAX_OTP_ATTEMPTS:
-        return jsonify(error="Max attempts exceeded"), 400
+        return jsonify(error="Too many attempts"), 403
     if otp_input != rec["otp"]:
-        otps_col.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        otps_col.update_one({"_id": rec["_id"]}, {"$inc": {"attempts": 1}})
         return jsonify(error="Incorrect OTP"), 400
 
+    # ---------- purpose-specific logic ----------
     if rec["purpose"] == "verify":
+        # ✧ Sign-up / e-mail verification flow
         pending = pending_col.find_one({"email": email})
         if not pending:
             return jsonify(error="Pending registration missing"), 400
         pending["isVerified"] = True
         users_col.insert_one(pending)
         pending_col.delete_one({"email": email})
-    else:  # reset password flow
-        otps_col.update_one(
-            {"email": email}, {"$set": {"validated": True}, "$unset": {"otp": ""}}
-        )
+        # Remove OTP – it has served its purpose
+        otps_col.delete_one({"_id": rec["_id"]})
+        return jsonify(success=True, message="Email verified."), 200
 
-    otps_col.delete_one({"email": email})
-    return jsonify(success=True, message="OTP verified."), 200
+    elif rec["purpose"] == "reset":
+        # ✧ Password-reset flow
+        otps_col.update_one(
+            {"_id": rec["_id"]},
+            {"$set": {"validated": True}, "$unset": {"otp": ""}}
+        )
+        return jsonify(success=True, message="OTP validated."), 200
+
+    else:
+        return jsonify(error="Unknown OTP purpose"), 400
+
 
 # ---------- 4  Reset password ---------- #
 @app.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
     d = request.get_json() or {}
-    email, new_pwd = d.get("email"), d.get("newPassword")
+
+    # the UI sends { email, newPassword }
+    email     = d.get("email")
+    new_pwd   = d.get("newPassword")   # keep the exact key the UI sends
+    # you can also accept an alias if you like:
+    # new_pwd = d.get("newPassword") or d.get("password")
+
     if not email or not new_pwd:
         return jsonify(error="Email and newPassword required"), 400
 
-    doc = otps_col.find_one({"email": email, "purpose": "reset", "validated": True})
+    doc = otps_col.find_one(
+        {"email": email, "purpose": "reset", "validated": True}
+    )
     if not doc:
         return jsonify(error="OTP not validated"), 403
 
-    users_col.update_one({"email": email}, {"$set": {"password": hash_password(new_pwd)}})
-    otps_col.delete_one({"email": email})
+    users_col.update_one(
+        {"email": email},
+        {"$set": {"password": hash_password(new_pwd)}}
+    )
+    # delete the OTP after successful reset so it can’t be reused
+    otps_col.delete_one({"_id": doc["_id"]})
+
     return jsonify(success=True, message="Password reset successfully"), 200
 
 # ---------- 5  Parent login ---------- #
