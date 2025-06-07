@@ -14,6 +14,9 @@ from google.auth.transport import requests as google_requests
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
 
+# Development mode flag
+DEV_MODE = os.getenv("DEV_MODE", "True") == "True"
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
 
@@ -77,8 +80,13 @@ def send_otp_email(email, code):
             "If you did not request this, please ignore."
         )
         mail.send(Message("Your AIDIY OTP Code", recipients=[email], body=body))
+        print(f"[MAIL] OTP sent successfully to {email}")
+        return True
     except Exception as e:
         print(f"[MAIL] Could not send OTP → {email}: {e}")
+        # Print OTP to console in dev environment
+        print(f"[DEV] OTP for {email}: {code}")
+        return False
 
 def create_or_replace_otp(email, purpose):
     code = random_otp()
@@ -133,6 +141,7 @@ def register():
                 "username": d.get("username", ""),
                 "loginCode": d.get("loginCode", ""),
                 "avatar": d.get("avatar", "🙂"),
+                "isProfileComplete": False,  # New users default to incomplete profile
                 "created_at": datetime.utcnow(),
             }
         },
@@ -235,7 +244,7 @@ def reset_password():
         {"email": email},
         {"$set": {"password": hash_password(new_pwd)}}
     )
-    # delete the OTP after successful reset so it can’t be reused
+    # delete the OTP after successful reset so it can't be reused
     otps_col.delete_one({"_id": doc["_id"]})
 
     return jsonify(success=True, message="Password reset successfully"), 200
@@ -252,10 +261,13 @@ def login():
     if not user or not check_password(pwd, user["password"]):
         return jsonify(error="Invalid credentials"), 401
 
+    # Check if user profile is complete
+    isProfileComplete = user.get("isProfileComplete", False)
+    
     tok = generate_jwt_token({"email": email, "name": user["name"]})
     return jsonify(
         success=True,
-        user={"email": email, "name": user["name"]},
+        user={"email": email, "name": user["name"], "isProfileComplete": isProfileComplete},
         appToken=tok,
     )
 
@@ -287,22 +299,27 @@ def google_login():
             "lastName": info.get("family_name"),
             "picture": info.get("picture"),
             "login_type": "google",
-            "isVerified": False,
+            "isVerified": DEV_MODE,  # Auto-verify in dev mode
             "password": None,
+            "isProfileComplete": False,
         }
         users_col.insert_one(user)
 
-    if not user.get("isVerified"):
+    # Skip OTP verification in dev mode
+    if not user.get("isVerified") and not DEV_MODE:
         create_or_replace_otp(email, "verify")
         return (
             jsonify(success=True, otpRequired=True, message="OTP sent to email"),
             200,
         )
 
+    # Check if user profile is complete
+    isProfileComplete = user.get("isProfileComplete", False)
+    
     tok = generate_jwt_token({"email": email, "name": user["name"]})
     return jsonify(
         success=True,
-        user={"email": email, "name": user["name"]},
+        user={"email": email, "name": user["name"], "isProfileComplete": isProfileComplete},
         appToken=tok,
     )
 
@@ -326,10 +343,13 @@ def google_verify_otp():
     otps_col.delete_one({"email": email})
 
     user = users_col.find_one({"email": email})
+    # Check if user profile is complete
+    isProfileComplete = user.get("isProfileComplete", False)
+    
     tok = generate_jwt_token({"email": email, "name": user["name"]})
     return jsonify(
         success=True,
-        user={"email": email, "name": user["name"]},
+        user={"email": email, "name": user["name"], "isProfileComplete": isProfileComplete},
         appToken=tok,
     )
 
@@ -383,6 +403,36 @@ def auth_required(fn):
 def profile():
     user = users_col.find_one({"email": request.user["email"]}, {"_id": 0, "password": 0})
     return jsonify(success=True, user=user)
+
+# ---------- Update user profile ---------- #
+@app.route("/api/users/profile", methods=["PUT"])
+@auth_required
+def update_profile():
+    d = request.get_json() or {}
+    
+    # Allowed fields to update
+    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole"]
+    update_data = {k: v for k, v in d.items() if k in allowed_fields and v is not None}
+    
+    if update_data:
+        # If firstName and lastName exist, update name field
+        if "firstName" in update_data or "lastName" in update_data:
+            user = users_col.find_one({"email": request.user["email"]})
+            firstName = update_data.get("firstName", user.get("firstName", ""))
+            lastName = update_data.get("lastName", user.get("lastName", ""))
+            update_data["name"] = f"{firstName} {lastName}"
+        
+        # Mark profile as complete
+        update_data["isProfileComplete"] = True
+        
+        users_col.update_one(
+            {"email": request.user["email"]},
+            {"$set": update_data}
+        )
+        
+        return jsonify(success=True, message="Profile updated successfully")
+    
+    return jsonify(error="No valid fields to update"), 400
 
 # ---------- Children management ---------- #
 @app.route("/api/users/children")
