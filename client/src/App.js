@@ -8,6 +8,7 @@ import SignUpPage from './components/SignUpPage';
 import OTPVerification from './components/OTPVerification';
 import ForgotPassword from './components/ForgotPassword';
 import ProfilePage from './components/ProfilePage';
+import ParentSetupPage from './components/ParentSetupPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/otp-verification" element={<OTPVerification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/parent-setup" element={<ParentSetupPage />} />
             <Route path="/features" element={<div>Features Page</div>} />
             <Route path="/about" element={<div>About Us Page</div>} />
             <Route path="/contact" element={<div>Contact Us Page</div>} />

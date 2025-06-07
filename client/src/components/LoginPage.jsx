@@ -59,7 +59,13 @@ const LoginPage = () => {
         if (data.success) {
           sessionStorage.setItem('app_token', data.appToken);
           dispatch(loginSuccess({ user: data.user, token: data.appToken }));
-          navigate('/profile');
+          
+          // 检查用户资料是否完整
+          if (data.user.isProfileComplete === false) {
+            navigate('/parent-setup');
+          } else {
+            navigate('/profile');
+          }
         } else {
           dispatch(loginFailure(data.error || 'Google login failed'));
           setErrorMsg(data.error || 'Google login failed');
@@ -120,7 +126,13 @@ const LoginPage = () => {
       if (data.success) {
         sessionStorage.setItem('app_token', data.appToken);
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
-        navigate('/profile');
+        
+        // 检查用户资料是否完整
+        if (data.user.isProfileComplete === false) {
+          navigate('/parent-setup');
+        } else {
+          navigate('/profile');
+        }
       } else {
         dispatch(loginFailure(data.error || 'Invalid email or password'));
         setErrorMsg(data.error || 'Invalid email or password');

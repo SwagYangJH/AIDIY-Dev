@@ -21,13 +21,13 @@ const ProfilePage = () => {
   /* UI state */
   const [isManageMode, setIsManageMode] = useState(false);
   const [showChildForm, setShowChildForm] = useState(false);
+  const [showParentEditForm, setShowParentEditForm] = useState(false);
+  const [editingParentRole, setEditingParentRole] = useState(null); // 'dad' or 'mom'
   const [formError, setFormError] = useState('');
+  const [userProfile, setUserProfile] = useState(null);
 
-  /* parents are static (Father / Mother) */
-  const parents = [
-    { id: 1, name: 'Father', avatar: '👨‍💼' },
-    { id: 2, name: 'Mother', avatar: '👩‍💼' },
-  ];
+  /* parents data - will be populated based on user profile */
+  const [parents, setParents] = useState([]);
 
   /* kids pulled from API + live-added */
   const [kids, setKids] = useState([]);
@@ -44,17 +44,65 @@ const ProfilePage = () => {
     confirmLoginCode: ['', '', '', ''],
   });
 
+  /* form data for editing parent */
+  const [parentEditData, setParentEditData] = useState({
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    birthDate: '',
+    parentRole: ''
+  });
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  /* ───────── fetch existing kids on mount ───────── */
+  /* ───────── fetch user profile and existing kids on mount ───────── */
   useEffect(() => {
     (async () => {
       try {
+        // Fetch user profile
+        const profileRes = await api('/api/users/profile');
+        if (profileRes.success) {
+          setUserProfile(profileRes.user);
+          
+          // Only show the current user's parent info, don't pre-fill empty slots
+          const parentsList = [];
+          
+          if (profileRes.user.parentRole && profileRes.user.name) {
+            if (profileRes.user.parentRole === 'dad') {
+              parentsList.push({
+                id: 1,
+                name: profileRes.user.name,
+                avatar: '👨‍💼',
+                role: 'dad'
+              });
+            } else if (profileRes.user.parentRole === 'mom') {
+              parentsList.push({
+                id: 2,
+                name: profileRes.user.name,
+                avatar: '👩‍💼',
+                role: 'mom'
+              });
+            }
+          }
+          
+          setParents(parentsList);
+          
+          // Set edit form data
+          setParentEditData({
+            firstName: profileRes.user.firstName || '',
+            lastName: profileRes.user.lastName || '',
+            phoneNumber: profileRes.user.phoneNumber || '',
+            birthDate: profileRes.user.birthDate || '',
+            parentRole: profileRes.user.parentRole || ''
+          });
+        }
+        
+        // Fetch kids
         const res = await api('/api/users/children');
         if (res.success) setKids(res.children.map((c) => ({ ...c, avatar: c.avatar || '👧' })));
       } catch (e) {
-        console.error('Could not load kids', e);
+        console.error('Could not load data', e);
       }
     })();
   }, []);
@@ -133,6 +181,100 @@ const ProfilePage = () => {
     navigate('/');
   };
 
+  /* ───────── save parent edit ───────── */
+  const handleSaveParentEdit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    try {
+      // If editing current user's profile
+      if (editingParentRole === userProfile?.parentRole) {
+        const res = await api('/api/users/profile', {
+          method: 'PUT',
+          body: JSON.stringify(parentEditData),
+        });
+        
+        if (!res.success) throw new Error(res.error || 'Update failed');
+
+        // Update local state
+        setUserProfile({ ...userProfile, ...parentEditData });
+        
+        // Update parent display
+        const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
+        setParents(parents.map(p => {
+          if (p.role === userProfile.parentRole) {
+            return { ...p, name: updatedName };
+          }
+          return p;
+        }));
+      } else {
+        // Adding new parent (spouse/partner) - just update display locally
+        const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
+        const newParent = {
+          id: editingParentRole === 'dad' ? 1 : 2,
+          name: updatedName,
+          avatar: editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼',
+          role: editingParentRole
+        };
+        
+        // Add to parents list
+        setParents([...parents, newParent].sort((a, b) => a.id - b.id));
+      }
+
+      setShowParentEditForm(false);
+      setEditingParentRole(null);
+    } catch (err) {
+      setFormError(err.message);
+    }
+  };
+
+  /* ───────── handle parent edit/add ───────── */
+  const handleParentAction = (parent) => {
+    if (parent) {
+      // Editing existing parent
+      setEditingParentRole(parent.role);
+      
+      if (parent.role === userProfile?.parentRole) {
+        // Editing current user
+        setParentEditData({
+          firstName: userProfile.firstName || '',
+          lastName: userProfile.lastName || '',
+          phoneNumber: userProfile.phoneNumber || '',
+          birthDate: userProfile.birthDate || '',
+          parentRole: parent.role
+        });
+      }
+    } else {
+      // Adding new parent - determine which role is available
+      const hasDad = parents.some(p => p.role === 'dad');
+      const hasMom = parents.some(p => p.role === 'mom');
+      
+      let newRole;
+      if (!hasDad && !hasMom) {
+        // No parents yet, use user's role or default to dad
+        newRole = userProfile?.parentRole || 'dad';
+      } else if (!hasDad) {
+        newRole = 'dad';
+      } else if (!hasMom) {
+        newRole = 'mom';
+      } else {
+        // Both slots filled
+        return;
+      }
+      
+      setEditingParentRole(newRole);
+      setParentEditData({
+        firstName: '',
+        lastName: '',
+        phoneNumber: '',
+        birthDate: '',
+        parentRole: newRole
+      });
+    }
+    
+    setShowParentEditForm(true);
+  };
+
   /* ─────────────────────── render ─────────────────────── */
   return (
     <div className={tw('min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark')}>
@@ -167,8 +309,21 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Parents grid (static) */}
-            <AvatarGrid items={parents} isManage={isManageMode} addLabel="Add parent profile" />
+            {/* Parents grid (dynamic based on user) */}
+            <AvatarGrid 
+              items={parents} 
+              isManage={isManageMode} 
+              addLabel="Add parent"
+              onEdit={handleParentAction}
+              onAdd={() => {
+                // Check if we can add more parents (max 2)
+                if (parents.length < 2) {
+                  handleParentAction(null);
+                }
+              }}
+              showAddButton={true} // Show add button for parents too
+              maxItems={2} // Maximum 2 parents
+            />
 
             {/* Kids */}
             <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>Kids</h3>
@@ -181,6 +336,7 @@ const ProfilePage = () => {
               isManage={isManageMode}
               addLabel="Add kid profile"
               onAdd={() => setShowChildForm(true)}
+              showAddButton={true}
             />
           </div>
         </div>
@@ -231,6 +387,102 @@ const ProfilePage = () => {
           </form>
         </Modal>
       )}
+
+      {/* Edit Parent Modal */}
+      {showParentEditForm && (
+        <Modal onClose={() => {
+          setShowParentEditForm(false);
+          setEditingParentRole(null);
+        }}>
+          <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>
+            {editingParentRole === userProfile?.parentRole ? 'Edit' : 'Add'} Parent Profile
+          </h3>
+          
+          <form onSubmit={handleSaveParentEdit}>
+            <div className={tw('mb-4 text-center')}>
+              <span className={tw('text-4xl')}>
+                {editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼'}
+              </span>
+              <p className={tw('text-sm text-gray-600 mt-2')}>
+                {editingParentRole === 'dad' ? 'Father' : 'Mother'}
+              </p>
+            </div>
+
+            <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4 mb-4')}>
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={parentEditData.firstName}
+                  onChange={(e) => setParentEditData({ ...parentEditData, firstName: e.target.value })}
+                  className={tw(
+                    'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
+                  )}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={parentEditData.lastName}
+                  onChange={(e) => setParentEditData({ ...parentEditData, lastName: e.target.value })}
+                  className={tw(
+                    'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
+                  )}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className={tw('mb-4')}>
+              <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={parentEditData.phoneNumber}
+                onChange={(e) => setParentEditData({ ...parentEditData, phoneNumber: e.target.value })}
+                className={tw(
+                  'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
+                )}
+              />
+            </div>
+
+            <div className={tw('mb-4')}>
+              <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                value={parentEditData.birthDate}
+                onChange={(e) => setParentEditData({ ...parentEditData, birthDate: e.target.value })}
+                className={tw(
+                  'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
+                )}
+              />
+            </div>
+
+            {formError && <p className={tw('text-sm text-red-600 text-center mb-4')}>{formError}</p>}
+            
+            <div className={tw('text-center')}>
+              <button
+                type="submit"
+                className={tw(
+                  'px-8 py-3 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300',
+                )}
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 };
@@ -258,19 +510,26 @@ const Header = ({ onLogout }) => (
   </header>
 );
 
-const AvatarGrid = ({ items, isManage, addLabel, onAdd }) => (
+const AvatarGrid = ({ items, isManage, addLabel, onAdd, onEdit, showAddButton = true, maxItems = null }) => (
   <div className={tw('mb-12')}>
     <div className={tw('grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6')}>
       {items.map((p) => (
-        <div key={p.id} className={tw('text-center cursor-pointer group')}>
+        <div key={p.id} className={tw('text-center')}>
           <div
+            onClick={() => isManage && onEdit && onEdit(p)}
             className={tw(
-              'relative w-20 h-20 mx-auto mb-3 bg-accent-pink rounded-full flex items-center justify-center border-3 border-transparent group-hover:border-primary-turquoise transition-all duration-300',
+              `relative w-20 h-20 mx-auto mb-3 rounded-full flex items-center justify-center border-3 transition-all duration-300 bg-accent-pink border-transparent ${
+                isManage ? 'hover:border-primary-turquoise cursor-pointer' : ''
+              }`,
             )}
           >
             <span className={tw('text-3xl')}>{p.avatar}</span>
             {isManage && (
               <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit && onEdit(p);
+                }}
                 className={tw(
                   'absolute -top-1 -right-1 w-6 h-6 bg-primary-turquoise text-white rounded-full flex items-center justify-center text-xs',
                 )}
@@ -282,7 +541,8 @@ const AvatarGrid = ({ items, isManage, addLabel, onAdd }) => (
           <p className={tw('text-sm font-medium text-gray-700')}>{p.name}</p>
         </div>
       ))}
-      {isManage && (
+      {/* Show add button if in manage mode and haven't reached max items */}
+      {isManage && onAdd && showAddButton && (!maxItems || items.length < maxItems) && (
         <div onClick={onAdd} className={tw('text-center cursor-pointer group')}>
           <div
             className={tw(
