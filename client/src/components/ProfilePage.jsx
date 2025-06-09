@@ -317,6 +317,7 @@ const Modal = ({ children, onClose }) => (
 
 /* pink card with dummy stats */
 const PinkStatsCard = ({ avatar }) => (
+  
   <div className={tw('grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 mb-8 p-6 bg-accent-pink rounded-xl')}>
     <div className={tw('relative')}>
       <div className={tw('w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg')}>
