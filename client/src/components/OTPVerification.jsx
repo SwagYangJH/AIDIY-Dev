@@ -1,12 +1,15 @@
 // src/pages/OTPVerification.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../store/authSlice';
 import { tw } from '@twind/core';
 
 const OTPVerification = () => {
   /* ---------------- router state ---------------- */
   const location           = useLocation();
   const navigate           = useNavigate();
+  const dispatch           = useDispatch();
   const email              = location.state?.email || '';
   const isPasswordReset    = !!location.state?.isPasswordReset;
 
@@ -77,9 +80,41 @@ const OTPVerification = () => {
           state: { email, allowReset: true },
         });
       } else {
-        navigate('/login', {
-          state: { message: 'Email verified successfully! Please log in.' },
-        });
+        // After successful verification, log the user in
+        try {
+          const loginRes = await fetch('http://localhost:5500/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              email, 
+              password: location.state?.password || '' // Pass the password from signup
+            }),
+          });
+          
+          const loginData = await loginRes.json();
+          
+          if (loginData.success) {
+            sessionStorage.setItem('app_token', loginData.appToken);
+            dispatch(loginSuccess({ user: loginData.user, token: loginData.appToken }));
+            
+            // Check if profile is complete
+            if (loginData.user.isProfileComplete === false) {
+              navigate('/parent-setup');
+            } else {
+              navigate('/profile');
+            }
+          } else {
+            // If auto-login fails, redirect to login page
+            navigate('/login', {
+              state: { message: 'Email verified successfully! Please log in.' },
+            });
+          }
+        } catch (err) {
+          // If auto-login fails, redirect to login page
+          navigate('/login', {
+            state: { message: 'Email verified successfully! Please log in.' },
+          });
+        }
       }
     } catch (_) {
       setError('Network error. Try again.');
@@ -148,7 +183,7 @@ const OTPVerification = () => {
                 {error && <p className={tw('text-red-500 text-sm text-center mb-4')}>{error}</p>}
 
                 <p className={tw('text-gray-600 text-center mb-6')}>
-                  Didn’t receive a code?{' '}
+                  Didn't receive a code?{' '}
                   <button
                     type="button"
                     disabled={resendTimer > 0}

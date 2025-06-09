@@ -8,6 +8,11 @@ import SignUpPage from './components/SignUpPage';
 import OTPVerification from './components/OTPVerification';
 import ForgotPassword from './components/ForgotPassword';
 import ProfilePage from './components/ProfilePage';
+import ParentSetupPage from './components/ParentSetupPage';
+import KidSelectionPage from './components/KidSelectionPage';
+import KidAssessmentPage from './components/KidAssessmentPage';
+import AssessmentQuiz from './components/AssessmentQuiz';
+import ParentDashboard from './components/ParentDashboard';
 
 function App() {
   return (
@@ -21,6 +26,11 @@ function App() {
             <Route path="/otp-verification" element={<OTPVerification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/parent-setup" element={<ParentSetupPage />} />
+            <Route path="/kid-selection" element={<KidSelectionPage />} />
+            <Route path="/kid-assessment" element={<KidAssessmentPage />} />
+            <Route path="/assessment-quiz" element={<AssessmentQuiz />} />
+            <Route path="/parent-dashboard" element={<ParentDashboard />} />
             <Route path="/features" element={<div>Features Page</div>} />
             <Route path="/about" element={<div>About Us Page</div>} />
             <Route path="/contact" element={<div>Contact Us Page</div>} />

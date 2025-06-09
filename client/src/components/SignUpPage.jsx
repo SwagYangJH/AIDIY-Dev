@@ -25,6 +25,8 @@ const SignUpPage = () => {
   const [errors, setErrors]   = useState({});
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');      // Google-sign-up message
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
 
   /* ------------- client-side validation ------------- */
   const validateForm = () => {
@@ -49,6 +51,28 @@ const SignUpPage = () => {
     const { name, value } = e.target;
     setFormData((p) => ({ ...p, [name]: value }));
     if (errors[name]) setErrors((p) => ({ ...p, [name]: '' }));
+  };
+
+  /* ------------- handle avatar upload ------------- */
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setErrors({ ...errors, avatar: 'Image size should be less than 5MB' });
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+        setAvatarFile(file);
+      };
+      reader.readAsDataURL(file);
+      
+      if (errors.avatar) {
+        setErrors({ ...errors, avatar: '' });
+      }
+    }
   };
 
   /* ------------- form submit (email signup) ------------- */
@@ -89,7 +113,12 @@ const SignUpPage = () => {
         body: JSON.stringify({ email: formData.email }),
       });
 
-      navigate('/otp-verification', { state: { email: formData.email } });
+      navigate('/otp-verification', { 
+        state: { 
+          email: formData.email,
+          password: formData.password // Pass password for auto-login after verification
+        } 
+      });
     } catch {
       setErrors({ submit: 'Network error. Please try again.' });
     } finally {
@@ -193,6 +222,37 @@ const SignUpPage = () => {
 
               {/* SIGN-UP FORM */}
               <form onSubmit={handleSubmit} className={tw('space-y-4')}>
+                {/* Avatar Upload */}
+                <div className={tw('flex justify-center mb-6')}>
+                  <div className={tw('relative')}>
+                    <div className={tw(
+                      'w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity'
+                    )}>
+                      {avatarPreview ? (
+                        <img 
+                          src={avatarPreview} 
+                          alt="Avatar preview" 
+                          className={tw('w-full h-full object-cover')}
+                        />
+                      ) : (
+                        <div className={tw('text-center')}>
+                          <span className={tw('text-3xl text-gray-400')}>📷</span>
+                          <p className={tw('text-xs text-gray-500 mt-1')}>Upload</p>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className={tw('absolute inset-0 w-full h-full opacity-0 cursor-pointer')}
+                    />
+                  </div>
+                </div>
+                {errors.avatar && (
+                  <p className={tw('text-red-500 text-xs text-center -mt-4 mb-4')}>{errors.avatar}</p>
+                )}
+
                 {/* first + last */}
                 <div className={tw('grid grid-cols-2 gap-4')}>
                   {[
