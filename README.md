@@ -1,324 +1,248 @@
-# AIDIY - AI-Powered DIY Learning Platform
+# AIDIY - AI-Powered Financial Literacy Platform for Children
 
-A modern family learning platform with Google OAuth authentication, parent-child account management, and task system.
+AIDIY is an innovative educational platform that combines artificial intelligence with gamification to teach children essential financial literacy skills. The platform provides personalized learning experiences, interactive challenges, and real-world money management practice in a safe, engaging environment.
 
-## Project Overview
+## Features
 
-AIDIY is a full-stack web application with React frontend and Flask backend, designed to provide interactive learning experiences for families.
+### For Parents
 
-### Key Features
+- **Comprehensive Dashboard**: Monitor children's progress, assign tasks, and manage rewards
+- **AI-Powered Assistant**: Get personalized advice and insights about your child's financial education
+- **Voice & Chat Interface**: Interact with AI through text or voice commands
+- **Task Management**: Create and assign age-appropriate financial tasks and chores
+- **Progress Tracking**: View detailed analytics of your child's learning journey
+- **Multi-Child Support**: Manage multiple children's profiles from one account
+- **Assessment Tools**: Evaluate your child's current financial knowledge level
 
-- **Multiple Login Methods**: Google OAuth, email/password, and 4-digit kid login
-- **Family Account Management**: Support for parent and child profiles
-- **Task System**: Task assignment and completion tracking
-- **Reward System**: Virtual currency accumulation
-- **Responsive Design**: Mobile and desktop support
-- **Modern UI**: Built with Twind (Tailwind-in-JS)
+### For Children
 
-## Quick Start
+- **Gamified Learning**: Earn rewards and achievements while learning about money
+- **Interactive Challenges**: Complete fun, educational tasks to build financial skills
+- **Virtual Piggy Bank**: Practice saving and managing money in a safe environment
+- **Age-Appropriate Content**: Customized learning paths based on age and skill level
+
+## Getting Started
 
 ### Prerequisites
 
-- Node.js (v16+ recommended)
-- Python (v3.9+ recommended)
-- npm or yarn
+- Python 3.8+
+- Node.js 14+
+- MongoDB (local or Atlas)
+- OpenAI API key (for AI features)
 
-### Installation and Setup
+### Installation
 
-#### 1. Clone the Project
+1. **Clone the repository**
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yourusername/AIDIY-Dev.git
 cd AIDIY-Dev
 ```
 
-#### 2. Install Frontend Dependencies
+2. **Backend Setup**
+
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cp .env.example .env
+# Edit .env and add your configuration
+```
+
+3. **Frontend Setup**
 
 ```bash
 cd client
 npm install
 ```
 
-#### 3. Install Backend Dependencies
+4. **Environment Configuration**
 
-```bash
-cd ..
-pip install -r requirements.txt
+Create a `.env` file in the root directory with:
+
+```env
+# MongoDB Configuration
+MONGODB_URI=your_mongodb_connection_string
+
+# JWT Configuration
+JWT_SECRET=your_jwt_secret_key
+
+# Email Configuration (optional for development)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# Development Mode
+DEV_MODE=true  # Skip email verification in development
 ```
 
-#### 4. Start Backend Server
+### Running the Application
+
+1. **Start the Backend**
 
 ```bash
-python app.py
+# From the root directory with virtual environment activated
+.venv/bin/python app.py
 ```
 
-Backend will run on `http://localhost:5500`
+The backend will run on `http://localhost:5500`
 
-#### 5. Start Frontend Server
+2. **Start the Frontend**
 
 ```bash
-cd client
+# In a new terminal, from the client directory
 npm start
 ```
 
-Frontend will run on `http://localhost:3000`
+The frontend will run on `http://localhost:3000`
 
 ## Project Structure
 
 ```
 AIDIY-Dev/
-├── client/                 # React Frontend Application
-│   ├── public/            # Static Files
-│   ├── src/               # Source Code
-│   └── package.json       # Frontend Dependencies
-├── app.py                 # Flask Backend Main File
-├── requirements.txt       # Python Dependencies
-└── README.md             # Project Documentation
+├── app.py                 # Flask backend application
+├── requirements.txt       # Python dependencies
+├── .env                  # Environment variables
+├── client/               # React frontend
+│   ├── src/
+│   │   ├── components/   # React components
+│   │   │   ├── HomePage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── SignUpPage.jsx
+│   │   │   ├── ProfilePage.jsx
+│   │   │   ├── ParentSetupPage.jsx
+│   │   │   ├── KidSelectionPage.jsx
+│   │   │   ├── KidAssessmentPage.jsx
+│   │   │   ├── AssessmentQuiz.jsx
+│   │   │   ├── ParentDashboard.jsx
+│   │   │   └── ...
+│   │   ├── store/        # Redux store
+│   │   └── App.js        # Main app component
+│   └── package.json
+└── README.md
 ```
 
-## File Descriptions
+## Key Features Implementation
 
-### Backend Files
+### Authentication System
 
-#### `app.py`
+- Email/password registration with OTP verification
+- Google OAuth integration
+- JWT-based session management
+- Automatic login after registration
 
-Main Flask server file containing:
+### User Profiles
 
-- **Google OAuth Authentication**: Verify Google login tokens
-- **User Management API**: Registration, login, user information
-- **Child Account API**: 4-digit code login system
-- **OTP Verification**: Email verification code sending and validation
-- **JWT Token Management**: User session management
-- **CORS Configuration**: Cross-origin request support
+- Parent profile setup with role selection (Mom/Dad)
+- Support for two-parent households
+- Children profile management
+- Avatar customization
 
-Main API Endpoints:
+### Assessment System
 
+- 6-question assessment quiz for evaluating children's financial knowledge
+- Categories include:
+  - Money recognition and counting
+  - Saving habits
+  - Understanding earning
+  - Wants vs needs
+  - Purchasing decisions
+  - Financial responsibility
+
+### AI Integration
+
+- ChatGPT-4o integration for personalized advice
+- Voice-to-text functionality
+- Context-aware responses based on child's assessment results
+- Image upload support for visual learning
+
+### User Interface
+
+- Modern, responsive design
+- Animated AI avatar assistant
+- Progress tracking visualizations
+- Intuitive navigation flow
+- Dark mode support in assessment pages
+
+## API Endpoints
+
+### Authentication
+
+- `POST /auth/register` - User registration
+- `POST /auth/verify-otp` - OTP verification
+- `POST /auth/login` - User login
 - `POST /auth/google` - Google OAuth login
-- `POST /api/auth/login` - Email/password login
-- `POST /api/auth/kid-login` - Child digit code login
-- `GET /api/users/profile` - Get user information
-- `POST /api/users/children` - Add child profile
+- `POST /api/auth/logout` - User logout
 
-#### `requirements.txt`
+### User Management
 
-Python backend dependency list:
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update user profile
+- `GET /api/users/children` - Get user's children
+- `POST /api/users/children` - Add a child
 
-- `Flask` - Web framework
-- `Flask-CORS` - Cross-origin resource sharing
-- `google-auth` - Google authentication
-- `PyJWT` - JWT token processing
+### AI Features
 
-### Frontend Files
+- `POST /api/ai/chat` - Chat with AI assistant
+- `POST /api/ai/speech-to-text` - Convert speech to text
 
-#### `client/public/`
+## Technologies Used
 
-##### `index.html`
+### Backend
 
-Main HTML template file containing:
+- Flask (Python web framework)
+- MongoDB (Database)
+- PyMongo (MongoDB driver)
+- JWT (Authentication)
+- OpenAI API (AI features)
+- Flask-CORS (Cross-origin support)
 
-- Google Identity Services SDK integration
-- Responsive viewport settings
-- Basic application metadata
+### Frontend
 
-##### `manifest.json`
+- React 18
+- Redux Toolkit (State management)
+- React Router (Navigation)
+- Tailwind CSS (Styling)
+- Axios (API calls)
 
-PWA configuration file defining:
+## Security Features
 
-- Application name and icons
-- Theme colors
-- Display mode
+- Password hashing with bcrypt
+- JWT token expiration
+- CORS configuration
+- Environment variable protection
+- Input validation and sanitization
 
-#### `client/src/`
+## Development Notes
 
-##### Main Components
+- **Development Mode**: Set `DEV_MODE=true` in `.env` to skip email verification
+- **Test Account**: Use `test@example.com` / `test123` for testing
+- **MongoDB**: Ensure MongoDB is running before starting the backend
+- **OpenAI API**: Required for AI chat and voice features
 
-###### `App.js`
+## Recent Updates
 
-Application root component configuring:
+- Added comprehensive parent dashboard with AI integration
+- Implemented child assessment quiz with 6 financial literacy questions
+- Created animated AI avatar component
+- Added voice recording and speech-to-text functionality
+- Improved user onboarding flow
+- Enhanced profile management with spouse/partner support
+- Implemented task and chore management system
+- Added progress tracking and analytics
 
-- React Router route setup
-- Redux Store provider
-- Twind CSS-in-JS configuration
-- Main page routing
-
-###### `index.js`
-
-Application entry file responsible for:
-
-- React application mounting
-- Redux store initialization
-- Root component rendering
-
-##### Page Components
-
-###### `components/HomePage.jsx`
-
-Home page component featuring:
-
-- Brand showcase and introduction
-- Login option display
-- Responsive navigation
-- Feature highlights
-
-###### `components/LoginPage.jsx`
-
-Login page supporting:
-
-- Google OAuth one-click login
-- Email/password authentication
-- 4-digit child login
-- Form validation and error handling
-
-###### `components/OTPVerification.jsx`
-
-OTP verification page including:
-
-- Verification code input interface
-- Automatic focus switching
-- Resend verification code functionality
-- Verification status feedback
-
-###### `components/ForgotPassword.jsx`
-
-Password reset page providing:
-
-- Email verification
-- OTP verification flow
-- New password setup
-- Multi-step form
-
-###### `components/ProfilePage.jsx`
-
-User profile page featuring:
-
-- Parent and child profile management
-- Add/edit profiles
-- Account statistics
-- Secure logout functionality
-
-##### State Management
-
-###### `store/store.js`
-
-Redux store configuration:
-
-- Middleware setup
-- Reducer combination
-- Development tools integration
-
-###### `store/authSlice.js`
-
-Authentication state management:
-
-- User login/logout state
-- Token management
-- User information storage
-
-##### Style Configuration
-
-###### `twind.config.js`
-
-Twind CSS-in-JS configuration:
-
-- Custom color theme
-- Responsive breakpoints
-- Animation effects
-- Font settings
-
-##### Configuration Files
-
-###### `package.json`
-
-Frontend project configuration:
-
-- React application dependencies
-- Script commands
-- Development tools configuration
-
-Main Dependencies:
-
-- `react` - Frontend framework
-- `react-router-dom` - Route management
-- `@reduxjs/toolkit` - State management
-- `@twind/core` - CSS-in-JS solution
-
-## Configuration
-
-### Google OAuth Setup
-
-1. Create project in [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable Google Identity API
-3. Create OAuth 2.0 Client ID
-4. Update `CLIENT_ID` in `app.py`
-
-### Port Configuration
-
-- Backend: `localhost:5500`
-- Frontend: `localhost:3000`
-
-If port conflicts occur, modify:
-
-- Backend: Change port parameter in last line of `app.py`
-- Frontend: Add PORT environment variable in package.json
-
-## Development Guide
-
-### Adding New Features
-
-1. Backend API: Add new routes in `app.py`
-2. Frontend Components: Create new components in `client/src/components/`
-3. State Management: Add new slices in `store/`
-
-### Style Development
-
-Project uses Twind CSS-in-JS, use in components:
-
-```javascript
-import { tw } from '@twind/core';
-// Usage
-className={tw('bg-blue-500 text-white p-4')}
-```
-
-### API Calls
-
-Frontend communicates with backend via fetch API:
-
-```javascript
-const response = await fetch('http://localhost:5500/api/endpoint', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  },
-  body: JSON.stringify(data)
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port Already in Use**
-
-   ```bash
-   # Find process using the port
-   lsof -i :5500
-   # Kill the process
-   kill -9 <PID>
-   ```
-2. **Dependency Installation Failed**
-
-   ```bash
-   # Clear npm cache
-   npm cache clean --force
-   # Remove node_modules and reinstall
-   rm -rf node_modules && npm install
-   ```
-3. **Python Dependency Issues**
-
-   ```bash
-   # Use virtual environment
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   pip install -r requirements.txt
-   ```
+**Note**: This is a development version. For production deployment, additional security measures and optimizations are recommended.

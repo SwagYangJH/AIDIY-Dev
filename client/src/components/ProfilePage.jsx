@@ -65,9 +65,10 @@ const ProfilePage = () => {
         if (profileRes.success) {
           setUserProfile(profileRes.user);
           
-          // Only show the current user's parent info, don't pre-fill empty slots
+          // Build parents list from user profile
           const parentsList = [];
           
+          // Add current user as parent
           if (profileRes.user.parentRole && profileRes.user.name) {
             if (profileRes.user.parentRole === 'dad') {
               parentsList.push({
@@ -86,7 +87,20 @@ const ProfilePage = () => {
             }
           }
           
-          setParents(parentsList);
+          // Add spouse if exists
+          if (profileRes.user.spouse) {
+            const spouseRole = profileRes.user.parentRole === 'dad' ? 'mom' : 'dad';
+            parentsList.push({
+              id: spouseRole === 'dad' ? 1 : 2,
+              name: profileRes.user.spouse.name,
+              avatar: spouseRole === 'dad' ? '👨‍💼' : '👩‍💼',
+              role: spouseRole,
+              ...profileRes.user.spouse
+            });
+          }
+          
+          // Sort by id to maintain consistent order
+          setParents(parentsList.sort((a, b) => a.id - b.id));
           
           // Set edit form data
           setParentEditData({
@@ -208,23 +222,69 @@ const ProfilePage = () => {
           return p;
         }));
       } else {
-        // Adding new parent (spouse/partner) - just update display locally
+        // Adding/editing spouse - save to backend
         const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
+        const spouseData = {
+          name: updatedName,
+          firstName: parentEditData.firstName,
+          lastName: parentEditData.lastName,
+          phoneNumber: parentEditData.phoneNumber,
+          birthDate: parentEditData.birthDate,
+          role: editingParentRole
+        };
+        
+        // Save spouse info to current user's profile
+        const res = await api('/api/users/profile', {
+          method: 'PUT',
+          body: JSON.stringify({ spouse: spouseData }),
+        });
+        
+        if (!res.success) throw new Error(res.error || 'Update failed');
+        
+        // Update local state
+        setUserProfile({ ...userProfile, spouse: spouseData });
+        
+        // Update parents display
         const newParent = {
           id: editingParentRole === 'dad' ? 1 : 2,
           name: updatedName,
           avatar: editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼',
-          role: editingParentRole
+          role: editingParentRole,
+          ...spouseData
         };
         
-        // Add to parents list
-        setParents([...parents, newParent].sort((a, b) => a.id - b.id));
+        // Update or add parent
+        const existingIndex = parents.findIndex(p => p.role === editingParentRole);
+        if (existingIndex >= 0) {
+          setParents(parents.map(p => p.role === editingParentRole ? newParent : p));
+        } else {
+          setParents([...parents, newParent].sort((a, b) => a.id - b.id));
+        }
       }
 
       setShowParentEditForm(false);
       setEditingParentRole(null);
     } catch (err) {
       setFormError(err.message);
+    }
+  };
+
+  /* ───────── handle parent click ───────── */
+  const handleParentClick = (parent) => {
+    console.log('Parent clicked:', parent);
+    console.log('isManageMode:', isManageMode);
+    if (!isManageMode) {
+      // Navigate to kid selection page when clicking on any parent avatar
+      console.log('Navigating to kid selection...');
+      navigate('/kid-selection', { 
+        state: { 
+          parent: {
+            name: parent.name,
+            role: parent.role,
+            avatar: parent.avatar
+          }
+        } 
+      });
     }
   };
 
@@ -241,6 +301,16 @@ const ProfilePage = () => {
           lastName: userProfile.lastName || '',
           phoneNumber: userProfile.phoneNumber || '',
           birthDate: userProfile.birthDate || '',
+          parentRole: parent.role
+        });
+      } else {
+        // Editing spouse
+        const spouse = userProfile?.spouse || {};
+        setParentEditData({
+          firstName: spouse.firstName || parent.firstName || '',
+          lastName: spouse.lastName || parent.lastName || '',
+          phoneNumber: spouse.phoneNumber || '',
+          birthDate: spouse.birthDate || '',
           parentRole: parent.role
         });
       }
@@ -273,6 +343,12 @@ const ProfilePage = () => {
     }
     
     setShowParentEditForm(true);
+  };
+
+  /* ───────── handle kid click ───────── */
+  const handleKidClick = (kid) => {
+    // Remove navigation from kid click
+    // Kids are now only clickable in manage mode for editing
   };
 
   /* ─────────────────────── render ─────────────────────── */
@@ -315,6 +391,7 @@ const ProfilePage = () => {
               isManage={isManageMode} 
               addLabel="Add parent"
               onEdit={handleParentAction}
+              onClick={handleParentClick}
               onAdd={() => {
                 // Check if we can add more parents (max 2)
                 if (parents.length < 2) {
@@ -510,17 +587,23 @@ const Header = ({ onLogout }) => (
   </header>
 );
 
-const AvatarGrid = ({ items, isManage, addLabel, onAdd, onEdit, showAddButton = true, maxItems = null }) => (
+const AvatarGrid = ({ items, isManage, addLabel, onEdit, onClick, onAdd, showAddButton = true, maxItems = null }) => (
   <div className={tw('mb-12')}>
     <div className={tw('grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6')}>
       {items.map((p) => (
         <div key={p.id} className={tw('text-center')}>
           <div
-            onClick={() => isManage && onEdit && onEdit(p)}
+            onClick={() => {
+              if (isManage && onEdit) {
+                onEdit(p);
+              } else if (!isManage && onClick) {
+                onClick(p);
+              }
+            }}
             className={tw(
               `relative w-20 h-20 mx-auto mb-3 rounded-full flex items-center justify-center border-3 transition-all duration-300 bg-accent-pink border-transparent ${
-                isManage ? 'hover:border-primary-turquoise cursor-pointer' : ''
-              }`,
+                isManage || onClick ? 'hover:border-primary-turquoise cursor-pointer' : ''
+              } ${!isManage && onClick ? 'hover:scale-110' : ''}`,
             )}
           >
             <span className={tw('text-3xl')}>{p.avatar}</span>
