@@ -67,11 +67,26 @@ const HomePage = () => {
           </p>
           <div className={tw('flex flex-col sm:flex-row gap-4 justify-center lg:justify-start')}>
             <Link
-              to="/login"
-              className={tw('px-8 py-4 bg-white text-black rounded-[10px] border border-black drop-shadow-lg font-semibold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-center')}
-            >
-              Lets Begin
-            </Link>
+  to="/login"
+  className={tw(
+    'shadow-lg transform hover:scale-105 hover:shadow-xl transition-all duration-300 font-semibold disabled:cursor-not-allowed disabled:opacity-50'
+  )}
+  style={{
+    width: '180px',
+    height: '59px',
+    borderRadius: '10px',
+    background: 'linear-gradient(to right, #2dd4bf, #a855f7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid black',
+    color: 'black',
+    textAlign: 'center',
+  }}
+>
+  Lets Begin
+</Link>
+
           </div>
         </div>
 
