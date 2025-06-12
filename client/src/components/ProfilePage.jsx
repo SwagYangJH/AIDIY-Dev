@@ -25,6 +25,10 @@ const ProfilePage = () => {
   const [editingParentRole, setEditingParentRole] = useState(null); // 'dad' or 'mom'
   const [formError, setFormError] = useState('');
   const [userProfile, setUserProfile] = useState(null);
+  const [showChildEditForm, setShowChildEditForm] = useState(false);
+  const [editingChild, setEditingChild] = useState(null);
+  const [childEditData, setChildEditData] = useState(null);
+
 
   /* parents data - will be populated based on user profile */
   const [parents, setParents] = useState([]);
@@ -184,6 +188,63 @@ const ProfilePage = () => {
       setFormError(err.message);
     }
   };
+
+  const handleSaveChildEdit = async (e) => {
+  e.preventDefault();
+
+  if (childEditData.loginCode.join('') !== childEditData.confirmLoginCode.join('')) {
+    setFormError('Login code and Confirm code do not match!');
+    return;
+  }
+  setFormError('');
+
+  const { day, month, year } = childEditData.birthDate;
+
+  try {
+    const res = await api(`/api/users/children/${editingChild.username}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        firstName: childEditData.firstName.trim(),
+        lastName: childEditData.lastName.trim(),
+        nickName: childEditData.nickName.trim(),
+        username: childEditData.username.trim(),
+        avatar: childEditData.avatar,
+        birthDate: `${year}-${month}-${day}`,
+        loginCode: childEditData.loginCode.join(''),
+      }),
+    });
+    if (!res.success) throw new Error(res.error || 'Update failed');
+
+    // update child in local state
+    setKids((prev) =>
+      prev.map((kid) => (kid.id === editingChild.id ? { ...res.child, avatar: childEditData.avatar } : kid))
+    );
+
+    setShowChildEditForm(false);
+    setEditingChild(null);
+  } catch (err) {
+    setFormError(err.message);
+  }
+};
+
+const handleChildEdit = (kid) => {
+  setEditingChild(kid);
+  const [year, month, day] = (kid.birthDate || '2015-01-01').split('-');
+  setChildEditData({
+    firstName: kid.firstName || '',
+    lastName: kid.lastName || '',
+    nickName: kid.nickName || '',
+    username: kid.username || '',
+    avatar: kid.avatar || '👧',
+    birthDate: { day, month, year },
+    loginCode: kid.loginCode ? kid.loginCode.split('') : ['', '', '', ''],
+    confirmLoginCode: kid.loginCode ? kid.loginCode.split('') : ['', '', '', ''],
+  });
+  setFormError('');
+  setShowChildEditForm(true);
+};
+
+
 
   /* ───────── logout ───────── */
   const handleLogout = async () => {
@@ -405,16 +466,19 @@ const ProfilePage = () => {
             {/* Kids */}
             <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>Kids</h3>
             <AvatarGrid
-              items={kids.map((k) => ({
-                id: k.id,
-                name: k.nickName || k.firstName,
-                avatar: k.avatar || '👧',
-              }))}
-              isManage={isManageMode}
-              addLabel="Add kid profile"
-              onAdd={() => setShowChildForm(true)}
-              showAddButton={true}
+                items={kids.map((k) => ({
+                    id: k.id,
+                    name: k.nickName || k.firstName,
+                    avatar: k.avatar || '👧',
+                    ...k,
+                }))}
+                isManage={isManageMode}
+                addLabel="Add kid profile"
+                onAdd={() => setShowChildForm(true)}
+                onEdit={handleChildEdit}
+                showAddButton={true}
             />
+
           </div>
         </div>
       </div>
@@ -560,9 +624,72 @@ const ProfilePage = () => {
           </form>
         </Modal>
       )}
+      {/* Edit-Kid Modal */}
+{showChildEditForm && editingChild && (
+  <Modal
+    onClose={() => {
+      setShowChildEditForm(false);
+      setEditingChild(null);
+    }}
+  >
+    <PinkStatsCard avatar={childEditData.avatar} />
+    <form onSubmit={handleSaveChildEdit}>
+      <NameInputs childData={childEditData} setChildData={setChildEditData} />
+      <NicknameInput childData={childEditData} setChildData={setChildEditData} />
+      <UsernameInput childData={childEditData} setChildData={setChildEditData} />
+
+      <div className={tw('mb-4')}>
+        <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Avatar (boy / girl)</label>
+        <select
+          value={childEditData.avatar}
+          onChange={(e) => setChildEditData({ ...childEditData, avatar: e.target.value })}
+          className={tw(
+            'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
+          )}
+        >
+          <option value="👧">Girl (👧)</option>
+          <option value="👦">Boy (👦)</option>
+        </select>
+      </div>
+
+      <DOBInputs childData={childEditData} setChildData={setChildEditData} />
+      <CodeInputRow
+        label="Kid login code"
+        idBase="child-code-edit"
+        codeArray={childEditData.loginCode}
+        handleChange={(idx, val) => {
+          if (val.length <= 1 && /^[0-9]*$/.test(val)) {
+            const copy = [...childEditData.loginCode];
+            copy[idx] = val;
+            setChildEditData({ ...childEditData, loginCode: copy });
+            if (val && idx < 3) document.getElementById(`child-code-edit-${idx + 1}`)?.focus();
+          }
+        }}
+      />
+      <CodeInputRow
+        label="Confirm login code"
+        idBase="confirm-code-edit"
+        codeArray={childEditData.confirmLoginCode}
+        handleChange={(idx, val) => {
+          if (val.length <= 1 && /^[0-9]*$/.test(val)) {
+            const copy = [...childEditData.confirmLoginCode];
+            copy[idx] = val;
+            setChildEditData({ ...childEditData, confirmLoginCode: copy });
+            if (val && idx < 3) document.getElementById(`confirm-code-edit-${idx + 1}`)?.focus();
+          }
+        }}
+      />
+      {formError && <p className={tw('text-sm text-red-600 text-center mb-4')}>{formError}</p>}
+      <SubmitButton />
+    </form>
+  </Modal>
+)}
+
     </div>
   );
 };
+
+
 
 /* ────────── reusable UI pieces ────────── */
 
@@ -648,19 +775,25 @@ const Modal = ({ children, onClose }) => (
         <h3 className={tw('text-xl font-bold text-gray-800')}>Account Settings</h3>
         <button
           onClick={onClose}
-          className={tw('w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-2xl text-gray-500')}
+          className={tw('w-10 h-10  hover:bg-gray-100 flex items-center justify-center text-2xl text-gray-500')}
         >
           ×
         </button>
       </div>
-      <div className={tw('p-6')}>{children}</div>
+      <div className={tw('p-6')}><div className={tw('flex flex-col md:flex-row gap-8')}>
+    {children}
+  </div></div>
     </div>
   </div>
 );
 
 /* pink card with dummy stats */
 const PinkStatsCard = ({ avatar }) => (
-  <div className={tw('grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 mb-8 p-6 bg-accent-pink rounded-xl')}>
+  
+  <div
+  className={tw('grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 mb-8 p-6')}
+  style={{ backgroundColor: '#F8ECFF' }}
+>
     <div className={tw('relative')}>
       <div className={tw('w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg')}>
         <span className={tw('text-4xl')}>{avatar}</span>

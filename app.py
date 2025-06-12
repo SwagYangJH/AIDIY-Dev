@@ -474,6 +474,37 @@ def children_add():
     child.pop("_id", None)
     return jsonify(success=True, child=child), 201
 
+@app.route("/api/users/children/<username>", methods=["PUT"])
+@auth_required
+def update_child(username):
+    d = request.get_json() or {}
+
+    allowed = {"firstName", "lastName", "nickName", "avatar", "birthDate", "loginCode", "username"}
+    update_data = {k: v for k, v in d.items() if k in allowed and v is not None}
+
+    if not update_data:
+        return jsonify(error="No valid fields to update"), 400
+
+    # Make sure the child belongs to the logged-in parent
+    child = children_col.find_one({"username": username, "parent_email": request.user["email"]})
+    if not child:
+        return jsonify(error="Child not found"), 404
+
+    # Prevent username conflict if it's being changed
+    if "username" in update_data and update_data["username"] != username:
+        if children_col.find_one({"username": update_data["username"]}):
+            return jsonify(error="Username already taken"), 409
+
+    children_col.update_one(
+        {"username": username, "parent_email": request.user["email"]},
+        {"$set": update_data}
+    )
+
+    updated = children_col.find_one({"username": update_data.get("username", username)})
+    updated.pop("_id", None)
+    return jsonify(success=True, child=updated)
+
+
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
     print("Starting AIDIY Flask Server on http://localhost:5500")
