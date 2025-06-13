@@ -163,7 +163,7 @@ const LoginPage = () => {
       if (data.success) {
         sessionStorage.setItem('app_token', data.appToken);
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
-        navigate('/profile');
+        navigate('/kid-dashboard');
       } else {
         dispatch(loginFailure(data.error || 'Invalid kid credentials'));
         setErrorMsg(data.error || 'Invalid kid credentials');

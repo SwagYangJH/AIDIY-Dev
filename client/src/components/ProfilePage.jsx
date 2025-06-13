@@ -28,6 +28,7 @@ const ProfilePage = () => {
   const [showChildEditForm, setShowChildEditForm] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [childEditData, setChildEditData] = useState(null);
+  const [parentFormStep, setParentFormStep] = useState(1); // 1 or 2 for multi-step form
 
 
   /* parents data - will be populated based on user profile */
@@ -529,100 +530,304 @@ const handleChildEdit = (kid) => {
         </Modal>
       )}
 
-      {/* Edit Parent Modal */}
+      {/* Edit Parent Modal - New Design */}
       {showParentEditForm && (
-        <Modal onClose={() => {
-          setShowParentEditForm(false);
-          setEditingParentRole(null);
-        }}>
-          <h3 className={tw('text-xl font-bold text-gray-800 mb-6')}>
-            {editingParentRole === userProfile?.parentRole ? 'Edit' : 'Add'} Parent Profile
-          </h3>
-          
-          <form onSubmit={handleSaveParentEdit}>
-            <div className={tw('mb-4 text-center')}>
-              <span className={tw('text-4xl')}>
-                {editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼'}
-              </span>
-              <p className={tw('text-sm text-gray-600 mt-2')}>
-                {editingParentRole === 'dad' ? 'Father' : 'Mother'}
-              </p>
-            </div>
-
-            <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4 mb-4')}>
-              <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={parentEditData.firstName}
-                  onChange={(e) => setParentEditData({ ...parentEditData, firstName: e.target.value })}
-                  className={tw(
-                    'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                  )}
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  value={parentEditData.lastName}
-                  onChange={(e) => setParentEditData({ ...parentEditData, lastName: e.target.value })}
-                  className={tw(
-                    'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                  )}
-                  required
-                />
+        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
+          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col')}>
+            {/* Header */}
+            <div className={tw('bg-white rounded-t-2xl p-6 border-b border-gray-200 flex-shrink-0')}>
+              <div className={tw('flex items-center justify-between')}>
+                <div className={tw('flex items-center space-x-2')}>
+                  <span className={tw('text-3xl font-bold text-primary-turquoise')}>AI</span>
+                  <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowParentEditForm(false);
+                    setEditingParentRole(null);
+                    setParentFormStep(1);
+                  }}
+                  className={tw('text-gray-400 hover:text-gray-600')}
+                >
+                  <svg className={tw('w-6 h-6')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            <div className={tw('mb-4')}>
-              <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={parentEditData.phoneNumber}
-                onChange={(e) => setParentEditData({ ...parentEditData, phoneNumber: e.target.value })}
-                className={tw(
-                  'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                )}
-              />
-            </div>
+            {/* Content - Scrollable */}
+            <div className={tw('p-4 sm:p-6 md:p-8 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100')} style={{ maxHeight: 'calc(90vh - 100px)' }}>
+              {parentFormStep === 1 ? (
+                <>
+                  <h2 className={tw('text-2xl font-bold text-center mb-2')}>Personal Information</h2>
+                  <p className={tw('text-gray-600 text-center mb-8')}>Tell us about yourself</p>
 
-            <div className={tw('mb-4')}>
-              <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                Date of Birth
-              </label>
-              <input
-                type="date"
-                value={parentEditData.birthDate}
-                onChange={(e) => setParentEditData({ ...parentEditData, birthDate: e.target.value })}
-                className={tw(
-                  'w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors',
-                )}
-              />
-            </div>
+                  {/* Progress Bar */}
+                  <div className={tw('relative mb-8')}>
+                    <div className={tw('h-2 bg-gray-200 rounded-full')}>
+                      <div className={tw('h-full w-1/2 bg-gradient-to-r from-primary-turquoise to-accent-purple rounded-full')} />
+                    </div>
+                  </div>
 
-            {formError && <p className={tw('text-sm text-red-600 text-center mb-4')}>{formError}</p>}
-            
-            <div className={tw('text-center')}>
-              <button
-                type="submit"
-                className={tw(
-                  'px-8 py-3 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300',
-                )}
-              >
-                Save Changes
-              </button>
+                  {/* Welcome Message */}
+                  <div className={tw('bg-primary-turquoise/10 rounded-xl p-6 mb-8 text-center')}>
+                    <p className={tw('text-gray-700')}>
+                      Welcome to AIDIY!<br />
+                      Lets set up your profile to help children learn about<br />
+                      money through fun chores and education activities!
+                    </p>
+                  </div>
+
+                  {/* Avatar Section */}
+                  <div className={tw('flex justify-center mb-8')}>
+                    <div className={tw('relative')}>
+                      <div className={tw('w-32 h-32 rounded-full bg-gradient-to-r from-primary-turquoise to-accent-purple p-1')}>
+                        <div className={tw('w-full h-full rounded-full bg-white flex items-center justify-center')}>
+                          <span className={tw('text-6xl')}>
+                            {editingParentRole === 'dad' ? '👨' : '👩'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={tw('absolute bottom-0 right-0 w-10 h-10 bg-accent-purple rounded-full flex items-center justify-center text-white hover:bg-accent-purple-dark transition-colors')}
+                      >
+                        📷
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Form Step 1 */}
+                  <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-6 mb-6')}>
+                    <div>
+                      <label className={tw('flex items-center gap-2 text-gray-700 font-medium mb-2')}>
+                        <span>👤</span> First Name*
+                      </label>
+                      <input
+                        type="text"
+                        value={parentEditData.firstName}
+                        onChange={(e) => setParentEditData({ ...parentEditData, firstName: e.target.value })}
+                        placeholder="Enter your first name"
+                        className={tw('w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className={tw('flex items-center gap-2 text-gray-700 font-medium mb-2')}>
+                        Last Name*
+                      </label>
+                      <input
+                        type="text"
+                        value={parentEditData.lastName}
+                        onChange={(e) => setParentEditData({ ...parentEditData, lastName: e.target.value })}
+                        placeholder="Enter your last name"
+                        className={tw('w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className={tw('flex items-center gap-2 text-gray-700 font-medium mb-2')}>
+                        <span>✉️</span> Email Address*
+                      </label>
+                      <input
+                        type="email"
+                        value={userProfile?.email || ''}
+                        placeholder="Enter your email address"
+                        className={tw('w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                        disabled
+                      />
+                    </div>
+
+                    <div>
+                      <label className={tw('flex items-center gap-2 text-gray-700 font-medium mb-2')}>
+                        <span>📍</span> Location
+                      </label>
+                      <input
+                        type="text"
+                        value={parentEditData.phoneNumber}
+                        onChange={(e) => setParentEditData({ ...parentEditData, phoneNumber: e.target.value })}
+                        placeholder="Enter your location"
+                        className={tw('w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
+                      />
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className={tw('text-red-600 text-sm text-center mb-4')}>
+                      {formError}
+                    </div>
+                  )}
+
+                  <div className={tw('flex justify-end')}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!parentEditData.firstName || !parentEditData.lastName) {
+                          setFormError('Please fill in all required fields');
+                          return;
+                        }
+                        setFormError('');
+                        setParentFormStep(2);
+                      }}
+                      className={tw('px-8 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className={tw('text-2xl font-bold text-center mb-2')}>Family & Money Goals</h2>
+                  <p className={tw('text-gray-600 text-center mb-8')}>Help us understand your family's money learning goals</p>
+
+                  {/* Progress Bar */}
+                  <div className={tw('relative mb-8')}>
+                    <div className={tw('h-2 bg-gray-200 rounded-full')}>
+                      <div className={tw('h-full w-full bg-gradient-to-r from-primary-turquoise to-accent-purple rounded-full')} />
+                    </div>
+                  </div>
+
+                  {/* AIDIY Logo */}
+                  <div className={tw('flex justify-center mb-6')}>
+                    <div className={tw('w-24 h-24 rounded-full bg-gradient-to-r from-primary-turquoise to-accent-purple flex items-center justify-center')}>
+                      <span className={tw('text-4xl')}>🎯</span>
+                    </div>
+                  </div>
+                  <p className={tw('text-center text-lg font-semibold mb-8')}>
+                    AIDIY<br />
+                    Making kids money smart
+                  </p>
+
+                  {/* Form Step 2 */}
+                  <form onSubmit={handleSaveParentEdit}>
+                    {/* Your Children */}
+                    <div className={tw('bg-blue-50 rounded-xl p-6 mb-6')}>
+                      <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
+                        <span>👶</span> Your Children
+                      </h3>
+                      <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4')}>
+                        <div>
+                          <label className={tw('block text-sm text-gray-700 mb-2')}>
+                            Number of Children*
+                          </label>
+                          <select className={tw('w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}>
+                            <option value="">Select number</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4+">4+</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={tw('block text-sm text-gray-700 mb-2')}>
+                            Children's Ages
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 5, 8, 12"
+                            className={tw('w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Money Learning Goals */}
+                    <div className={tw('bg-green-50 rounded-xl p-6 mb-6')}>
+                      <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
+                        <span>🎯</span> Money Learning Goals
+                      </h3>
+                      <p className={tw('text-sm text-gray-600 mb-4')}>What money skills do you want your children to learn?</p>
+                      <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-3')}>
+                        {['Teaching Saving Habits', 'Learn to Budget', 'Smart Spending Decisions', 
+                          'Understanding Money Value', 'Earning Through Chores', 'Banking Basics'].map((goal) => (
+                          <label key={goal} className={tw('flex items-center gap-2 cursor-pointer')}>
+                            <input type="checkbox" className={tw('w-5 h-5 text-primary-turquoise rounded focus:ring-primary-turquoise')} />
+                            <span className={tw('text-gray-700')}>{goal}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Weekly Allowance & Learning Focus */}
+                    <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-6 mb-6')}>
+                      <div className={tw('bg-yellow-50 rounded-xl p-6')}>
+                        <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
+                          <span>💰</span> Weekly Allowance
+                        </h3>
+                        <label className={tw('block text-sm text-gray-700 mb-2')}>
+                          Amount per child (optional)
+                        </label>
+                        <div className={tw('relative')}>
+                          <span className={tw('absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500')}>$</span>
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            className={tw('w-full pl-8 pr-4 py-3 bg-white border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={tw('bg-purple-50 rounded-xl p-6')}>
+                        <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
+                          <span>🎯</span> Learning Focus
+                        </h3>
+                        <div className={tw('space-y-2')}>
+                          {['Coins & Bills Recognition', 'Saving vs Spending', 'Needs vs Wants'].map((focus) => (
+                            <label key={focus} className={tw('flex items-center gap-2 cursor-pointer')}>
+                              <input type="checkbox" className={tw('w-5 h-5 text-primary-turquoise rounded focus:ring-primary-turquoise')} />
+                              <span className={tw('text-gray-700 text-sm')}>{focus}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Chore Categories */}
+                    <div className={tw('bg-blue-50 rounded-xl p-6 mb-8')}>
+                      <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
+                        <span>📋</span> Chore Categories
+                      </h3>
+                      <p className={tw('text-sm text-gray-600 mb-4')}>What type of chores would you like AIDIY to suggest?</p>
+                      <div className={tw('grid grid-cols-2 md:grid-cols-3 gap-3')}>
+                        {['Household Cleaning', 'Pet Care', 'Kitchen Help', 'Garden Work', 'Organizing Rooms', 'Laundry Help'].map((chore) => (
+                          <label key={chore} className={tw('flex items-center gap-2 cursor-pointer')}>
+                            <input type="checkbox" className={tw('w-5 h-5 text-primary-turquoise rounded focus:ring-primary-turquoise')} />
+                            <span className={tw('text-gray-700 text-sm')}>{chore}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {formError && (
+                      <div className={tw('text-red-600 text-sm text-center mb-4')}>
+                        {formError}
+                      </div>
+                    )}
+
+                    <div className={tw('flex justify-between')}>
+                      <button
+                        type="button"
+                        onClick={() => setParentFormStep(1)}
+                        className={tw('px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-turquoise hover:text-primary-turquoise transition-colors')}
+                      >
+                        ← Previous
+                      </button>
+                      <button
+                        type="submit"
+                        className={tw('px-8 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
+                      >
+                        Start AI DIY Journey
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
             </div>
-          </form>
-        </Modal>
+          </div>
+        </div>
       )}
       {/* Edit-Kid Modal */}
 {showChildEditForm && editingChild && (

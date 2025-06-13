@@ -13,6 +13,7 @@ import KidSelectionPage from './components/KidSelectionPage';
 import KidAssessmentPage from './components/KidAssessmentPage';
 import AssessmentQuiz from './components/AssessmentQuiz';
 import ParentDashboard from './components/ParentDashboard';
+import KidDashboard from './components/KidDashboard';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path="/kid-assessment" element={<KidAssessmentPage />} />
             <Route path="/assessment-quiz" element={<AssessmentQuiz />} />
             <Route path="/parent-dashboard" element={<ParentDashboard />} />
+            <Route path="/kid-dashboard" element={<KidDashboard />} />
             <Route path="/features" element={<div>Features Page</div>} />
             <Route path="/about" element={<div>About Us Page</div>} />
             <Route path="/contact" element={<div>Contact Us Page</div>} />

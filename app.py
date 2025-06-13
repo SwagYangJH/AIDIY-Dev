@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import bcrypt, jwt
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import base64
+import tempfile
 
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
@@ -46,6 +48,8 @@ users_col = db["users"]
 pending_col = db["pending_users"]
 otps_col = db["otps"]
 children_col = db["children"]
+goals_col = db["goals"]
+notifications_col = db["notifications"]
 
 # enforce kid-username uniqueness
 try:
@@ -504,6 +508,261 @@ def update_child(username):
     updated.pop("_id", None)
     return jsonify(success=True, child=updated)
 
+# ---------- AI Chat and Speech endpoints ---------- #
+from openai import OpenAI
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.route("/api/ai/chat", methods=["POST"])
+@auth_required
+def ai_chat():
+    try:
+        d = request.get_json() or {}
+        message = d.get("message", "")
+        image_base64 = d.get("image")
+        
+        if not message and not image_base64:
+            return jsonify(error="Message or image required"), 400
+        
+        # Prepare messages for OpenAI
+        messages = [
+            {"role": "system", "content": "You are a helpful financial coach for kids and parents. Provide age-appropriate advice about money management, saving, and financial literacy."},
+            {"role": "user", "content": message}
+        ]
+        
+        # If image is provided, add it to the message
+        if image_base64:
+            messages[-1]["content"] = [
+                {"type": "text", "text": message},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model="gpt-4o" if image_base64 else "gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return jsonify(success=True, response=ai_response)
+        
+    except Exception as e:
+        print(f"[AI Chat Error] {e}")
+        return jsonify(error="Failed to process AI request"), 500
+
+@app.route("/api/ai/speech-to-text", methods=["POST"])
+@auth_required
+def speech_to_text():
+    try:
+        # Get audio file from request
+        if 'audio' not in request.files:
+            return jsonify(error="No audio file provided"), 400
+        
+        audio_file = request.files['audio']
+        
+        # Determine file extension from filename
+        filename = audio_file.filename
+        extension = filename.split('.')[-1] if '.' in filename else 'webm'
+        
+        # Save audio to temporary file with correct extension
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{extension}') as tmp_file:
+            audio_file.save(tmp_file.name)
+            tmp_file_path = tmp_file.name
+        
+        try:
+            # Use OpenAI Whisper API for speech-to-text
+            with open(tmp_file_path, 'rb') as audio_file:
+                # Read the file content
+                audio_data = audio_file.read()
+            
+            # Create a new file-like object with the correct name
+            from io import BytesIO
+            audio_buffer = BytesIO(audio_data)
+            audio_buffer.name = f"audio.{extension}"
+            
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_buffer,
+                language="en"
+            )
+            
+            text = transcript.text
+            print(f"[Speech-to-Text Success] Transcribed: {text[:50]}...")
+            
+            return jsonify(success=True, text=text)
+            
+        finally:
+            # Clean up temporary file
+            os.unlink(tmp_file_path)
+            
+    except Exception as e:
+        print(f"[Speech-to-Text Error] {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify(error=f"Failed to process audio: {str(e)}"), 500
+
+# ---------- Goals management ---------- #
+@app.route("/api/goals", methods=["POST"])
+@auth_required
+def create_goal():
+    d = request.get_json() or {}
+    
+    # Check if this is a kid creating a goal
+    if "@kids.aidiy" in request.user["email"]:
+        # Extract kid username from email
+        kid_username = request.user["email"].split("@")[0]
+        
+        # Find the kid's parent
+        child = children_col.find_one({"username": kid_username})
+        if not child:
+            return jsonify(error="Child not found"), 404
+        
+        goal = {
+            "title": d.get("title"),
+            "category": d.get("category"),
+            "amount": float(d.get("amount", 0)),
+            "duration": int(d.get("duration", 10)),
+            "description": d.get("description", ""),
+            "kid_username": kid_username,
+            "kid_name": child.get("nickName") or child["firstName"],
+            "kid_avatar": child.get("avatar", "👧"),
+            "parent_email": child["parent_email"],
+            "status": "pending_approval",
+            "created_at": datetime.utcnow(),
+            "approved_at": None,
+            "approved_by": None
+        }
+        
+        result = goals_col.insert_one(goal)
+        goal["_id"] = str(result.inserted_id)
+        
+        # Create notification for parent
+        notification = {
+            "recipient_email": child["parent_email"],
+            "type": "goal_approval_request",
+            "title": f"{goal['kid_name']} wants to save ${goal['amount']:.2f}",
+            "message": f"for {goal['title']}",
+            "goal_id": str(result.inserted_id),
+            "kid_username": kid_username,
+            "kid_avatar": goal['kid_avatar'],
+            "status": "pending",
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(notification)
+        
+        return jsonify(success=True, goal=goal), 201
+    
+    return jsonify(error="Only kids can create goals"), 403
+
+@app.route("/api/goals/<goal_id>/approve", methods=["POST"])
+@auth_required
+def approve_goal(goal_id):
+    from bson import ObjectId
+    
+    try:
+        goal = goals_col.find_one({"_id": ObjectId(goal_id)})
+        if not goal:
+            return jsonify(error="Goal not found"), 404
+        
+        # Check if the user is the parent of the kid
+        if goal["parent_email"] != request.user["email"]:
+            return jsonify(error="Unauthorized"), 403
+        
+        # Update goal status
+        goals_col.update_one(
+            {"_id": ObjectId(goal_id)},
+            {
+                "$set": {
+                    "status": "approved",
+                    "approved_at": datetime.utcnow(),
+                    "approved_by": request.user["email"]
+                }
+            }
+        )
+        
+        # Update notification status instead of marking as read
+        notifications_col.update_many(
+            {"goal_id": goal_id},
+            {"$set": {"status": "approved"}}
+        )
+        
+        return jsonify(success=True, message="Goal approved")
+        
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+@app.route("/api/goals/<goal_id>/decline", methods=["POST"])
+@auth_required
+def decline_goal(goal_id):
+    from bson import ObjectId
+    
+    try:
+        goal = goals_col.find_one({"_id": ObjectId(goal_id)})
+        if not goal:
+            return jsonify(error="Goal not found"), 404
+        
+        # Check if the user is the parent of the kid
+        if goal["parent_email"] != request.user["email"]:
+            return jsonify(error="Unauthorized"), 403
+        
+        # Update goal status
+        goals_col.update_one(
+            {"_id": ObjectId(goal_id)},
+            {
+                "$set": {
+                    "status": "declined",
+                    "declined_at": datetime.utcnow(),
+                    "declined_by": request.user["email"]
+                }
+            }
+        )
+        
+        # Update notification status instead of marking as read
+        notifications_col.update_many(
+            {"goal_id": goal_id},
+            {"$set": {"status": "declined"}}
+        )
+        
+        return jsonify(success=True, message="Goal declined")
+        
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+@app.route("/api/notifications")
+@auth_required
+def get_notifications():
+    notifications = list(
+        notifications_col.find(
+            {"recipient_email": request.user["email"]},
+            {"_id": 0}
+        ).sort("created_at", -1).limit(20)
+    )
+    
+    # Convert datetime to ISO format
+    for notif in notifications:
+        if "created_at" in notif:
+            notif["created_at"] = notif["created_at"].isoformat()
+    
+    unread_count = notifications_col.count_documents({
+        "recipient_email": request.user["email"],
+        "status": "pending"
+    })
+    
+    return jsonify(success=True, notifications=notifications, unread_count=unread_count)
+
+@app.route("/api/notifications/mark-read", methods=["POST"])
+@auth_required
+def mark_notifications_read():
+    notifications_col.update_many(
+        {"recipient_email": request.user["email"]},
+        {"$set": {"read": True}}
+    )
+    return jsonify(success=True)
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
