@@ -20,7 +20,8 @@ const HomePage = () => {
         <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
           <div className={tw('flex items-center justify-between h-20')}>
             <Link to="/" className={tw('flex items-center space-x-2')}>
-              <span className={tw('text-5xl font-bold text-800')}>Ai DIY</span>
+              <span className={tw('text-4xl font-bold text-primary-turquoise')}>AI</span>
+              <span className={tw('text-4xl font-bold text-accent-purple')}>DIY</span>
             </Link>
             
             {/* <div className={tw(`md:flex items-center space-x-8 ${isMenuOpen ? 'flex' : 'hidden'}`)}>
