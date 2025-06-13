@@ -527,7 +527,7 @@ def ai_chat():
         
         # Prepare messages for OpenAI
         messages = [
-            {"role": "system", "content": "You are a helpful financial coach for kids and parents. Provide age-appropriate advice about money management, saving, and financial literacy."},
+            {"role": "system", "content": "You are a helpful financial coach for kids and parents. Provide age-appropriate advice and tasks about money management, saving, financial literacy and chores."},
             {"role": "user", "content": message}
         ]
         
