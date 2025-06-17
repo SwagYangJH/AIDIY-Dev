@@ -146,6 +146,7 @@ def register():
                 "loginCode": d.get("loginCode", ""),
                 "avatar": d.get("avatar", "🙂"),
                 "isProfileComplete": False,  # New users default to incomplete profile
+                "hasCompletedAssessment": False,  # New users haven't completed assessment
                 "created_at": datetime.utcnow(),
             }
         },
@@ -306,6 +307,7 @@ def google_login():
             "isVerified": DEV_MODE,  # Auto-verify in dev mode
             "password": None,
             "isProfileComplete": False,
+            "hasCompletedAssessment": False,
         }
         users_col.insert_one(user)
 
@@ -415,8 +417,25 @@ def update_profile():
     d = request.get_json() or {}
     
     # Allowed fields to update
-    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole"]
+    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents"]
     update_data = {k: v for k, v in d.items() if k in allowed_fields and v is not None}
+    
+    # Special handling for parents array
+    if "parents" in update_data:
+        # When updating parents, merge with existing data
+        user = users_col.find_one({"email": request.user["email"]})
+        existing_parents = user.get("parents", [])
+        new_parents = update_data["parents"]
+        
+        # Create a dict to track parents by role for easy merging
+        parents_dict = {p["role"]: p for p in existing_parents}
+        
+        # Update or add new parents
+        for parent in new_parents:
+            parents_dict[parent["role"]] = parent
+        
+        # Convert back to list
+        update_data["parents"] = list(parents_dict.values())
     
     if update_data:
         # If firstName and lastName exist, update name field
@@ -606,6 +625,17 @@ def speech_to_text():
         return jsonify(error=f"Failed to process audio: {str(e)}"), 500
 
 # ---------- Goals management ---------- #
+
+# ---------- Mark assessment complete ---------- #
+@app.route("/api/users/complete-assessment", methods=["POST"])
+@auth_required
+def complete_assessment():
+    users_col.update_one(
+        {"email": request.user["email"]},
+        {"$set": {"hasCompletedAssessment": True}}
+    )
+    return jsonify(success=True, message="Assessment marked as complete")
+
 @app.route("/api/goals", methods=["POST"])
 @auth_required
 def create_goal():

@@ -91,7 +91,7 @@ const AssessmentQuiz = () => {
     setSelectedAnswer(answer);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedAnswer) {
       setAnswers({ ...answers, [currentQuestion]: selectedAnswer });
       setSelectedAnswer('');
@@ -99,6 +99,19 @@ const AssessmentQuiz = () => {
       if (currentQuestion < questions.length - 1) {
         setCurrentQuestion(currentQuestion + 1);
       } else {
+        // Mark assessment as complete
+        try {
+          await fetch('http://localhost:5500/api/users/complete-assessment', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+        } catch (error) {
+          console.error('Failed to mark assessment complete:', error);
+        }
+
         // Finish assessment
         navigate('/parent-dashboard', {
           state: {

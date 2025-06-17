@@ -8,7 +8,20 @@ const KidAssessmentPage = () => {
   const location = useLocation();
   const { parent, child } = location.state || {};
 
-  const handleStartFromScratch = () => {
+  const handleStartFromScratch = async () => {
+    // Mark assessment as complete
+    try {
+      await fetch('http://localhost:5500/api/users/complete-assessment', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Failed to mark assessment complete:', error);
+    }
+
     navigate('/parent-dashboard', { 
       state: { 
         parent,
