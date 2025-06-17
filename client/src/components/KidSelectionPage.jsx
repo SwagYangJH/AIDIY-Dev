@@ -8,11 +8,24 @@ const KidSelectionPage = () => {
   const { parent } = location.state || {};
   const [kids, setKids] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasCompletedAssessment, setHasCompletedAssessment] = useState(false);
 
   useEffect(() => {
-    // Fetch kids from API
-    const fetchKids = async () => {
+    // Fetch user profile and kids
+    const fetchData = async () => {
       try {
+        // Fetch user profile to check if they've completed assessment
+        const profileResponse = await fetch('http://localhost:5500/api/users/profile', {
+          headers: {
+            'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
+          }
+        });
+        const profileData = await profileResponse.json();
+        if (profileData.success) {
+          setHasCompletedAssessment(profileData.user.hasCompletedAssessment || false);
+        }
+
+        // Fetch kids
         const response = await fetch('http://localhost:5500/api/users/children', {
           headers: {
             'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
@@ -23,27 +36,43 @@ const KidSelectionPage = () => {
           setKids(data.children);
         }
       } catch (error) {
-        console.error('Failed to fetch kids:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchKids();
+    fetchData();
   }, []);
 
   const handleKidSelect = (kid) => {
-    navigate('/kid-assessment', { 
-      state: { 
-        parent,
-        child: {
-          id: kid.id,
-          name: kid.nickName || kid.firstName,
-          avatar: kid.avatar || '👧',
-          age: kid.age || calculateAge(kid.birthDate)
-        }
-      } 
-    });
+    // If user has completed assessment before, go directly to dashboard
+    if (hasCompletedAssessment) {
+      navigate('/parent-dashboard', { 
+        state: { 
+          parent,
+          child: {
+            id: kid.id,
+            name: kid.nickName || kid.firstName,
+            avatar: kid.avatar || '👧',
+            age: kid.age || calculateAge(kid.birthDate)
+          }
+        } 
+      });
+    } else {
+      // First time users go to assessment page
+      navigate('/kid-assessment', { 
+        state: { 
+          parent,
+          child: {
+            id: kid.id,
+            name: kid.nickName || kid.firstName,
+            avatar: kid.avatar || '👧',
+            age: kid.age || calculateAge(kid.birthDate)
+          }
+        } 
+      });
+    }
   };
 
   const calculateAge = (birthDate) => {

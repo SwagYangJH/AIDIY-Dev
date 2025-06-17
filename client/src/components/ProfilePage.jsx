@@ -73,35 +73,58 @@ const ProfilePage = () => {
           // Build parents list from user profile
           const parentsList = [];
           
-          // Add current user as parent
-          if (profileRes.user.parentRole && profileRes.user.name) {
-            if (profileRes.user.parentRole === 'dad') {
+          // Check if user has parents array (new format)
+          if (profileRes.user.parents && profileRes.user.parents.length > 0) {
+            // Use parents array
+            profileRes.user.parents.forEach(parent => {
               parentsList.push({
-                id: 1,
-                name: profileRes.user.name,
-                avatar: '👨‍💼',
-                role: 'dad'
+                id: parent.role === 'dad' ? 1 : 2,
+                name: parent.name,
+                avatar: parent.role === 'dad' ? '👨‍💼' : '👩‍💼',
+                role: parent.role,
+                ...parent
               });
-            } else if (profileRes.user.parentRole === 'mom') {
+            });
+          } else {
+            // Fallback to old format for backward compatibility
+            // Add current user as parent
+            if (profileRes.user.parentRole && profileRes.user.name) {
+              if (profileRes.user.parentRole === 'dad') {
+                parentsList.push({
+                  id: 1,
+                  name: profileRes.user.name,
+                  avatar: '👨‍💼',
+                  role: 'dad',
+                  firstName: profileRes.user.firstName,
+                  lastName: profileRes.user.lastName,
+                  phoneNumber: profileRes.user.phoneNumber,
+                  birthDate: profileRes.user.birthDate
+                });
+              } else if (profileRes.user.parentRole === 'mom') {
+                parentsList.push({
+                  id: 2,
+                  name: profileRes.user.name,
+                  avatar: '👩‍💼',
+                  role: 'mom',
+                  firstName: profileRes.user.firstName,
+                  lastName: profileRes.user.lastName,
+                  phoneNumber: profileRes.user.phoneNumber,
+                  birthDate: profileRes.user.birthDate
+                });
+              }
+            }
+            
+            // Add spouse if exists (old format)
+            if (profileRes.user.spouse) {
+              const spouseRole = profileRes.user.parentRole === 'dad' ? 'mom' : 'dad';
               parentsList.push({
-                id: 2,
-                name: profileRes.user.name,
-                avatar: '👩‍💼',
-                role: 'mom'
+                id: spouseRole === 'dad' ? 1 : 2,
+                name: profileRes.user.spouse.name,
+                avatar: spouseRole === 'dad' ? '👨‍💼' : '👩‍💼',
+                role: spouseRole,
+                ...profileRes.user.spouse
               });
             }
-          }
-          
-          // Add spouse if exists
-          if (profileRes.user.spouse) {
-            const spouseRole = profileRes.user.parentRole === 'dad' ? 'mom' : 'dad';
-            parentsList.push({
-              id: spouseRole === 'dad' ? 1 : 2,
-              name: profileRes.user.spouse.name,
-              avatar: spouseRole === 'dad' ? '👨‍💼' : '👩‍💼',
-              role: spouseRole,
-              ...profileRes.user.spouse
-            });
           }
           
           // Sort by id to maintain consistent order
@@ -263,69 +286,100 @@ const handleChildEdit = (kid) => {
     setFormError('');
 
     try {
-      // If editing current user's profile
+      const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
+      
+      // Create parent data object
+      const parentData = {
+        name: updatedName,
+        firstName: parentEditData.firstName,
+        lastName: parentEditData.lastName,
+        phoneNumber: parentEditData.phoneNumber,
+        birthDate: parentEditData.birthDate,
+        role: editingParentRole
+      };
+      
+      // Build the complete parents array
+      let allParents = [...parents];
+      
+      // Check if we're updating an existing parent or adding a new one
+      const existingIndex = allParents.findIndex(p => p.role === editingParentRole);
+      
+      if (existingIndex >= 0) {
+        // Update existing parent
+        allParents[existingIndex] = {
+          ...allParents[existingIndex],
+          ...parentData,
+          id: editingParentRole === 'dad' ? 1 : 2,
+          avatar: editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼'
+        };
+      } else {
+        // Add new parent
+        allParents.push({
+          id: editingParentRole === 'dad' ? 1 : 2,
+          avatar: editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼',
+          ...parentData
+        });
+      }
+      
+      // Sort by id to maintain order
+      allParents.sort((a, b) => a.id - b.id);
+      
+      // Prepare data for backend
+      const parentsForBackend = allParents.map(p => ({
+        name: p.name,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        phoneNumber: p.phoneNumber,
+        birthDate: p.birthDate,
+        role: p.role
+      }));
+      
+      // If editing current user's profile, also update their personal info
       if (editingParentRole === userProfile?.parentRole) {
         const res = await api('/api/users/profile', {
           method: 'PUT',
-          body: JSON.stringify(parentEditData),
+          body: JSON.stringify({
+            firstName: parentEditData.firstName,
+            lastName: parentEditData.lastName,
+            phoneNumber: parentEditData.phoneNumber,
+            birthDate: parentEditData.birthDate,
+            parentRole: parentEditData.parentRole,
+            parents: parentsForBackend
+          }),
         });
         
         if (!res.success) throw new Error(res.error || 'Update failed');
-
+        
         // Update local state
-        setUserProfile({ ...userProfile, ...parentEditData });
-        
-        // Update parent display
-        const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
-        setParents(parents.map(p => {
-          if (p.role === userProfile.parentRole) {
-            return { ...p, name: updatedName };
-          }
-          return p;
-        }));
+        setUserProfile({ 
+          ...userProfile, 
+          ...parentEditData,
+          parents: parentsForBackend
+        });
       } else {
-        // Adding/editing spouse - save to backend
-        const updatedName = `${parentEditData.firstName} ${parentEditData.lastName}`;
-        const spouseData = {
-          name: updatedName,
-          firstName: parentEditData.firstName,
-          lastName: parentEditData.lastName,
-          phoneNumber: parentEditData.phoneNumber,
-          birthDate: parentEditData.birthDate,
-          role: editingParentRole
-        };
-        
-        // Save spouse info to current user's profile
+        // Just updating parents array
         const res = await api('/api/users/profile', {
           method: 'PUT',
-          body: JSON.stringify({ spouse: spouseData }),
+          body: JSON.stringify({ 
+            parents: parentsForBackend 
+          }),
         });
         
         if (!res.success) throw new Error(res.error || 'Update failed');
         
         // Update local state
-        setUserProfile({ ...userProfile, spouse: spouseData });
-        
-        // Update parents display
-        const newParent = {
-          id: editingParentRole === 'dad' ? 1 : 2,
-          name: updatedName,
-          avatar: editingParentRole === 'dad' ? '👨‍💼' : '👩‍💼',
-          role: editingParentRole,
-          ...spouseData
-        };
-        
-        // Update or add parent
-        const existingIndex = parents.findIndex(p => p.role === editingParentRole);
-        if (existingIndex >= 0) {
-          setParents(parents.map(p => p.role === editingParentRole ? newParent : p));
-        } else {
-          setParents([...parents, newParent].sort((a, b) => a.id - b.id));
-        }
+        setUserProfile({ 
+          ...userProfile, 
+          parents: parentsForBackend
+        });
       }
+      
+      // Update parents display
+      setParents(allParents);
 
       setShowParentEditForm(false);
       setEditingParentRole(null);
+      setParentFormStep(1); // Reset to step 1 for next time
     } catch (err) {
       setFormError(err.message);
     }
@@ -356,23 +410,24 @@ const handleChildEdit = (kid) => {
       // Editing existing parent
       setEditingParentRole(parent.role);
       
-      if (parent.role === userProfile?.parentRole) {
-        // Editing current user
+      // Find the parent data from the parents array
+      const parentFromArray = parents.find(p => p.role === parent.role);
+      
+      if (parentFromArray) {
         setParentEditData({
-          firstName: userProfile.firstName || '',
-          lastName: userProfile.lastName || '',
-          phoneNumber: userProfile.phoneNumber || '',
-          birthDate: userProfile.birthDate || '',
+          firstName: parentFromArray.firstName || '',
+          lastName: parentFromArray.lastName || '',
+          phoneNumber: parentFromArray.phoneNumber || '',
+          birthDate: parentFromArray.birthDate || '',
           parentRole: parent.role
         });
       } else {
-        // Editing spouse
-        const spouse = userProfile?.spouse || {};
+        // Fallback if not found
         setParentEditData({
-          firstName: spouse.firstName || parent.firstName || '',
-          lastName: spouse.lastName || parent.lastName || '',
-          phoneNumber: spouse.phoneNumber || '',
-          birthDate: spouse.birthDate || '',
+          firstName: '',
+          lastName: '',
+          phoneNumber: '',
+          birthDate: '',
           parentRole: parent.role
         });
       }
