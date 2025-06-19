@@ -85,7 +85,7 @@ JWT_EXPIRES_HOURS = 24
 
 def generate_jwt_token(payload: dict) -> str:
     return jwt.encode(
-        {**payload, "exp": datetime.now(datetime.timezone.utc) + timedelta(hours=JWT_EXPIRES_HOURS)},
+        {**payload, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRES_HOURS)},
         JWT_SECRET,
         algorithm="HS256",
     )
