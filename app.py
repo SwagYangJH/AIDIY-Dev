@@ -23,8 +23,8 @@ except ImportError:
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
 
-# Development mode flag
-DEV_MODE = os.getenv("DEV_MODE", "True") == "True"
+# Development mode flag - default to False in production
+DEV_MODE = os.getenv("DEV_MODE", "False") == "True"
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
