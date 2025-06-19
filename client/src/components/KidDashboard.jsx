@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../api';
 const KidDashboard = () => {
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState(null);
+  const [goals, setGoals] = useState([]);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [goalForm, setGoalForm] = useState({
