@@ -130,7 +130,11 @@ def create_or_replace_otp(email, purpose):
 # ────────────── Routes ──────────────────────────────
 @app.route("/api/health")
 def health():
-    return jsonify(status="OK", time=datetime.now(timezone.utc).isoformat())
+    return jsonify(
+        status="OK", 
+        time=datetime.now(timezone.utc).isoformat(),
+        ai_available=openai_client is not None
+    )
 
 # ---------- 1  Registration ---------- #
 REQUIRED_FIELDS = ("firstName", "lastName", "email", "password")  # slimmed down
@@ -545,13 +549,40 @@ def update_child(username):
 # ---------- AI Chat and Speech endpoints ---------- #
 from openai import OpenAI
 
-# Initialize OpenAI client
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize OpenAI client safely
+def get_openai_client():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("[OpenAI] No API key provided, AI features will be disabled")
+        return None
+    try:
+        # Try to import OpenAI first
+        return OpenAI(api_key=api_key)
+    except Exception as e:
+        print(f"[OpenAI] Failed to initialize client: {e}")
+        print("[OpenAI] AI features will be disabled")
+        return None
+
+# Get OpenAI client instance
+openai_client = None
+try:
+    openai_client = get_openai_client()
+    if openai_client:
+        print("[OpenAI] Client initialized successfully")
+    else:
+        print("[OpenAI] Running without AI features")
+except Exception as e:
+    print(f"[OpenAI] Error during initialization: {e}")
+    print("[OpenAI] Running without AI features")
 
 @app.route("/api/ai/chat", methods=["POST"])
 @auth_required
 def ai_chat():
     try:
+        # Check if OpenAI client is available
+        if not openai_client:
+            return jsonify(error="AI service is not available"), 503
+        
         d = request.get_json() or {}
         message = d.get("message", "")
         image_base64 = d.get("image")
@@ -592,6 +623,10 @@ def ai_chat():
 @auth_required
 def speech_to_text():
     try:
+        # Check if OpenAI client is available
+        if not openai_client:
+            return jsonify(error="AI service is not available"), 503
+        
         # Get audio file from request
         if 'audio' not in request.files:
             return jsonify(error="No audio file provided"), 400
