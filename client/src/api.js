@@ -1,12 +1,16 @@
 // src/api.js
 import axios from 'axios';
 
-// Dynamic API URL based on environment
+// Force Railway URL for testing - remove localhost dependency
 const getApiBaseURL = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return process.env.REACT_APP_API_URL || 'https://web-production-6c1b1.up.railway.app';
-  }
-  return 'http://localhost:5500';
+  // Always use Railway URL for now to debug
+  return 'https://web-production-6c1b1.up.railway.app';
+  
+  // Original logic (commented out for debugging):
+  // if (process.env.NODE_ENV === 'production') {
+  //   return process.env.REACT_APP_API_URL || 'https://web-production-6c1b1.up.railway.app';
+  // }
+  // return 'http://localhost:5500';
 };
 
 // Export the base URL for direct fetch calls
