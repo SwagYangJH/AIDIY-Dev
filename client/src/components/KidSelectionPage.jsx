@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BellIcon from './BellIcon';
+import { API_BASE_URL } from '../api';
 
 const KidSelectionPage = () => {
   const navigate = useNavigate();
@@ -9,34 +10,43 @@ const KidSelectionPage = () => {
   const [kids, setKids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasCompletedAssessment, setHasCompletedAssessment] = useState(false);
+  const [parentProfile, setParentProfile] = useState(null);
+  const [children, setChildren] = useState([]);
 
   useEffect(() => {
-    // Fetch user profile and kids
     const fetchData = async () => {
       try {
-        // Fetch user profile to check if they've completed assessment
-        const profileResponse = await fetch('http://localhost:5500/api/users/profile', {
+        const token = sessionStorage.getItem('app_token');
+        
+        const profileResponse = await fetch(`${API_BASE_URL}/api/users/profile`, {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        const profileData = await profileResponse.json();
-        if (profileData.success) {
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setParentProfile(profileData.user);
           setHasCompletedAssessment(profileData.user.hasCompletedAssessment || false);
         }
 
-        // Fetch kids
-        const response = await fetch('http://localhost:5500/api/users/children', {
+        const response = await fetch(`${API_BASE_URL}/api/users/children`, {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        const data = await response.json();
-        if (data.success) {
+
+        if (response.ok) {
+          const data = await response.json();
+          setChildren(data.children || []);
           setKids(data.children);
         }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }

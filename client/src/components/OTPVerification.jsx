@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../store/authSlice';
 import { tw } from '@twind/core';
+import { API_BASE_URL } from '../api';
 
 const OTPVerification = () => {
   /* ---------------- router state ---------------- */
@@ -61,7 +62,7 @@ const OTPVerification = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5500/api/auth/verify-otp', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
@@ -82,7 +83,7 @@ const OTPVerification = () => {
       } else {
         // After successful verification, log the user in
         try {
-          const loginRes = await fetch('http://localhost:5500/api/auth/login', {
+          const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -128,7 +129,7 @@ const OTPVerification = () => {
     if (resendTimer > 0) return;
     setError('');
     try {
-      const res = await fetch('http://localhost:5500/api/auth/resend-otp', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/resend-otp`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ email }),

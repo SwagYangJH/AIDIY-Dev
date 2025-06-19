@@ -9,8 +9,11 @@ const getApiBaseURL = () => {
   return 'http://localhost:5500';
 };
 
+// Export the base URL for direct fetch calls
+export const API_BASE_URL = getApiBaseURL();
+
 const api = axios.create({
-  baseURL: getApiBaseURL(),
+  baseURL: API_BASE_URL,
 });
 
 // Request interceptor to attach JWT

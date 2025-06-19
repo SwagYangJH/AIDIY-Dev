@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
 import BellIcon from './BellIcon';
+import { API_BASE_URL } from '../api';
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -46,30 +47,60 @@ const KidDashboard = () => {
   ];
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    const fetchUserProfile = async () => {
+      try {
+        const token = sessionStorage.getItem('app_token');
+        const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-  const fetchUserData = async () => {
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/users/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setUserProfile(data.user);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setUserProfile(data.user);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
       }
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
-    }
-  };
+    };
+
+    const fetchGoals = async () => {
+      try {
+        const token = sessionStorage.getItem('app_token');
+        const response = await fetch(`${API_BASE_URL}/api/goals`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setGoals(data.goals);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching goals:', error);
+      }
+    };
+
+    fetchUserProfile();
+    fetchGoals();
+  }, []);
 
   const handleCreateGoal = async (e) => {
     e.preventDefault();
     
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/goals', {
+      const response = await fetch(`${API_BASE_URL}/api/goals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,13 +153,16 @@ const KidDashboard = () => {
 
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/ai/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ message: chatMessage })
+        body: JSON.stringify({
+          message: chatMessage,
+          context: 'kid_dashboard'
+        })
       });
 
       const data = await response.json();

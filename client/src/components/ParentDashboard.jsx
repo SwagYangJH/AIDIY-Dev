@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
 import AIAvatar from './AIAvatar';
 import BellIcon from './BellIcon';
+import { API_BASE_URL } from '../api';
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ const ParentDashboard = () => {
 
   useEffect(() => {
     // Fetch user profile and children
-    fetchUserData();
+    fetchProfile();
     fetchNotifications();
   }, []);
 
@@ -102,13 +103,17 @@ const ParentDashboard = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const fetchUserData = async () => {
+  const fetchProfile = async () => {
     try {
       const token = sessionStorage.getItem('app_token');
       
       // Fetch user profile
-      const profileRes = await fetch('http://localhost:5500/api/users/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const profileRes = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       const profileData = await profileRes.json();
       if (profileData.success) {
@@ -123,12 +128,30 @@ const ParentDashboard = () => {
       }
 
       // Fetch children
-      const childrenRes = await fetch('http://localhost:5500/api/users/children', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const childrenRes = await fetch(`${API_BASE_URL}/api/users/children`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       const childrenData = await childrenRes.json();
       if (childrenData.success) {
         setChildren(childrenData.children);
+      }
+
+      // Fetch notifications
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotifications(data.notifications);
+        setUnreadCount(data.unread_count);
       }
     } catch (error) {
       console.error('Failed to fetch user data:', error);
@@ -138,7 +161,7 @@ const ParentDashboard = () => {
   const fetchNotifications = async () => {
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/notifications', {
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -151,83 +174,105 @@ const ParentDashboard = () => {
     }
   };
 
-  const handleApproveGoal = async (goalId) => {
+  const handleApprove = async (goalId) => {
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/approve`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      const data = await response.json();
-      if (data.success) {
-        alert('Goal approved successfully!');
-        fetchNotifications();
+
+      if (response.ok) {
+        // Update notifications
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.goalId === goalId 
+              ? { ...notif, status: 'approved' }
+              : notif
+          )
+        );
       }
     } catch (error) {
-      console.error('Failed to approve goal:', error);
+      console.error('Error approving goal:', error);
     }
   };
 
-  const handleDeclineGoal = async (goalId) => {
+  const handleDecline = async (goalId) => {
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/decline`, {
+      const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/decline`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      const data = await response.json();
-      if (data.success) {
-        alert('Goal declined.');
-        fetchNotifications();
+
+      if (response.ok) {
+        // Update notifications
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.goalId === goalId 
+              ? { ...notif, status: 'declined' }
+              : notif
+          )
+        );
       }
     } catch (error) {
-      console.error('Failed to decline goal:', error);
+      console.error('Error declining goal:', error);
     }
   };
 
   const handleLogout = async () => {
     try {
       const token = sessionStorage.getItem('app_token');
-      await fetch('http://localhost:5500/api/auth/logout', {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Clear session and redirect
       sessionStorage.removeItem('app_token');
-      navigate('/login');
+      sessionStorage.removeItem('google_id_token');
+      navigate('/');
     }
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
+  const updateProfile = async (updates) => {
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/users/profile', {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(profileForm)
+        body: JSON.stringify(updates),
       });
 
-      const data = await response.json();
-      if (data.success) {
-        setUserProfile({ ...userProfile, ...profileForm });
+      if (response.ok) {
+        const data = await response.json();
+        // Update local state if needed
+        setUserProfile({ ...userProfile, ...updates });
         setShowProfileModal(false);
         alert('Profile updated successfully!');
-      } else {
-        alert('Failed to update profile');
+        return data;
       }
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('Error updating profile:', error);
       alert('Failed to update profile');
     }
   };
 
-  const avatarOptions = ['👨‍💼', '👩‍💼', '👨‍🏫', '👩‍🏫', '👨‍⚕️', '👩‍⚕️', '👨‍🔧', '👩‍🔧'];
+  const avatarOptions = ['👨‍💼', '👩‍💼', '👨‍🏫', '👩‍🏫', '👨‍⚕️', '��‍⚕️', '👨‍🔧', '👩‍🔧'];
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -320,7 +365,7 @@ const ParentDashboard = () => {
       const token = sessionStorage.getItem('app_token');
       console.log('Sending audio to server, size:', audioBlob.size, 'type:', audioBlob.type);
       
-      const response = await fetch('http://localhost:5500/api/ai/speech-to-text', {
+      const response = await fetch(`${API_BASE_URL}/api/ai/speech-to-text`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -375,7 +420,7 @@ const ParentDashboard = () => {
         requestBody.image = selectedImage.split(',')[1];
       }
 
-      const response = await fetch('http://localhost:5500/api/ai/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -907,7 +952,10 @@ const ParentDashboard = () => {
               </div>
             </div>
 
-            <form onSubmit={handleUpdateProfile} className={tw('p-6')}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              updateProfile(profileForm);
+            }} className={tw('p-6')}>
               {/* Avatar Selection */}
               <div className={tw('mb-6')}>
                 <label className={tw('block text-sm font-medium text-gray-700 mb-3')}>
@@ -1279,7 +1327,7 @@ const ParentDashboard = () => {
                   onClick={() => {
                     setShowNotifications(false);
                     // Mark all as read
-                    fetch('http://localhost:5500/api/notifications/mark-read', {
+                    fetch(`${API_BASE_URL}/api/notifications/mark-read`, {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${sessionStorage.getItem('app_token')}` }
                     });
@@ -1332,13 +1380,13 @@ const ParentDashboard = () => {
                           {notification.status === 'pending' ? (
                             <div className={tw('flex gap-4')}>
                               <button
-                                onClick={() => handleDeclineGoal(notification.goal_id)}
+                                onClick={() => handleDecline(notification.goal_id)}
                                 className={tw('flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-red-500 hover:text-red-500 transition-colors font-medium')}
                               >
                                 Decline & Suggest Goal
                               </button>
                               <button
-                                onClick={() => handleApproveGoal(notification.goal_id)}
+                                onClick={() => handleApprove(notification.goal_id)}
                                 className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
                               >
                                 Approve & Assign Chores

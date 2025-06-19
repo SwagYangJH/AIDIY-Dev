@@ -9,6 +9,7 @@ import {
   clearError,
 } from '../store/authSlice';
 import { tw } from '@twind/core';
+import { API_BASE_URL } from '../api';
 
 const GOOGLE_CLIENT_ID =
   '237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com';
@@ -49,7 +50,7 @@ const LoginPage = () => {
         dispatch(loginStart());
         resetErrors();
 
-        const res   = await fetch('http://localhost:5500/auth/google', {
+        const res   = await fetch(`${API_BASE_URL}/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: idToken }),
@@ -112,11 +113,15 @@ const LoginPage = () => {
   // parent login
   const handleParentLogin = async (e) => {
     e.preventDefault();
-    try {
-      dispatch(loginStart());
-      resetErrors();
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('Please fill in all fields');
+      return;
+    }
 
-      const res  = await fetch('http://localhost:5500/api/auth/login', {
+    dispatch(loginStart());
+    resetErrors();
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -127,36 +132,40 @@ const LoginPage = () => {
         sessionStorage.setItem('app_token', data.appToken);
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         
-        // 检查用户资料是否完整
+        // Check if profile is complete
         if (data.user.isProfileComplete === false) {
           navigate('/parent-setup');
         } else {
           navigate('/profile');
         }
       } else {
-        dispatch(loginFailure(data.error || 'Invalid email or password'));
+        dispatch(loginFailure(data.error || 'Login failed'));
         setErrorMsg(data.error || 'Invalid email or password');
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       dispatch(loginFailure('Network error'));
-      setErrorMsg('Network error – please try again');
+      setErrorMsg('Network error. Please try again.');
     }
   };
 
   // kid login
   const handleKidLogin = async (e) => {
     e.preventDefault();
-    const code = kidCode.join('');
+    if (!kidUsername.trim() || kidCode.some((d) => !d.trim())) {
+      setErrorMsg('Please fill in all fields');
+      return;
+    }
 
+    dispatch(loginStart());
+    resetErrors();
     try {
-      dispatch(loginStart());
-      resetErrors();
-
-      const res  = await fetch('http://localhost:5500/api/auth/kid-login', {
+      const res  = await fetch(`${API_BASE_URL}/api/auth/kid-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: kidUsername.trim(), code }),
+        body: JSON.stringify({
+          username: kidUsername,
+          loginCode: kidCode.join(''),
+        }),
       });
       const data = await res.json();
 
@@ -165,13 +174,12 @@ const LoginPage = () => {
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         navigate('/kid-dashboard');
       } else {
-        dispatch(loginFailure(data.error || 'Invalid kid credentials'));
-        setErrorMsg(data.error || 'Invalid kid credentials');
+        dispatch(loginFailure(data.error || 'Kid login failed'));
+        setErrorMsg(data.error || 'Invalid username or code');
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       dispatch(loginFailure('Network error'));
-      setErrorMsg('Network error – please try again');
+      setErrorMsg('Network error. Please try again.');
     }
   };
 

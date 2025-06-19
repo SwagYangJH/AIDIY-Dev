@@ -4,10 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
 import { tw } from '@twind/core';
+import { API_BASE_URL } from '../api';
 
 /* ───────────────────────── small fetch helper ───────────────────────── */
 const api = (path, opts = {}) =>
-  fetch(`http://localhost:5500${path}`, {
+  fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${sessionStorage.getItem('app_token')}`,
