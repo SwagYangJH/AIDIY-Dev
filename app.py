@@ -1,6 +1,6 @@
 # backend/app.py
 import os, random, string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -57,8 +57,8 @@ app.config.update(
 mail = Mail(app)
 
 # ────────────── MongoDB ─────────────────────────────
-client = MongoClient(os.getenv("MONGO_URI"))
-db = client["aidiy_app"]
+mongo_client = MongoClient(os.getenv("MONGO_URI"))
+db = mongo_client["aidiy_app"]
 users_col = db["users"]
 pending_col = db["pending_users"]
 otps_col = db["otps"]
@@ -78,7 +78,7 @@ JWT_EXPIRES_HOURS = 24
 
 def generate_jwt_token(payload: dict) -> str:
     return jwt.encode(
-        {**payload, "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRES_HOURS)},
+        {**payload, "exp": datetime.now(datetime.timezone.utc) + timedelta(hours=JWT_EXPIRES_HOURS)},
         JWT_SECRET,
         algorithm="HS256",
     )
@@ -109,7 +109,7 @@ def send_otp_email(email, code):
 
 def create_or_replace_otp(email, purpose):
     code = random_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXP_MIN)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXP_MIN)
     otps_col.update_one(
         {"email": email},
         {
@@ -130,7 +130,7 @@ def create_or_replace_otp(email, purpose):
 # ────────────── Routes ──────────────────────────────
 @app.route("/api/health")
 def health():
-    return jsonify(status="OK", time=datetime.utcnow().isoformat())
+    return jsonify(status="OK", time=datetime.now(timezone.utc).isoformat())
 
 # ---------- 1  Registration ---------- #
 REQUIRED_FIELDS = ("firstName", "lastName", "email", "password")  # slimmed down
@@ -162,7 +162,7 @@ def register():
                 "avatar": d.get("avatar", "🙂"),
                 "isProfileComplete": False,  # New users default to incomplete profile
                 "hasCompletedAssessment": False,  # New users haven't completed assessment
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             }
         },
         upsert=True,
@@ -206,7 +206,7 @@ def verify_otp():
     rec = otps_col.find_one({"email": email})
     if not rec:
         return jsonify(error="No OTP found"), 404
-    if datetime.utcnow() > rec["expires_at"]:
+    if datetime.now(timezone.utc) > rec["expires_at"]:
         otps_col.delete_one({"_id": rec["_id"]})
         return jsonify(error="OTP expired"), 400
     if rec["attempts"] >= MAX_OTP_ATTEMPTS:
@@ -352,7 +352,7 @@ def google_verify_otp():
     rec = otps_col.find_one({"email": email, "purpose": "verify"})
     if not rec:
         return jsonify(error="Invalid OTP"), 400
-    if datetime.utcnow() > rec["expires_at"]:
+    if datetime.now(timezone.utc) > rec["expires_at"]:
         return jsonify(error="OTP expired"), 400
     if rec["attempts"] >= MAX_OTP_ATTEMPTS:
         return jsonify(error="Too many attempts"), 403
@@ -505,7 +505,7 @@ def children_add():
         "moneyAccumulated": 0,
         "tasksAssigned": 0,
         "tasksCompleted": 0,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
 
     children_col.insert_one(child)
@@ -546,7 +546,7 @@ def update_child(username):
 from openai import OpenAI
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/api/ai/chat", methods=["POST"])
 @auth_required
@@ -573,7 +573,7 @@ def ai_chat():
             ]
         
         # Call OpenAI API
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4o" if image_base64 else "gpt-3.5-turbo",
             messages=messages,
             max_tokens=500,
@@ -618,7 +618,7 @@ def speech_to_text():
             audio_buffer = BytesIO(audio_data)
             audio_buffer.name = f"audio.{extension}"
             
-            transcript = client.audio.transcriptions.create(
+            transcript = openai_client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_buffer,
                 language="en"
@@ -677,7 +677,7 @@ def create_goal():
             "kid_avatar": child.get("avatar", "👧"),
             "parent_email": child["parent_email"],
             "status": "pending_approval",
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "approved_at": None,
             "approved_by": None
         }
@@ -696,7 +696,7 @@ def create_goal():
             "kid_avatar": goal['kid_avatar'],
             "status": "pending",
             "read": False,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         notifications_col.insert_one(notification)
         
@@ -724,7 +724,7 @@ def approve_goal(goal_id):
             {
                 "$set": {
                     "status": "approved",
-                    "approved_at": datetime.utcnow(),
+                    "approved_at": datetime.now(timezone.utc),
                     "approved_by": request.user["email"]
                 }
             }
@@ -761,7 +761,7 @@ def decline_goal(goal_id):
             {
                 "$set": {
                     "status": "declined",
-                    "declined_at": datetime.utcnow(),
+                    "declined_at": datetime.now(timezone.utc),
                     "declined_by": request.user["email"]
                 }
             }
