@@ -22,9 +22,24 @@ DEV_MODE = os.getenv("DEV_MODE", "True") == "True"
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
 
+# CORS configuration for production and development
+allowed_origins = [
+    "http://localhost:3000",  # Development
+    "https://aidiy.ca",       # Production domain
+    "https://www.aidiy.ca",   # Production www subdomain
+]
+
+# Add Vercel preview URLs in development
+if DEV_MODE:
+    allowed_origins.extend([
+        "https://*.vercel.app",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000"
+    ])
+
 CORS(
     app,
-    resources={r"/*": {"origins": "http://localhost:3000"}},
+    resources={r"/*": {"origins": allowed_origins}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
 )
@@ -796,5 +811,9 @@ def mark_notifications_read():
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
-    print("Starting AIDIY Flask Server on http://localhost:5500")
-    app.run(host="localhost", port=5500, debug=True)
+    port = int(os.getenv("PORT", 5500))
+    host = os.getenv("HOST", "0.0.0.0")
+    debug = os.getenv("DEV_MODE", "False") == "True"
+    
+    print(f"Starting AIDIY Flask Server on {host}:{port}")
+    app.run(host=host, port=port, debug=debug)
