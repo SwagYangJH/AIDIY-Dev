@@ -76,7 +76,7 @@ const LoginPage = () => {
         setErrorMsg('Network error – please try again');
       }
     },
-    [dispatch, navigate],
+    [dispatch, navigate, resetErrors],
   );
 
   /* ─────────────────────── init Google script ──────────────────────────── */

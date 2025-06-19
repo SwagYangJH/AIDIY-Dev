@@ -32,7 +32,7 @@ const ParentDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [chores, setChores] = useState([
+  const [chores] = useState([
     {
       id: 1,
       title: 'Learn to make pancakes',

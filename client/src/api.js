@@ -4,7 +4,7 @@ import axios from 'axios';
 // Dynamic API URL based on environment
 const getApiBaseURL = () => {
   if (process.env.NODE_ENV === 'production') {
-    return process.env.REACT_APP_API_URL || 'https://your-backend-url.railway.app';
+    return process.env.REACT_APP_API_URL || 'https://web-production-6c1b1.up.railway.app';
   }
   return 'http://localhost:5500';
 };
