@@ -13,6 +13,13 @@ from google.auth.transport import requests as google_requests
 import base64
 import tempfile
 
+# OpenAI import with error handling
+try:
+    from openai import OpenAI
+except ImportError:
+    print("[OpenAI] OpenAI package not installed, AI features will be disabled")
+    OpenAI = None
+
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
 
@@ -128,6 +135,15 @@ def create_or_replace_otp(email, purpose):
     return code
 
 # ────────────── Routes ──────────────────────────────
+@app.route("/")
+def index():
+    return jsonify(
+        message="AIDIY API Server",
+        status="running",
+        time=datetime.now(timezone.utc).isoformat(),
+        api_docs="Visit /api/health for health check"
+    )
+
 @app.route("/api/health")
 def health():
     return jsonify(
@@ -551,12 +567,15 @@ from openai import OpenAI
 
 # Initialize OpenAI client safely
 def get_openai_client():
+    if OpenAI is None:
+        print("[OpenAI] OpenAI package not available, AI features will be disabled")
+        return None
+    
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         print("[OpenAI] No API key provided, AI features will be disabled")
         return None
     try:
-        # Try to import OpenAI first
         return OpenAI(api_key=api_key)
     except Exception as e:
         print(f"[OpenAI] Failed to initialize client: {e}")
