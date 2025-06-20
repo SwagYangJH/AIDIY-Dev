@@ -2,7 +2,7 @@
 
 ## 🚀 部署架构
 
-- **前端**: Vercel (静态托管)
+- **前端**: Netlify (静态托管)
 - **后端**: Railway (Python Flask)
 - **数据库**: MongoDB Atlas
 - **域名**: aidiy.ca (Squarespace)
