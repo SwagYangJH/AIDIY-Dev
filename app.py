@@ -32,6 +32,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
 # CORS configuration for production and development
 allowed_origins = [
     "http://localhost:3000",  # Development
+    "http://localhost:8080",  # Debug server
     "https://aidiy.ca",       # Production domain
     "https://www.aidiy.ca",   # Production www subdomain
 ]
@@ -41,7 +42,9 @@ if DEV_MODE:
     allowed_origins.extend([
         "https://*.vercel.app",
         "http://localhost:3001",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://localhost:5500",  # Additional debug ports
+        "http://localhost:9000"
     ])
 
 CORS(
