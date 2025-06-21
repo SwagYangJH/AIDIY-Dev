@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../api';
 
 /* -------------------- CONFIG -------------------- */
 const GOOGLE_CLIENT_ID =
-  '237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com';
+  '109669706219517jp7k3ib9en1gferlkgca206dnpeoj.apps.googleusercontent.com';
 
 /* ------------------------------------------------ */
 const SignUpPage = () => {
