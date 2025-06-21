@@ -965,6 +965,15 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
   const [selectedChild, setSelectedChild] = useState('');
   const [selectedGoal, setSelectedGoal] = useState('');
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
+  const [showCreateChoreModal, setShowCreateChoreModal] = useState(false);
+  const [newChore, setNewChore] = useState({
+    title: '',
+    description: '',
+    category: 'Cleaning',
+    difficulty: 'Easy',
+    reward: 5.00,
+    dueDate: ''
+  });
 
   const handleEdit = (chore) => {
     setEditingChore(chore);
@@ -992,14 +1001,55 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
     setSelectedGoal('');
   };
 
+  const handleCreateChore = () => {
+    setShowCreateChoreModal(true);
+  };
+
+  const handleSaveNewChore = async () => {
+    try {
+      // 这里调用API创建新chore
+      console.log('Creating new chore:', newChore);
+      // TODO: 调用后端API创建chore
+      
+      // 重置表单
+      setNewChore({
+        title: '',
+        description: '',
+        category: 'Cleaning',
+        difficulty: 'Easy',
+        reward: 5.00,
+        dueDate: ''
+      });
+      setShowCreateChoreModal(false);
+      alert('家务创建成功！');
+    } catch (error) {
+      console.error('Failed to create chore:', error);
+      alert('创建失败，请重试');
+    }
+  };
+
   const handleRegenerateRecommendations = async () => {
     setIsGeneratingRecommendations(true);
     try {
-      // 这里可以调用API重新生成推荐
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 模拟API调用
-      console.log('Regenerating recommendations...');
+      // 调用API获取新的推荐
+      const response = await fetch('/api/chores/recommendations', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // 通过props更新推荐数据 - 这里需要父组件提供更新函数
+        console.log('New recommendations generated:', data);
+        window.location.reload(); // 临时解决方案，刷新页面获取新数据
+      } else {
+        throw new Error('Failed to fetch recommendations');
+      }
     } catch (error) {
       console.error('Failed to regenerate recommendations:', error);
+      alert('获取推荐失败，请重试');
     } finally {
       setIsGeneratingRecommendations(false);
     }
@@ -1015,6 +1065,7 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
             <p className={tw('text-gray-600')}>Create, assign, and track household chores</p>
           </div>
           <button 
+            onClick={handleCreateChore}
             className={tw('px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg')}
           >
             ✨ Create Custom Chore
@@ -1512,6 +1563,122 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                 }`)}
               >
                 Add Chore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Custom Chore Modal */}
+      {showCreateChoreModal && (
+        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
+          <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
+            <div className={tw('p-6 border-b border-gray-100')}>
+              <div className={tw('flex items-center justify-between')}>
+                <h3 className={tw('text-xl font-bold text-gray-900')}>✨ Create Custom Chore</h3>
+                <button
+                  onClick={() => setShowCreateChoreModal(false)}
+                  className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div className={tw('p-6 space-y-4')}>
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Title *</label>
+                <input
+                  type="text"
+                  value={newChore.title}
+                  onChange={(e) => setNewChore({...newChore, title: e.target.value})}
+                  placeholder="例如：整理房间"
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                />
+              </div>
+              
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Description *</label>
+                <textarea
+                  value={newChore.description}
+                  onChange={(e) => setNewChore({...newChore, description: e.target.value})}
+                  placeholder="详细描述这个家务需要做什么..."
+                  rows="3"
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                />
+              </div>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Category</label>
+                  <select
+                    value={newChore.category}
+                    onChange={(e) => setNewChore({...newChore, category: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  >
+                    <option value="Cleaning">🧹 Cleaning</option>
+                    <option value="Kitchen">🍳 Kitchen</option>
+                    <option value="Outdoor">🌳 Outdoor</option>
+                    <option value="Organization">📦 Organization</option>
+                    <option value="Pet Care">🐕 Pet Care</option>
+                    <option value="Other">📝 Other</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Difficulty</label>
+                  <select
+                    value={newChore.difficulty}
+                    onChange={(e) => setNewChore({...newChore, difficulty: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  >
+                    <option value="Easy">⭐ Easy</option>
+                    <option value="Medium">⭐⭐ Medium</option>
+                    <option value="Hard">⭐⭐⭐ Hard</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Reward ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newChore.reward}
+                    onChange={(e) => setNewChore({...newChore, reward: parseFloat(e.target.value) || 0})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  />
+                </div>
+                
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Due Date</label>
+                  <input
+                    type="date"
+                    value={newChore.dueDate}
+                    onChange={(e) => setNewChore({...newChore, dueDate: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className={tw('p-6 border-t border-gray-100 flex gap-3')}>
+              <button
+                onClick={() => setShowCreateChoreModal(false)}
+                className={tw('flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors')}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNewChore}
+                disabled={!newChore.title || !newChore.description}
+                className={tw(`flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg ${
+                  (!newChore.title || !newChore.description) ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                }`)}
+              >
+                Create Chore
               </button>
             </div>
           </div>
