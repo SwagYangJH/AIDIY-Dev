@@ -328,8 +328,13 @@ def google_login():
         return jsonify(error="No token"), 400
     try:
         info = id_token.verify_oauth2_token(tok, google_requests.Request(), CLIENT_ID)
-    except Exception:
-        return jsonify(error="Token invalid"), 400
+    except Exception as e:
+        print(f"[Google Auth Error] {type(e).__name__}: {str(e)}")
+        # Check if it's a network-related error
+        if "network" in str(e).lower() or "connection" in str(e).lower() or "timeout" in str(e).lower():
+            return jsonify(error="Network error: Unable to verify token with Google"), 503
+        else:
+            return jsonify(error=f"Token verification failed: {str(e)}"), 400
 
     email = info["email"]
     user = users_col.find_one({"email": email})
