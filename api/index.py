@@ -130,7 +130,7 @@ def send_otp_email(email, code):
         return False
 
 def create_or_replace_otp(email, purpose):
-    if not otps_col:
+    if otps_col is None:
         return "123456"  # Return dummy OTP if no database
         
     code = random_otp()
@@ -160,7 +160,7 @@ def index():
         status="running",
         time=datetime.now(timezone.utc).isoformat(),
         api_docs="Visit /api/health for health check",
-        database_connected=db is not None
+        database_connected=(db is not None)
     )
 
 @app.route("/api/health")
@@ -169,7 +169,7 @@ def health():
         status="OK", 
         time=datetime.now(timezone.utc).isoformat(),
         platform="Vercel",
-        database_connected=db is not None,
+        database_connected=(db is not None),
         environment_vars_loaded=bool(os.getenv("MONGO_URI"))
     )
 
@@ -180,7 +180,7 @@ CLIENT_ID = "1096697062195-l7ip7k3ib9en1gferiklgca206dnpeoj.apps.googleuserconte
 def google_login():
     try:
         # Check if database is available
-        if not users_col:
+        if users_col is None:
             return jsonify(error="Database not available"), 503
             
         tok = (request.get_json() or {}).get("token")
