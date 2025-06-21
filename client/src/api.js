@@ -1,16 +1,12 @@
 // src/api.js
 import axios from 'axios';
 
-// Force Railway URL for testing - remove localhost dependency
+// Use Vercel backend
 const getApiBaseURL = () => {
-  // Always use Railway URL for now to debug
-  return 'https://web-production-6c1b1.up.railway.app';
-  
-  // Original logic (commented out for debugging):
-  // if (process.env.NODE_ENV === 'production') {
-  //   return process.env.REACT_APP_API_URL || 'https://web-production-6c1b1.up.railway.app';
-  // }
-  // return 'http://localhost:5500';
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.REACT_APP_API_URL || 'https://aidiy-dev.vercel.app';
+  }
+  return 'https://aidiy-dev.vercel.app'; // Use Vercel for dev too
 };
 
 // Export the base URL for direct fetch calls
