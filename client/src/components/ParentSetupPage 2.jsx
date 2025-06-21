@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { updateUser } from '../store/authSlice';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 const ParentSetupPage = () => {
   const navigate = useNavigate();
@@ -32,24 +31,27 @@ const ParentSetupPage = () => {
     setError('');
 
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+      const response = await fetch('http://localhost:5500/api/users/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
         },
-        body: JSON.stringify({
-          isProfileComplete: true
-        }),
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
+
       if (data.success) {
-        navigate('/kid-selection');
+        // Update Redux user state
+        dispatch(updateUser({ isProfileComplete: true }));
+        // Navigate to profile page
+        navigate('/profile');
+      } else {
+        setError(data.error || 'Update failed, please try again');
       }
-    } catch (error) {
-      console.error('Error updating profile:', error);
+    } catch (err) {
+      setError('Network error, please try again');
     } finally {
       setLoading(false);
     }

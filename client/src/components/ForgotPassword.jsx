@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 const ForgotPassword = () => {
   const navigate  = useNavigate();
@@ -60,7 +59,7 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+      const r = await fetch('http://localhost:5500/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email }),
@@ -88,7 +87,7 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+      const r = await fetch('http://localhost:5500/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +147,7 @@ const ForgotPassword = () => {
                 Forgot Password
               </h2>
               <p className={tw('text-gray-600 mb-8')}>
-                Forgot your password? Don't worry—let us help you reset it.
+                Forgot your password? Don’t worry—let us help you reset it.
               </p>
 
               <form

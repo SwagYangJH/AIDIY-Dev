@@ -9,7 +9,6 @@ import {
   clearError,
 } from '../store/authSlice';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 const GOOGLE_CLIENT_ID =
   '237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com';
@@ -35,10 +34,10 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { loading } = useSelector((s) => s.auth);
 
-  const resetErrors = useCallback(() => {
+  const resetErrors = () => {
     setErrorMsg('');
     dispatch(clearError());
-  }, [dispatch]);
+  };
 
   /* ────────────────────── Google One-Tap callback ──────────────────────── */
   const handleCredentialResponse = useCallback(
@@ -50,7 +49,7 @@ const LoginPage = () => {
         dispatch(loginStart());
         resetErrors();
 
-        const res   = await fetch(`${API_BASE_URL}/auth/google`, {
+        const res   = await fetch('http://localhost:5500/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: idToken }),
@@ -77,7 +76,7 @@ const LoginPage = () => {
         setErrorMsg('Network error – please try again');
       }
     },
-    [dispatch, navigate, resetErrors],
+    [dispatch, navigate],
   );
 
   /* ─────────────────────── init Google script ──────────────────────────── */
@@ -113,15 +112,11 @@ const LoginPage = () => {
   // parent login
   const handleParentLogin = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please fill in all fields');
-      return;
-    }
-
-    dispatch(loginStart());
-    resetErrors();
     try {
-      const res  = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      dispatch(loginStart());
+      resetErrors();
+
+      const res  = await fetch('http://localhost:5500/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -132,40 +127,36 @@ const LoginPage = () => {
         sessionStorage.setItem('app_token', data.appToken);
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         
-        // Check if profile is complete
+        // 检查用户资料是否完整
         if (data.user.isProfileComplete === false) {
           navigate('/parent-setup');
         } else {
           navigate('/profile');
         }
       } else {
-        dispatch(loginFailure(data.error || 'Login failed'));
+        dispatch(loginFailure(data.error || 'Invalid email or password'));
         setErrorMsg(data.error || 'Invalid email or password');
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       dispatch(loginFailure('Network error'));
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg('Network error – please try again');
     }
   };
 
   // kid login
   const handleKidLogin = async (e) => {
     e.preventDefault();
-    if (!kidUsername.trim() || kidCode.some((d) => !d.trim())) {
-      setErrorMsg('Please fill in all fields');
-      return;
-    }
+    const code = kidCode.join('');
 
-    dispatch(loginStart());
-    resetErrors();
     try {
-      const res  = await fetch(`${API_BASE_URL}/api/auth/kid-login`, {
+      dispatch(loginStart());
+      resetErrors();
+
+      const res  = await fetch('http://localhost:5500/api/auth/kid-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: kidUsername,
-          loginCode: kidCode.join(''),
-        }),
+        body: JSON.stringify({ username: kidUsername.trim(), code }),
       });
       const data = await res.json();
 
@@ -174,12 +165,13 @@ const LoginPage = () => {
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         navigate('/kid-dashboard');
       } else {
-        dispatch(loginFailure(data.error || 'Kid login failed'));
-        setErrorMsg(data.error || 'Invalid username or code');
+        dispatch(loginFailure(data.error || 'Invalid kid credentials'));
+        setErrorMsg(data.error || 'Invalid kid credentials');
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       dispatch(loginFailure('Network error'));
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg('Network error – please try again');
     }
   };
 

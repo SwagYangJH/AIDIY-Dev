@@ -4,11 +4,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure } from '../store/authSlice';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 /* -------------------- CONFIG -------------------- */
 const GOOGLE_CLIENT_ID =
   '237672950587-0fjv71akur45kfao2gf7anggc0ft1fit.apps.googleusercontent.com';
+const API_URL = 'http://localhost:5500';
 
 /* ------------------------------------------------ */
 const SignUpPage = () => {
@@ -26,7 +26,7 @@ const SignUpPage = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');      // Google-sign-up message
   const [avatarPreview, setAvatarPreview] = useState(null);
-
+  const [avatarFile, setAvatarFile] = useState(null);
 
   /* ------------- client-side validation ------------- */
   const validateForm = () => {
@@ -65,6 +65,7 @@ const SignUpPage = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result);
+        setAvatarFile(file);
       };
       reader.readAsDataURL(file);
       
@@ -82,7 +83,7 @@ const SignUpPage = () => {
     setLoading(true);
     try {
       /* 1️⃣  register (note: extra fields are auto-generated so backend is always happy) */
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,7 +107,7 @@ const SignUpPage = () => {
       }
 
       /* 2️⃣  send OTP */
-      await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+      await fetch(`${API_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email }),
@@ -132,7 +133,7 @@ const SignUpPage = () => {
       setErrorMsg('');
       try {
         dispatch(loginStart());
-        const res = await fetch(`${API_BASE_URL}/auth/google`, {
+        const res = await fetch(`${API_URL}/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: idToken }),

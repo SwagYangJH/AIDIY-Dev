@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AIAvatar from './AIAvatar';
 import BellIcon from './BellIcon';
-import { API_BASE_URL } from '../api';
 
 const KidAssessmentPage = () => {
   const navigate = useNavigate();
@@ -12,17 +11,12 @@ const KidAssessmentPage = () => {
   const handleStartFromScratch = async () => {
     // Mark assessment as complete
     try {
-      const token = sessionStorage.getItem('app_token');
-      await fetch(`${API_BASE_URL}/api/users/complete-assessment`, {
+      await fetch('http://localhost:5500/api/users/complete-assessment', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          assessmentResults: {},
-          completedAt: new Date().toISOString(),
-        }),
+          'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`,
+          'Content-Type': 'application/json'
+        }
       });
     } catch (error) {
       console.error('Failed to mark assessment complete:', error);
@@ -44,27 +38,6 @@ const KidAssessmentPage = () => {
         child 
       } 
     });
-  };
-
-  const handleComplete = async () => {
-    try {
-      const token = sessionStorage.getItem('app_token');
-      await fetch(`${API_BASE_URL}/api/users/complete-assessment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          assessmentResults: {},
-          completedAt: new Date().toISOString(),
-        }),
-      });
-      
-      navigate('/kid-selection');
-    } catch (error) {
-      console.error('Error completing assessment:', error);
-    }
   };
 
   return (

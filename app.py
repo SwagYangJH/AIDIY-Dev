@@ -1,6 +1,6 @@
 # backend/app.py
 import os, random, string
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -13,40 +13,18 @@ from google.auth.transport import requests as google_requests
 import base64
 import tempfile
 
-# OpenAI import with error handling
-try:
-    from openai import OpenAI
-except ImportError:
-    print("[OpenAI] OpenAI package not installed, AI features will be disabled")
-    OpenAI = None
-
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
 
-# Development mode flag - default to False in production
-DEV_MODE = os.getenv("DEV_MODE", "False") == "True"
+# Development mode flag
+DEV_MODE = os.getenv("DEV_MODE", "True") == "True"
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "CHANGE_ME")
 
-# CORS configuration for production and development
-allowed_origins = [
-    "http://localhost:3000",  # Development
-    "https://aidiy.ca",       # Production domain
-    "https://www.aidiy.ca",   # Production www subdomain
-]
-
-# Add Vercel preview URLs in development
-if DEV_MODE:
-    allowed_origins.extend([
-        "https://*.vercel.app",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000"
-    ])
-
 CORS(
     app,
-    resources={r"/*": {"origins": allowed_origins}},
+    resources={r"/*": {"origins": "http://localhost:3000"}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
 )
@@ -64,8 +42,8 @@ app.config.update(
 mail = Mail(app)
 
 # ────────────── MongoDB ─────────────────────────────
-mongo_client = MongoClient(os.getenv("MONGO_URI"))
-db = mongo_client["aidiy_app"]
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["aidiy_app"]
 users_col = db["users"]
 pending_col = db["pending_users"]
 otps_col = db["otps"]
@@ -85,7 +63,7 @@ JWT_EXPIRES_HOURS = 24
 
 def generate_jwt_token(payload: dict) -> str:
     return jwt.encode(
-        {**payload, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRES_HOURS)},
+        {**payload, "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRES_HOURS)},
         JWT_SECRET,
         algorithm="HS256",
     )
@@ -116,7 +94,7 @@ def send_otp_email(email, code):
 
 def create_or_replace_otp(email, purpose):
     code = random_otp()
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXP_MIN)
+    expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXP_MIN)
     otps_col.update_one(
         {"email": email},
         {
@@ -135,22 +113,9 @@ def create_or_replace_otp(email, purpose):
     return code
 
 # ────────────── Routes ──────────────────────────────
-@app.route("/")
-def index():
-    return jsonify(
-        message="AIDIY API Server",
-        status="running",
-        time=datetime.now(timezone.utc).isoformat(),
-        api_docs="Visit /api/health for health check"
-    )
-
 @app.route("/api/health")
 def health():
-    return jsonify(
-        status="OK", 
-        time=datetime.now(timezone.utc).isoformat(),
-        ai_available=openai_client is not None
-    )
+    return jsonify(status="OK", time=datetime.utcnow().isoformat())
 
 # ---------- 1  Registration ---------- #
 REQUIRED_FIELDS = ("firstName", "lastName", "email", "password")  # slimmed down
@@ -182,7 +147,7 @@ def register():
                 "avatar": d.get("avatar", "🙂"),
                 "isProfileComplete": False,  # New users default to incomplete profile
                 "hasCompletedAssessment": False,  # New users haven't completed assessment
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.utcnow(),
             }
         },
         upsert=True,
@@ -226,7 +191,7 @@ def verify_otp():
     rec = otps_col.find_one({"email": email})
     if not rec:
         return jsonify(error="No OTP found"), 404
-    if datetime.now(timezone.utc) > rec["expires_at"]:
+    if datetime.utcnow() > rec["expires_at"]:
         otps_col.delete_one({"_id": rec["_id"]})
         return jsonify(error="OTP expired"), 400
     if rec["attempts"] >= MAX_OTP_ATTEMPTS:
@@ -372,7 +337,7 @@ def google_verify_otp():
     rec = otps_col.find_one({"email": email, "purpose": "verify"})
     if not rec:
         return jsonify(error="Invalid OTP"), 400
-    if datetime.now(timezone.utc) > rec["expires_at"]:
+    if datetime.utcnow() > rec["expires_at"]:
         return jsonify(error="OTP expired"), 400
     if rec["attempts"] >= MAX_OTP_ATTEMPTS:
         return jsonify(error="Too many attempts"), 403
@@ -411,6 +376,7 @@ def kid_login():
         {
             "email": f"{username}@kids.aidiy",
             "name": child.get("nickName") or child["firstName"],
+            "username": username, 
         }
     )
     return jsonify(
@@ -525,7 +491,7 @@ def children_add():
         "moneyAccumulated": 0,
         "tasksAssigned": 0,
         "tasksCompleted": 0,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.utcnow(),
     }
 
     children_col.insert_one(child)
@@ -565,43 +531,13 @@ def update_child(username):
 # ---------- AI Chat and Speech endpoints ---------- #
 from openai import OpenAI
 
-# Initialize OpenAI client safely
-def get_openai_client():
-    if OpenAI is None:
-        print("[OpenAI] OpenAI package not available, AI features will be disabled")
-        return None
-    
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("[OpenAI] No API key provided, AI features will be disabled")
-        return None
-    try:
-        return OpenAI(api_key=api_key)
-    except Exception as e:
-        print(f"[OpenAI] Failed to initialize client: {e}")
-        print("[OpenAI] AI features will be disabled")
-        return None
-
-# Get OpenAI client instance
-openai_client = None
-try:
-    openai_client = get_openai_client()
-    if openai_client:
-        print("[OpenAI] Client initialized successfully")
-    else:
-        print("[OpenAI] Running without AI features")
-except Exception as e:
-    print(f"[OpenAI] Error during initialization: {e}")
-    print("[OpenAI] Running without AI features")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/api/ai/chat", methods=["POST"])
 @auth_required
 def ai_chat():
     try:
-        # Check if OpenAI client is available
-        if not openai_client:
-            return jsonify(error="AI service is not available"), 503
-        
         d = request.get_json() or {}
         message = d.get("message", "")
         image_base64 = d.get("image")
@@ -623,7 +559,7 @@ def ai_chat():
             ]
         
         # Call OpenAI API
-        response = openai_client.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4o" if image_base64 else "gpt-3.5-turbo",
             messages=messages,
             max_tokens=500,
@@ -642,10 +578,6 @@ def ai_chat():
 @auth_required
 def speech_to_text():
     try:
-        # Check if OpenAI client is available
-        if not openai_client:
-            return jsonify(error="AI service is not available"), 503
-        
         # Get audio file from request
         if 'audio' not in request.files:
             return jsonify(error="No audio file provided"), 400
@@ -672,7 +604,7 @@ def speech_to_text():
             audio_buffer = BytesIO(audio_data)
             audio_buffer.name = f"audio.{extension}"
             
-            transcript = openai_client.audio.transcriptions.create(
+            transcript = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_buffer,
                 language="en"
@@ -694,6 +626,49 @@ def speech_to_text():
         return jsonify(error=f"Failed to process audio: {str(e)}"), 500
 
 # ---------- Goals management ---------- #
+
+def get_user_username_from_token():
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.replace("Bearer ", "")
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return decoded.get("username")  # <- this must match your JWT payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+@app.route("/api/goals", methods=["GET"])
+@auth_required
+def get_goals():
+    # 1. Extract kid_username directly from their JWT “email” claim
+    email = request.user.get("email", "")
+    kid_username = email.split("@")[0]
+
+    # 2. (Optional) verify that child exists
+    child = children_col.find_one({ "username": kid_username })
+    if not child:
+        return jsonify({ "success": False, "error": "Child not found" }), 404
+
+    # 3. Query by kid_username, not user_id
+    try:
+        raw_goals = goals_col.find({ "kid_username": kid_username })
+        goals = []
+        for g in raw_goals:
+            g["_id"] = str(g["_id"])
+            # ensure frontend fields exist
+            g.setdefault("saved", 0)
+            g.setdefault("progress", 0)
+            goals.append(g)
+
+        return jsonify({ "success": True, "goals": goals }), 200
+
+    except Exception as e:
+        return jsonify({ "success": False, "error": str(e) }), 500
+
 
 # ---------- Mark assessment complete ---------- #
 @app.route("/api/users/complete-assessment", methods=["POST"])
@@ -731,7 +706,7 @@ def create_goal():
             "kid_avatar": child.get("avatar", "👧"),
             "parent_email": child["parent_email"],
             "status": "pending_approval",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.utcnow(),
             "approved_at": None,
             "approved_by": None
         }
@@ -750,7 +725,7 @@ def create_goal():
             "kid_avatar": goal['kid_avatar'],
             "status": "pending",
             "read": False,
-            "created_at": datetime.now(timezone.utc)
+            "created_at": datetime.utcnow()
         }
         notifications_col.insert_one(notification)
         
@@ -778,7 +753,7 @@ def approve_goal(goal_id):
             {
                 "$set": {
                     "status": "approved",
-                    "approved_at": datetime.now(timezone.utc),
+                    "approved_at": datetime.utcnow(),
                     "approved_by": request.user["email"]
                 }
             }
@@ -815,7 +790,7 @@ def decline_goal(goal_id):
             {
                 "$set": {
                     "status": "declined",
-                    "declined_at": datetime.now(timezone.utc),
+                    "declined_at": datetime.utcnow(),
                     "declined_by": request.user["email"]
                 }
             }
@@ -865,9 +840,5 @@ def mark_notifications_read():
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5500))
-    host = os.getenv("HOST", "0.0.0.0")
-    debug = os.getenv("DEV_MODE", "False") == "True"
-    
-    print(f"Starting AIDIY Flask Server on {host}:{port}")
-    app.run(host=host, port=port, debug=debug)
+    print("Starting AIDIY Flask Server on http://localhost:5500")
+    app.run(host="localhost", port=5500, debug=True)
