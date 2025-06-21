@@ -4,11 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 /* ───────────────────────── small fetch helper ───────────────────────── */
 const api = (path, opts = {}) =>
-  fetch(`${API_BASE_URL}${path}`, {
+  fetch(`http://localhost:5500${path}`, {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${sessionStorage.getItem('app_token')}`,
@@ -463,7 +462,11 @@ const handleChildEdit = (kid) => {
     setShowParentEditForm(true);
   };
 
-
+  /* ───────── handle kid click ───────── */
+  const handleKidClick = (kid) => {
+    // Remove navigation from kid click
+    // Kids are now only clickable in manage mode for editing
+  };
 
   /* ─────────────────────── render ─────────────────────── */
   return (

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AIAvatar from './AIAvatar';
 import BellIcon from './BellIcon';
-import { API_BASE_URL } from '../api';
 
 const AssessmentQuiz = () => {
   const navigate = useNavigate();
@@ -102,17 +101,12 @@ const AssessmentQuiz = () => {
       } else {
         // Mark assessment as complete
         try {
-          const token = sessionStorage.getItem('app_token');
-          await fetch(`${API_BASE_URL}/api/users/complete-assessment`, {
+          await fetch('http://localhost:5500/api/users/complete-assessment', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              assessmentResults: answers,
-              completedAt: new Date().toISOString(),
-            }),
+              'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`,
+              'Content-Type': 'application/json'
+            }
           });
         } catch (error) {
           console.error('Failed to mark assessment complete:', error);

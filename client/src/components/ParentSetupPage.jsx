@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { updateUser } from '../store/authSlice';
 import { tw } from '@twind/core';
-import { API_BASE_URL } from '../api';
 
 const ParentSetupPage = () => {
   const navigate = useNavigate();
@@ -65,34 +64,37 @@ const ParentSetupPage = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
+  const handleSubmit = async () => {
     setLoading(true);
+    setError('');
+
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+      const response = await fetch('http://localhost:5500/api/users/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('app_token')}`
         },
         body: JSON.stringify({
-          ...formData,
-          isProfileComplete: true
-        }),
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.location, // Using location as phone for now
+          avatar: formData.avatar
+        })
       });
 
       const data = await response.json();
+
       if (data.success) {
+        // Update Redux user state
         dispatch(updateUser({ isProfileComplete: true }));
+        // Navigate to profile page
         navigate('/profile');
       } else {
-        setError(data.error || 'Failed to save profile');
+        setError(data.error || 'Update failed, please try again');
       }
-    } catch {
-      setError('Network error. Please try again.');
+    } catch (err) {
+      setError('Network error, please try again');
     } finally {
       setLoading(false);
     }
@@ -113,17 +115,6 @@ const ParentSetupPage = () => {
         [item]: !formData[category][item]
       }
     });
-  };
-
-  const validateForm = () => {
-    if (currentStep === 1) {
-      if (!formData.firstName || !formData.lastName || !formData.email) {
-        setError('Please fill in all required fields');
-        return false;
-      }
-    }
-    setError('');
-    return true;
   };
 
   return (
