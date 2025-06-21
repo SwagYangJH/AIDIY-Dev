@@ -1,103 +1,52 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
-import AIAvatar from './AIAvatar';
 import BellIcon from './BellIcon';
+import AIAvatar from './AIAvatar';
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
-  const [message, setMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [showCreateChore, setShowCreateChore] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  
+  // State management
+  const [activeTab, setActiveTab] = useState('goal-requests');
   const [userProfile, setUserProfile] = useState(null);
   const [children, setChildren] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showFamilyModal, setShowFamilyModal] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phoneNumber: '',
-    avatar: ''
-  });
-  const [selectedChild, setSelectedChild] = useState(null);
-  const [showEditChildModal, setShowEditChildModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [chores, setChores] = useState([
-    {
-      id: 1,
-      title: 'Learn to make pancakes',
-      description: 'Follow the recipe and make pancakes for family breakfast',
-      assignedTo: 'Maya',
-      dueDate: 'May 24, 2025',
-      reward: 8.00,
-      difficulty: 'Hard',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      title: 'Help with dishes',
-      description: 'Load dishwasher and wipe down counters',
-      assignedTo: 'Maya',
-      dueDate: 'May 24, 2025',
-      reward: 5.00,
-      difficulty: 'Medium',
-      status: 'pending'
-    },
-    {
-      id: 3,
-      title: 'Clean bedroom',
-      description: 'Make bed, organize toys, and put clothes away',
-      assignedTo: 'Alex',
-      dueDate: 'May 24, 2025',
-      reward: 2.00,
-      difficulty: 'Easy',
-      status: 'completed'
-    },
-    {
-      id: 4,
-      title: 'Take out trash',
-      description: 'Make bed, organize toys, and put clothes away',
-      assignedTo: 'Maya',
-      dueDate: 'May 24, 2025',
-      reward: 2.00,
-      difficulty: 'Easy',
-      status: 'completed'
-    }
-  ]);
-
-  const [choreForm, setChoreForm] = useState({
-    title: '',
-    description: '',
-    assignTo: '',
-    reward: '',
-    dueDate: '',
-    difficulty: 'Easy'
-  });
+  const [goals, setGoals] = useState([]);
+  const [childrenProgress, setChildrenProgress] = useState([]);
+  const [childrenChores, setChildrenChores] = useState([]);
+  const [chores, setChores] = useState([]);
+  const [choreRecommendations, setChoreRecommendations] = useState([]);
+  
+  // Chat related states
+  const [message, setMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   useEffect(() => {
-    // Fetch user profile and children
     fetchUserData();
     fetchNotifications();
+    fetchGoals();
+    fetchChildrenProgress();
+    fetchChildrenChores();
+    fetchChores();
+    fetchChoreRecommendations();
   }, []);
 
   useEffect(() => {
-    // Close menu when clicking outside
     const handleClickOutside = (event) => {
       if (!event.target.closest('.user-menu-container')) {
         setShowUserMenu(false);
       }
     };
-
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
@@ -105,31 +54,22 @@ const ParentDashboard = () => {
   const fetchUserData = async () => {
     try {
       const token = sessionStorage.getItem('app_token');
-      
-      // Fetch user profile
-      const profileRes = await fetch('http://localhost:5500/api/users/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const profileData = await profileRes.json();
-      if (profileData.success) {
-        setUserProfile(profileData.user);
-        setProfileForm({
-          firstName: profileData.user.firstName || '',
-          lastName: profileData.user.lastName || '',
-          email: profileData.user.email || '',
-          phoneNumber: profileData.user.phoneNumber || '',
-          avatar: profileData.user.avatar || '👩‍💼'
-        });
-      }
+      const [profileRes, childrenRes] = await Promise.all([
+        fetch('http://localhost:5500/api/users/profile', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:5500/api/users/children', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
 
-      // Fetch children
-      const childrenRes = await fetch('http://localhost:5500/api/users/children', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const childrenData = await childrenRes.json();
-      if (childrenData.success) {
-        setChildren(childrenData.children);
-      }
+      const [profileData, childrenData] = await Promise.all([
+        profileRes.json(),
+        childrenRes.json()
+      ]);
+
+      if (profileData.success) setUserProfile(profileData.user);
+      if (childrenData.success) setChildren(childrenData.children);
     } catch (error) {
       console.error('Failed to fetch user data:', error);
     }
@@ -151,6 +91,81 @@ const ParentDashboard = () => {
     }
   };
 
+  const fetchGoals = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch('http://localhost:5500/api/parent/goals', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setGoals(data.goals);
+      }
+    } catch (error) {
+      console.error('Failed to fetch goals:', error);
+    }
+  };
+
+  const fetchChildrenProgress = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch('http://localhost:5500/api/parent/children-progress', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setChildrenProgress(data.children);
+      }
+    } catch (error) {
+      console.error('Failed to fetch children progress:', error);
+    }
+  };
+
+  const fetchChildrenChores = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch('http://localhost:5500/api/parent/children-chores', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setChildrenChores(data.children);
+      }
+    } catch (error) {
+      console.error('Failed to fetch children chores:', error);
+    }
+  };
+
+  const fetchChores = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch('http://localhost:5500/api/chores', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setChores(data.chores);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chores:', error);
+    }
+  };
+
+  const fetchChoreRecommendations = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch('http://localhost:5500/api/chores/recommendations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setChoreRecommendations(data.recommendations);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chore recommendations:', error);
+    }
+  };
+
   const handleApproveGoal = async (goalId) => {
     try {
       const token = sessionStorage.getItem('app_token');
@@ -162,6 +177,7 @@ const ParentDashboard = () => {
       if (data.success) {
         alert('Goal approved successfully!');
         fetchNotifications();
+        fetchGoals();
       }
     } catch (error) {
       console.error('Failed to approve goal:', error);
@@ -179,6 +195,7 @@ const ParentDashboard = () => {
       if (data.success) {
         alert('Goal declined.');
         fetchNotifications();
+        fetchGoals();
       }
     } catch (error) {
       console.error('Failed to decline goal:', error);
@@ -200,38 +217,10 @@ const ParentDashboard = () => {
     }
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/users/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(profileForm)
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setUserProfile({ ...userProfile, ...profileForm });
-        setShowProfileModal(false);
-        alert('Profile updated successfully!');
-      } else {
-        alert('Failed to update profile');
-      }
-    } catch (error) {
-      console.error('Update profile error:', error);
-      alert('Failed to update profile');
-    }
-  };
-
-  const avatarOptions = ['👨‍💼', '👩‍💼', '👨‍🏫', '👩‍🏫', '👨‍⚕️', '👩‍⚕️', '👨‍🔧', '👩‍🔧'];
-
+  // Chat functions
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 5 * 1024 * 1024) { // 5MB limit
+    if (file && file.size <= 5 * 1024 * 1024) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result);
@@ -242,6 +231,59 @@ const ParentDashboard = () => {
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!message.trim() && !selectedImage) return;
+
+    const userMessage = {
+      role: 'user',
+      content: message,
+      image: selectedImage,
+      timestamp: new Date().toISOString()
+    };
+
+    setChatHistory(prev => [...prev, userMessage]);
+    setMessage('');
+    setIsLoading(true);
+
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const requestBody = { message: message };
+
+      if (selectedImage) {
+        requestBody.image = selectedImage.split(',')[1];
+      }
+
+      const response = await fetch('http://localhost:5500/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const aiMessage = {
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date().toISOString()
+        };
+        setChatHistory(prev => [...prev, aiMessage]);
+      } else {
+        alert('Failed to get AI response. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setSelectedImage(null);
+    }
+  };
+
+  // Speech recording functions
   const startRecording = async () => {
     try {
       // Request microphone permission
@@ -350,517 +392,1027 @@ const ParentDashboard = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!message.trim() && !selectedImage) return;
-
-    const userMessage = {
-      role: 'user',
-      content: message,
-      image: selectedImage,
-      timestamp: new Date().toISOString()
-    };
-
-    setChatHistory(prev => [...prev, userMessage]);
-    setMessage('');
-    setIsLoading(true);
-
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const requestBody = {
-        message: message
-      };
-
-      if (selectedImage) {
-        // Extract base64 data from data URL
-        requestBody.image = selectedImage.split(',')[1];
-      }
-
-      const response = await fetch('http://localhost:5500/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        const aiMessage = {
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date().toISOString()
-        };
-        setChatHistory(prev => [...prev, aiMessage]);
-      } else {
-        console.error('AI chat failed:', data.error);
-        alert('Failed to get AI response. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
-    } finally {
-      setIsLoading(false);
-      setSelectedImage(null);
-    }
-  };
-
-  const handleCreateChore = (e) => {
-    e.preventDefault();
-    // TODO: Create chore via API
-    console.log('Creating chore:', choreForm);
-    setShowCreateChore(false);
-    setChoreForm({
-      title: '',
-      description: '',
-      assignTo: '',
-      reward: '',
-      dueDate: '',
-      difficulty: 'Easy'
-    });
-  };
-
-  const getChoreStats = () => {
-    const completed = chores.filter(c => c.status === 'completed').length;
-    const pending = chores.filter(c => c.status === 'pending').length;
-    const totalRewards = chores.reduce((sum, chore) => sum + chore.reward, 0);
-    return { completed, pending, totalRewards };
-  };
-
-  const stats = getChoreStats();
-
   return (
-    <div className={tw('min-h-screen bg-gradient-to-br from-purple-50 to-blue-50')}>
+    <div className={tw('min-h-screen bg-gradient-to-r from-purple-100 to-blue-100')}>
       {/* Header */}
-      <header className={tw('bg-white shadow-sm')}>
-        <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
-          <div className={tw('flex items-center justify-between h-20')}>
-            <div className={tw('flex items-center space-x-2')}>
-              <span className={tw('text-3xl font-bold text-primary-turquoise')}>AI</span>
-              <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
-            </div>
-            <div className={tw('flex items-center gap-4')}>
-              <button 
-                onClick={() => setShowNotifications(true)}
-                className={tw('p-2 rounded-full hover:bg-gray-100 text-gray-600 relative')}
+      <header className={tw('bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4')}>
+        <div className={tw('max-w-7xl mx-auto flex items-center justify-between')}>
+          <div className={tw('flex items-center space-x-2 cursor-pointer')} onClick={() => navigate('/')}>
+            <span className={tw('text-3xl font-bold text-white')}>AI</span>
+            <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
+          </div>
+          <div className={tw('flex items-center gap-4')}>
+            {/* Notifications Icon */}
+            <button 
+              onClick={() => setShowNotifications(true)}
+              className={tw('p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative')}
+            >
+              <BellIcon size={24} />
+              {unreadCount > 0 && (
+                <span className={tw('absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center')}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            
+            {/* User Menu */}
+            <div className="user-menu-container relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className={tw('flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 hover:bg-white/30 transition-colors')}
               >
-                <BellIcon size={24} />
-                {unreadCount > 0 && (
-                  <span className={tw('absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center')}>
-                    {unreadCount}
-                  </span>
-                )}
+                <div className={tw('w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center')}>
+                  <span className={tw('text-lg')}>{userProfile?.avatar || '👩‍💼'}</span>
+                </div>
+                <span className={tw('text-white font-medium')}>{userProfile?.firstName || 'Sarah'}</span>
               </button>
-              <div className="user-menu-container relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className={tw('flex items-center gap-2 hover:bg-gray-100 rounded-lg p-2 transition-colors')}
-                >
-                  <div className={tw('w-10 h-10 rounded-full bg-accent-pink flex items-center justify-center')}>
-                    <span className={tw('text-xl')}>{userProfile?.avatar || '👩‍💼'}</span>
-                  </div>
-                  <span className={tw('font-medium')}>{userProfile?.firstName || 'Parent'}</span>
-                  <svg className={tw('w-4 h-4 text-gray-600')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
 
-                {/* User Dropdown Menu */}
-                {showUserMenu && (
-                  <div className={tw('absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50')}>
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        setShowProfileModal(true);
-                      }}
-                      className={tw('w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3')}
-                    >
-                      <svg className={tw('w-5 h-5 text-gray-600')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      Edit Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        setShowFamilyModal(true);
-                      }}
-                      className={tw('w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3')}
-                    >
-                      <svg className={tw('w-5 h-5 text-gray-600')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Manage Family
-                    </button>
-                    <hr className={tw('my-2 border-gray-200')} />
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        handleLogout();
-                      }}
-                      className={tw('w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-red-600')}
-                    >
-                      <svg className={tw('w-5 h-5')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
+              {showUserMenu && (
+                <div className={tw('absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50')}>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      navigate('/profile');
+                    }}
+                    className={tw('w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3')}
+                  >
+                    <svg className={tw('w-5 h-5 text-gray-600')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    View Profile
+                  </button>
+                  <hr className={tw('my-2 border-gray-200')} />
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      handleLogout();
+                    }}
+                    className={tw('w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-red-600')}
+                  >
+                    <svg className={tw('w-5 h-5')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </div>
+            
+            <button
+              onClick={handleLogout}
+              className={tw('px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors')}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8')}>
-        <h1 className={tw('text-2xl font-bold text-gray-800 mb-6')}>Parent Dashboard</h1>
+      <div className={tw('max-w-7xl mx-auto px-4 py-6')}>
+        {/* Welcome Message */}
+        <div className={tw('text-center mb-8')}>
+          <h1 className={tw('text-3xl font-bold text-gray-800 mb-2')}>Parent Dashboard</h1>
+          <p className={tw('text-lg text-gray-600')}>Help your kids achieve their financial goals through meaningful chores</p>
+        </div>
 
-        <div className={tw('bg-white rounded-3xl shadow-xl p-8')}>
+        {/* Navigation Tabs - Apple Style */}
+        <div className={tw('flex justify-center mb-8')}>
+          <div className={tw('inline-flex items-center bg-gray-100 rounded-2xl p-1')}>
+            <button
+              onClick={() => setActiveTab('goal-requests')}
+              className={tw(`px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+                activeTab === 'goal-requests'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`)}
+            >
+              <span className={tw('flex items-center gap-2')}>
+                <span>🔔</span>
+                Goal Requests
+                {unreadCount > 0 && (
+                  <span className={tw('bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-1')}>
+                    {unreadCount}
+                  </span>
+                )}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('progress-tracking')}
+              className={tw(`px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+                activeTab === 'progress-tracking'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`)}
+            >
+              <span className={tw('flex items-center gap-2')}>
+                <span>🎯</span>
+                Progress Tracking
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('chore-management')}
+              className={tw(`px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+                activeTab === 'chore-management'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`)}
+            >
+              <span className={tw('flex items-center gap-2')}>
+                <span>✅</span>
+                Chore Management
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* AI Chat Section */}
+        <div className={tw('bg-white rounded-3xl shadow-xl p-8 mb-8')}>
           {/* AI Avatar */}
           <div className={tw('flex justify-center mb-6')}>
             <AIAvatar size="medium" animated={true} />
           </div>
 
-          {/* AI Chat Section */}
-          <div className={tw('mb-8')}>
-            {/* Chat History */}
-            {chatHistory.length > 0 && (
-              <div className={tw('mb-4 max-h-96 overflow-y-auto space-y-4')}>
-                {chatHistory.map((msg, index) => (
+          {/* Chat History */}
+          {chatHistory.length > 0 && (
+            <div className={tw('mb-4 max-h-96 overflow-y-auto space-y-4')}>
+              {chatHistory.map((msg, index) => (
+                <div
+                  key={index}
+                  className={tw(`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`)}
+                >
                   <div
-                    key={index}
-                    className={tw(`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`)}
+                    className={tw(`max-w-3xl p-4 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-r from-primary-turquoise to-accent-purple text-white'
+                        : 'bg-gray-100 text-gray-800'
+                    }`)}
                   >
-                    <div
-                      className={tw(`max-w-3xl p-4 rounded-2xl ${
-                        msg.role === 'user'
-                          ? 'bg-gradient-to-r from-primary-turquoise to-accent-purple text-white'
-                          : 'bg-gray-100 text-gray-800'
-                      }`)}
-                    >
-                      {msg.image && (
-                        <img src={msg.image} alt="User upload" className={tw('mb-2 rounded-lg max-h-40')} />
-                      )}
-                      <p className={tw('whitespace-pre-wrap')}>{msg.content}</p>
+                    {msg.image && (
+                      <img src={msg.image} alt="User upload" className={tw('mb-2 rounded-lg max-h-40')} />
+                    )}
+                    <p className={tw('whitespace-pre-wrap')}>{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className={tw('flex justify-start')}>
+                  <div className={tw('bg-gray-100 p-4 rounded-2xl')}>
+                    <div className={tw('flex space-x-2')}>
+                      <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce')}></div>
+                      <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100')}></div>
+                      <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200')}></div>
                     </div>
                   </div>
-                ))}
-                {isLoading && (
-                  <div className={tw('flex justify-start')}>
-                    <div className={tw('bg-gray-100 p-4 rounded-2xl')}>
-                      <div className={tw('flex space-x-2')}>
-                        <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce')}></div>
-                        <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100')}></div>
-                        <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200')}></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AI Chat Input */}
+          <div className={tw('relative bg-gray-50 rounded-2xl p-4 border-2 border-gray-200')}>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Guide me AI DIY..."
+              className={tw('w-full bg-transparent resize-none outline-none text-gray-700 placeholder-gray-400 min-h-[60px]')}
+              rows="2"
+              disabled={isLoading}
+            />
+            
+            {selectedImage && (
+              <div className={tw('mt-2 relative inline-block')}>
+                <img src={selectedImage} alt="Upload" className={tw('h-20 rounded-lg')} />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className={tw('absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs')}
+                >
+                  ✕
+                </button>
               </div>
             )}
 
-            {/* AI Chat Input */}
-            <div className={tw('relative bg-gray-50 rounded-2xl p-4 border-2 border-gray-200')}>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Guide me AI DIY..."
-                className={tw('w-full bg-transparent resize-none outline-none text-gray-700 placeholder-gray-400 min-h-[60px]')}
-                rows="2"
-                disabled={isLoading}
-              />
-              
-              {selectedImage && (
-                <div className={tw('mt-2 relative inline-block')}>
-                  <img src={selectedImage} alt="Upload" className={tw('h-20 rounded-lg')} />
-                  <button
-                    onClick={() => setSelectedImage(null)}
-                    className={tw('absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs')}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
-              <div className={tw('flex items-center justify-between mt-2')}>
-                <div className={tw('flex items-center gap-2')}>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={tw('p-2 rounded-full hover:bg-gray-200 text-gray-600')}
-                    disabled={isLoading}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <path d="M10 2L10 10M10 10L10 18M10 10L18 10M10 10L2 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className={tw('hidden')}
-                  />
-                  <button
-                    onClick={handleVoiceRecord}
-                    className={tw(`p-2 rounded-full hover:bg-gray-200 ${isRecording ? 'text-red-500 animate-pulse' : 'text-gray-600'}`)}
-                    disabled={isLoading}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <rect x="7" y="4" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="2"/>
-                      <path d="M4 10C4 10 4 14 10 14C16 14 16 10 16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      <path d="M10 14V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                  {isRecording && (
-                    <span className={tw('text-sm text-red-500')}>Recording...</span>
-                  )}
-                </div>
+            <div className={tw('flex items-center justify-between mt-2')}>
+              <div className={tw('flex items-center gap-2')}>
                 <button
-                  onClick={handleSendMessage}
-                  disabled={isLoading || (!message.trim() && !selectedImage)}
-                  className={tw(`px-6 py-2 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all ${
-                    (isLoading || (!message.trim() && !selectedImage)) ? 'opacity-50 cursor-not-allowed' : ''
-                  }`)}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={tw('p-2 rounded-full hover:bg-gray-200 text-gray-600')}
+                  disabled={isLoading}
                 >
-                  {isLoading ? 'Sending...' : 'Guide me'}
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2L10 10M10 10L10 18M10 10L18 10M10 10L2 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className={tw('hidden')}
+                />
+                <button
+                  onClick={handleVoiceRecord}
+                  className={tw(`p-2 rounded-full hover:bg-gray-200 ${isRecording ? 'text-red-500 animate-pulse' : 'text-gray-600'}`)}
+                  disabled={isLoading}
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="7" y="4" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M4 10C4 10 4 14 10 14C16 14 16 10 16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M10 14V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+                {isRecording && (
+                  <span className={tw('text-sm text-red-500')}>Recording...</span>
+                )}
               </div>
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoading || (!message.trim() && !selectedImage)}
+                className={tw(`px-6 py-2 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all ${
+                  (isLoading || (!message.trim() && !selectedImage)) ? 'opacity-50 cursor-not-allowed' : ''
+                }`)}
+              >
+                {isLoading ? 'Sending...' : 'Guide me'}
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Children Performance */}
-          <div className={tw('mb-8')}>
-            <h2 className={tw('text-xl font-bold text-gray-800 mb-4 flex items-center gap-2')}>
-              <span>🏆</span> Children Performance
-            </h2>
-            
-            <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4 mb-6')}>
-              {children.map((child) => (
-                <div key={child.id} className={tw('bg-gray-50 rounded-xl p-4 border border-gray-200')}>
-                  <div className={tw('flex items-center gap-3 mb-2')}>
-                    <div className={tw('w-12 h-12 rounded-full bg-accent-pink flex items-center justify-center')}>
-                      <span className={tw('text-2xl')}>{child.avatar || '👧'}</span>
-                    </div>
-                    <div>
-                      <h3 className={tw('font-semibold text-gray-800')}>
-                        {child.nickName || child.firstName}
-                      </h3>
-                      <p className={tw('text-sm text-gray-600')}>
-                        Chores Completed: {child.tasksCompleted || 0} chores
-                      </p>
-                      <p className={tw('text-sm text-gray-600')}>
-                        Earned: ${child.moneyAccumulated || 0}.00
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Tab Content */}
+        {activeTab === 'goal-requests' && (
+          <GoalRequestsTab 
+            goals={goals}
+            notifications={notifications}
+            onApprove={handleApproveGoal}
+            onDecline={handleDeclineGoal}
+          />
+        )}
 
-            {/* Stats Summary */}
-            <div className={tw('grid grid-cols-3 gap-4')}>
-              <div className={tw('bg-blue-100 rounded-xl p-4 text-center')}>
-                <h4 className={tw('text-sm text-gray-600 mb-1')}>Chores Completed</h4>
-                <p className={tw('text-2xl font-bold text-gray-800')}>{stats.completed}</p>
-              </div>
-              <div className={tw('bg-green-100 rounded-xl p-4 text-center')}>
-                <h4 className={tw('text-sm text-gray-600 mb-1')}>Chores Pending</h4>
-                <p className={tw('text-2xl font-bold text-gray-800')}>{stats.pending}</p>
-              </div>
-              <div className={tw('bg-yellow-100 rounded-xl p-4 text-center')}>
-                <h4 className={tw('text-sm text-gray-600 mb-1')}>Total Rewards</h4>
-                <p className={tw('text-2xl font-bold text-gray-800')}>${stats.totalRewards.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'progress-tracking' && (
+          <ProgressTrackingTab 
+            childrenProgress={childrenProgress}
+            childrenChores={childrenChores}
+          />
+        )}
 
-          {/* Add Chore Button */}
-          <div className={tw('flex justify-end mb-6')}>
-            <button
-              onClick={() => setShowCreateChore(true)}
-              className={tw('flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
-            >
-              <span className={tw('text-xl')}>+</span> Add Chore
-            </button>
-          </div>
+        {activeTab === 'chore-management' && (
+          <ChoreManagementTab 
+            chores={chores}
+            recommendations={choreRecommendations}
+            children={children}
+            message={message}
+            setMessage={setMessage}
+            chatHistory={chatHistory}
+            isLoading={isLoading}
+            onSendMessage={handleSendMessage}
+          />
+        )}
 
-          {/* Assigned Chores */}
+
+      </div>
+
+
+
+      {/* Notifications Modal */}
+      {showNotifications && (
+        <NotificationsModal 
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notifications={notifications}
+          onApprove={handleApproveGoal}
+          onDecline={handleDeclineGoal}
+        />
+      )}
+    </div>
+  );
+};
+
+// Goal Requests Tab Component
+const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
+  const pendingGoals = goals.filter(g => g.status === 'pending_approval');
+  
+  return (
+    <div className={tw('space-y-6')}>
+      {/* Stats Header */}
+      <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
+        <div className={tw('flex items-center justify-between')}>
           <div>
-            <h2 className={tw('text-xl font-bold text-gray-800 mb-4 flex items-center gap-2')}>
-              <span>📋</span> Assigned Chores
-            </h2>
-            
-            <div className={tw('space-y-4')}>
-              {chores.map((chore) => (
-                <div key={chore.id} className={tw('bg-gray-50 rounded-xl p-4 border border-gray-200')}>
-                  <div className={tw('flex items-start justify-between')}>
-                    <div className={tw('flex-1')}>
-                      <div className={tw('flex items-center gap-3 mb-2')}>
-                        <h3 className={tw('font-semibold text-gray-800')}>{chore.title}</h3>
-                        <span className={tw(`text-xs px-2 py-1 rounded-full ${
-                          chore.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                          chore.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`)}>
-                          ⭐ {chore.difficulty}
-                        </span>
-                        {chore.status === 'completed' && (
-                          <span className={tw('text-xs px-2 py-1 rounded-full bg-green-100 text-green-700')}>
-                            Completed
-                          </span>
-                        )}
-                        {chore.status === 'pending' && (
-                          <span className={tw('text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700')}>
-                            Pending
-                          </span>
-                        )}
-                      </div>
-                      <p className={tw('text-sm text-gray-600 mb-2')}>{chore.description}</p>
-                      <div className={tw('flex items-center gap-4 text-sm text-gray-500')}>
-                        <span className={tw('flex items-center gap-1')}>
-                          <span>👤</span> {chore.assignedTo}
-                        </span>
-                        <span className={tw('flex items-center gap-1')}>
-                          <span>📅</span> Due: {chore.dueDate}
-                        </span>
-                        <span className={tw('flex items-center gap-1')}>
-                          <span>💰</span> Reward: ${chore.reward.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={tw('flex items-center gap-2')}>
-                      {chore.status === 'pending' && (
-                        <button className={tw('p-2 rounded-full bg-green-500 text-white hover:bg-green-600')}>
-                          ✓ Complete
-                        </button>
-                      )}
-                      <button className={tw('p-2 rounded-full hover:bg-gray-200 text-red-500')}>
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Goal Requests</h2>
+            <p className={tw('text-gray-600')}>Review and approve your children's savings goals</p>
+          </div>
+          <div className={tw('flex items-center gap-4')}>
+            <div className={tw('text-center')}>
+              <div className={tw('text-3xl font-bold text-orange-500')}>{pendingGoals.length}</div>
+              <div className={tw('text-sm text-gray-600')}>Pending</div>
+            </div>
+            <div className={tw('text-center')}>
+              <div className={tw('text-3xl font-bold text-green-500')}>{goals.filter(g => g.status === 'approved').length}</div>
+              <div className={tw('text-sm text-gray-600')}>Approved</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Create Chore Modal */}
-      {showCreateChore && (
-        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-md')}>
-            <div className={tw('bg-gradient-to-r from-primary-turquoise to-accent-purple p-6 rounded-t-2xl')}>
-              <div className={tw('flex items-center justify-between text-white')}>
-                <h3 className={tw('text-xl font-bold flex items-center gap-2')}>
-                  <span>🎁</span> Create New Chore
-                </h3>
+      {/* Goal Requests List */}
+      <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
+        {pendingGoals.length === 0 ? (
+          <div className={tw('text-center py-16')}>
+            <div className={tw('w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center')}>
+              <span className={tw('text-4xl')}>🎯</span>
+            </div>
+            <h3 className={tw('text-lg font-semibold text-gray-800 mb-2')}>All caught up!</h3>
+            <p className={tw('text-gray-600')}>No pending goal requests at the moment</p>
+          </div>
+        ) : (
+          <div className={tw('divide-y divide-gray-100')}>
+            {pendingGoals.map((goal, index) => (
+              <div key={goal._id} className={tw('p-6 hover:bg-gray-50 transition-colors')}>
+                <div className={tw('flex items-start gap-4')}>
+                  <div className={tw('w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg')}>
+                    <span className={tw('text-2xl')}>{goal.kid_avatar}</span>
+                  </div>
+                  
+                  <div className={tw('flex-1 min-w-0')}>
+                    <div className={tw('flex items-start justify-between mb-3')}>
+                      <div>
+                        <h3 className={tw('text-xl font-bold text-gray-900 mb-1')}>
+                          {goal.kid_name} wants to save for {goal.title}
+                        </h3>
+                        <p className={tw('text-gray-600 mb-3')}>{goal.description || `I want to buy a ${goal.title} to help with my daily activities`}</p>
+                      </div>
+                      <div className={tw('flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium')}>
+                        <div className={tw('w-2 h-2 bg-yellow-500 rounded-full')}></div>
+                        Pending Review
+                      </div>
+                    </div>
+                    
+                    <div className={tw('flex items-center gap-6 mb-4')}>
+                      <div className={tw('flex items-center gap-2 text-sm')}>
+                        <span className={tw('text-gray-500')}>💰</span>
+                        <span className={tw('font-semibold text-gray-900')}>${goal.amount}</span>
+                        <span className={tw('text-gray-500')}>target</span>
+                      </div>
+                      <div className={tw('flex items-center gap-2 text-sm')}>
+                        <span className={tw('text-gray-500')}>📅</span>
+                        <span className={tw('text-gray-700')}>{goal.duration || '8'} weeks</span>
+                      </div>
+                      <div className={tw('flex items-center gap-2 text-sm')}>
+                        <span className={tw('text-gray-500')}>📚</span>
+                        <span className={tw('text-gray-700')}>{goal.category || 'Personal'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className={tw('flex gap-3')}>
+                      <button
+                        onClick={() => onApprove(goal._id)}
+                        className={tw('flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg')}
+                      >
+                        ✅ Approve Goal
+                      </button>
+                      <button
+                        className={tw('px-6 py-3 bg-blue-50 text-blue-600 rounded-xl font-semibold hover:bg-blue-100 transition-colors border border-blue-200')}
+                      >
+                        💭 Suggest Changes
+                      </button>
+                      <button
+                        onClick={() => onDecline(goal._id)}
+                        className={tw('px-6 py-3 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors border border-red-200')}
+                      >
+                        ❌ Decline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Progress Tracking Tab Component
+const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
+  // Calculate overall stats from real data
+  const overallStats = childrenChores.reduce((acc, child) => {
+    acc.completed += child.chores_completed || 0;
+    acc.pending += child.chores_pending || 0;
+    acc.totalRewards += child.total_earned || 0;
+    return acc;
+  }, { completed: 0, pending: 0, totalRewards: 0 });
+
+  return (
+    <div className={tw('space-y-6')}>
+      {/* Stats Overview */}
+      <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
+        <div className={tw('flex items-center justify-between mb-6')}>
+          <div>
+            <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Progress Tracking</h2>
+            <p className={tw('text-gray-600')}>Monitor your children's chore completion and earnings</p>
+          </div>
+          <div className={tw('text-right')}>
+            <div className={tw('text-3xl font-bold text-green-600')}>${overallStats.totalRewards.toFixed(2)}</div>
+            <div className={tw('text-sm text-gray-600')}>Total Earned</div>
+          </div>
+        </div>
+
+        <div className={tw('grid grid-cols-3 gap-4')}>
+          <div className={tw('bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200')}>
+            <div className={tw('text-3xl font-bold text-blue-600 mb-1')}>{overallStats.completed}</div>
+            <div className={tw('text-sm font-medium text-blue-800')}>Completed</div>
+            <div className={tw('text-xs text-blue-600')}>Chores done</div>
+          </div>
+          <div className={tw('bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 text-center border border-orange-200')}>
+            <div className={tw('text-3xl font-bold text-orange-600 mb-1')}>{overallStats.pending}</div>
+            <div className={tw('text-sm font-medium text-orange-800')}>In Progress</div>
+            <div className={tw('text-xs text-orange-600')}>Active tasks</div>
+          </div>
+          <div className={tw('bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center border border-purple-200')}>
+            <div className={tw('text-3xl font-bold text-purple-600 mb-1')}>{childrenChores.length}</div>
+            <div className={tw('text-sm font-medium text-purple-800')}>Children</div>
+            <div className={tw('text-xs text-purple-600')}>Tracked</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Individual Child Progress */}
+      {childrenChores.map((child) => {
+        // Find corresponding goal data
+        const childGoals = childrenProgress.find(cp => cp.username === child.username);
+        const activeGoal = childGoals?.goals?.find(g => g.status === 'approved');
+        const progressPercentage = activeGoal ? Math.min((child.total_earned / activeGoal.amount) * 100, 100) : 0;
+        
+        return (
+          <div key={child.username} className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
+            {/* Child Header */}
+            <div className={tw('bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200')}>
+              <div className={tw('flex items-center justify-between')}>
+                <div className={tw('flex items-center gap-4')}>
+                  <div className={tw('w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg')}>
+                    <span className={tw('text-3xl')}>{child.avatar}</span>
+                  </div>
+                  <div>
+                    <h3 className={tw('text-xl font-bold text-gray-900')}>
+                      {child.nickName || child.firstName}
+                    </h3>
+                    <p className={tw('text-gray-600')}>
+                      {activeGoal ? `Saving for ${activeGoal.title}` : 'No active goal'}
+                    </p>
+                    {activeGoal && (
+                      <div className={tw('flex items-center gap-2 mt-1')}>
+                        <div className={tw('w-32 h-2 bg-gray-200 rounded-full overflow-hidden')}>
+                          <div 
+                            className={tw('h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500')}
+                            style={{ width: `${progressPercentage}%` }}
+                          />
+                        </div>
+                        <span className={tw('text-sm font-medium text-gray-700')}>
+                          ${(child.total_earned || 0).toFixed(2)} / ${activeGoal.amount}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className={tw('flex items-center gap-4')}>
+                  <div className={tw('text-center')}>
+                    <div className={tw('text-2xl font-bold text-green-600')}>{child.chores_completed || 0}</div>
+                    <div className={tw('text-xs text-gray-600')}>Completed</div>
+                  </div>
+                  <div className={tw('text-center')}>
+                    <div className={tw('text-2xl font-bold text-orange-500')}>{child.chores_pending || 0}</div>
+                    <div className={tw('text-xs text-gray-600')}>Pending</div>
+                  </div>
+                  <div className={tw('text-center')}>
+                    <div className={tw('text-2xl font-bold text-purple-600')}>${(child.total_earned || 0).toFixed(2)}</div>
+                    <div className={tw('text-xs text-gray-600')}>Earned</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chores List */}
+            <div className={tw('p-6')}>
+              <h4 className={tw('text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2')}>
+                <span>📋</span>
+                Assigned Tasks
+              </h4>
+              
+              {!child.assigned_chores || child.assigned_chores.length === 0 ? (
+                <div className={tw('text-center py-8')}>
+                  <div className={tw('w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center')}>
+                    <span className={tw('text-2xl')}>📝</span>
+                  </div>
+                  <p className={tw('text-gray-600')}>No chores assigned yet</p>
+                </div>
+              ) : (
+                <div className={tw('space-y-3')}>
+                  {child.assigned_chores.map((chore) => (
+                    <div key={chore.id} className={tw('flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors')}>
+                      <div className={tw('flex items-center gap-3')}>
+                        <div className={tw(`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
+                          chore.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          chore.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`)}>
+                          {chore.status === 'completed' ? '✅' :
+                           chore.status === 'in_progress' ? '⏳' : '📋'}
+                        </div>
+                        <div className={tw('flex-1')}>
+                          <h5 className={tw('font-semibold text-gray-900')}>{chore.title}</h5>
+                          <p className={tw('text-sm text-gray-600')}>{chore.description}</p>
+                          <p className={tw('text-xs text-gray-500')}>Due: {new Date(chore.dueDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className={tw('text-right')}>
+                        <div className={tw('text-lg font-bold text-green-600')}>${chore.reward}</div>
+                        <div className={tw(`text-xs font-medium px-2 py-1 rounded-full ${
+                          chore.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          chore.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`)}>
+                          {chore.status === 'completed' ? 'Done' :
+                           chore.status === 'in_progress' ? 'Working' : 'To Do'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Chore Management Tab Component
+const ChoreManagementTab = ({ chores, recommendations, children, message, setMessage, chatHistory, isLoading, onSendMessage }) => {
+  const [activeManagementTab, setActiveManagementTab] = useState('manage-chores');
+  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [showAiChat, setShowAiChat] = useState(false);
+  const [editingChore, setEditingChore] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedChild, setSelectedChild] = useState('');
+  const [selectedGoal, setSelectedGoal] = useState('');
+  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
+
+  const handleEdit = (chore) => {
+    setEditingChore(chore);
+    setShowEditModal(true);
+  };
+
+  const handleAdd = (chore) => {
+    setEditingChore(chore);
+    setShowAddModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    // 这里可以添加保存编辑的API调用
+    console.log('Saving edited chore:', editingChore);
+    setShowEditModal(false);
+    setEditingChore(null);
+  };
+
+  const handleSaveAdd = () => {
+    // 这里可以添加添加chore到孩子目标的API调用
+    console.log('Adding chore to child:', selectedChild, 'goal:', selectedGoal, 'chore:', editingChore);
+    setShowAddModal(false);
+    setEditingChore(null);
+    setSelectedChild('');
+    setSelectedGoal('');
+  };
+
+  const handleRegenerateRecommendations = async () => {
+    setIsGeneratingRecommendations(true);
+    try {
+      // 这里可以调用API重新生成推荐
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 模拟API调用
+      console.log('Regenerating recommendations...');
+    } catch (error) {
+      console.error('Failed to regenerate recommendations:', error);
+    } finally {
+      setIsGeneratingRecommendations(false);
+    }
+  };
+
+  return (
+    <div className={tw('space-y-6')}>
+      {/* Header */}
+      <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
+        <div className={tw('flex items-center justify-between mb-4')}>
+          <div>
+            <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Chore Management</h2>
+            <p className={tw('text-gray-600')}>Create, assign, and track household chores</p>
+          </div>
+          <button 
+            className={tw('px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg')}
+          >
+            ✨ Create Custom Chore
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className={tw('inline-flex items-center bg-gray-100 rounded-2xl p-1')}>
+          <button
+            onClick={() => setActiveManagementTab('manage-chores')}
+            className={tw(`px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+              activeManagementTab === 'manage-chores'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`)}
+          >
+            <span className={tw('flex items-center gap-2')}>
+              <span>📋</span>
+              Manage Chores
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveManagementTab('ai-recommendations')}
+            className={tw(`px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+              activeManagementTab === 'ai-recommendations'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`)}
+          >
+            <span className={tw('flex items-center gap-2')}>
+              <span>🤖</span>
+              AI Recommendations
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {activeManagementTab === 'manage-chores' && (
+        <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
+          <div className={tw('p-6 border-b border-gray-100')}>
+            <div className={tw('flex items-center justify-between')}>
+              <div>
+                <h3 className={tw('text-xl font-bold text-gray-900 mb-1')}>Active Chores</h3>
+                <p className={tw('text-gray-600')}>Track and manage all household chores</p>
+              </div>
+              <div className={tw('text-right')}>
+                <div className={tw('text-2xl font-bold text-blue-600')}>{chores.length}</div>
+                <div className={tw('text-sm text-gray-600')}>Total Chores</div>
+              </div>
+            </div>
+          </div>
+
+          {chores.length === 0 ? (
+            <div className={tw('text-center py-16')}>
+              <div className={tw('w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center')}>
+                <span className={tw('text-4xl')}>📝</span>
+              </div>
+              <h3 className={tw('text-lg font-semibold text-gray-800 mb-2')}>No chores yet</h3>
+              <p className={tw('text-gray-600')}>Create your first chore or browse AI recommendations</p>
+            </div>
+          ) : (
+            <div className={tw('divide-y divide-gray-100')}>
+              {chores.map((chore) => (
+                <div key={chore.id} className={tw('p-6 hover:bg-gray-50 transition-colors')}>
+                  <div className={tw('flex items-center justify-between')}>
+                    <div className={tw('flex items-center gap-4')}>
+                      <div className={tw(`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                        chore.status === 'Completed' ? 'bg-green-100 text-green-600' :
+                        chore.status === 'Assigned' ? 'bg-blue-100 text-blue-600' :
+                        'bg-yellow-100 text-yellow-600'
+                      }`)}>
+                        <span className={tw('text-xl')}>
+                          {chore.status === 'Completed' ? '✅' :
+                           chore.status === 'Assigned' ? '📋' : '⏳'}
+                        </span>
+                      </div>
+                      
+                      <div className={tw('flex-1')}>
+                        <div className={tw('flex items-center gap-3 mb-2')}>
+                          <h4 className={tw('text-lg font-semibold text-gray-900')}>{chore.title}</h4>
+                          <span className={tw(`px-3 py-1 rounded-full text-xs font-medium ${
+                            chore.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                            chore.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`)}>
+                            {chore.difficulty === 'Easy' ? '⭐ Easy' :
+                             chore.difficulty === 'Medium' ? '⭐⭐ Medium' :
+                             '⭐⭐⭐ Hard'}
+                          </span>
+                          <span className={tw(`px-3 py-1 rounded-full text-xs font-medium ${
+                            chore.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                            chore.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`)}>
+                            {chore.status}
+                          </span>
+                        </div>
+                        <p className={tw('text-gray-600 mb-2')}>{chore.description}</p>
+                        <div className={tw('flex items-center gap-4 text-sm text-gray-600')}>
+                          <span className={tw('flex items-center gap-1')}>
+                            <span>📂</span>
+                            {chore.category}
+                          </span>
+                          <span className={tw('flex items-center gap-1')}>
+                            <span>📅</span>
+                            Due: {chore.dueDate}
+                          </span>
+                          <span className={tw('flex items-center gap-1')}>
+                            <span>👤</span>
+                            {chore.assignedTo}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={tw('flex items-center gap-3')}>
+                      <div className={tw('text-right mr-4')}>
+                        <div className={tw('text-2xl font-bold text-green-600')}>${chore.value.toFixed(2)}</div>
+                        <div className={tw('text-xs text-gray-600')}>Reward</div>
+                      </div>
+                      
+                      {chore.assignedTo === 'Unassigned' ? (
+                        <button className={tw('px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors')}>
+                          Assign
+                        </button>
+                      ) : (
+                        <div className={tw('flex gap-2')}>
+                          <button 
+                            onClick={() => handleEdit(chore)}
+                            className={tw('p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors')}
+                          >
+                            ✏️
+                          </button>
+                          <button className={tw('p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors')}>
+                            🗑️
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeManagementTab === 'ai-recommendations' && (
+        <div className={tw('space-y-6')}>
+          {/* AI Chat Interface */}
+          {showAiChat && (
+            <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 p-6')}>
+              <div className={tw('flex items-center justify-between mb-6')}>
+                <h3 className={tw('text-xl font-bold text-gray-900')}>💬 Chat with AI Assistant</h3>
                 <button
-                  onClick={() => setShowCreateChore(false)}
-                  className={tw('text-2xl hover:opacity-80')}
+                  onClick={() => setShowAiChat(false)}
+                  className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Chat History */}
+              {chatHistory.length > 0 && (
+                <div className={tw('mb-4 max-h-60 overflow-y-auto space-y-3')}>
+                  {chatHistory.slice(-5).map((msg, index) => (
+                    <div
+                      key={index}
+                      className={tw(`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`)}
+                    >
+                      <div
+                        className={tw(`max-w-2xl p-3 rounded-2xl text-sm ${
+                          msg.role === 'user'
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-800'
+                        }`)}
+                      >
+                        <p>{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className={tw('flex justify-start')}>
+                      <div className={tw('bg-gray-100 p-3 rounded-2xl')}>
+                        <div className={tw('flex space-x-1')}>
+                          <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce')}></div>
+                          <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100')}></div>
+                          <div className={tw('w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200')}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Chat Input */}
+              <div className={tw('flex gap-3 mb-4')}>
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onSendMessage();
+                    }
+                  }}
+                  placeholder="Ask about chore recommendations for your children..."
+                  className={tw('flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={onSendMessage}
+                  disabled={isLoading || !message.trim()}
+                  className={tw(`px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg ${
+                    (isLoading || !message.trim()) ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                  }`)}
+                >
+                  {isLoading ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+
+              {/* Quick suggestion buttons */}
+              <div className={tw('flex flex-wrap gap-2')}>
+                {[
+                  "What chores are good for a 7-year-old?",
+                  "How to teach responsibility through chores?",
+                  "Easy chores for beginners?",
+                  "Chores that teach money management?"
+                ].map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setMessage(suggestion)}
+                    className={tw('px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm hover:bg-gray-200 transition-colors')}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations Section */}
+          <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
+            <div className={tw('p-6 border-b border-gray-100')}>
+              <div className={tw('flex items-center justify-between')}>
+                <div>
+                  <h3 className={tw('text-xl font-bold text-gray-900 mb-1')}>🤖 AI Recommendations</h3>
+                  <p className={tw('text-gray-600')}>Personalized chore suggestions for your children</p>
+                </div>
+                <div className={tw('flex gap-3')}>
+                  <button
+                    onClick={() => setShowAiChat(!showAiChat)}
+                    className={tw('px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-200 transition-colors')}
+                  >
+                    💬 Chat with AI
+                  </button>
+                  <button
+                    onClick={handleRegenerateRecommendations}
+                    disabled={isGeneratingRecommendations}
+                    className={tw(`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg ${
+                      isGeneratingRecommendations ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                    }`)}
+                  >
+                    {isGeneratingRecommendations ? '🔄 Generating...' : '🎲 New Recommendations'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {recommendations.length === 0 ? (
+              <div className={tw('text-center py-16')}>
+                <div className={tw('w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center')}>
+                  <span className={tw('text-4xl')}>🤖</span>
+                </div>
+                <h3 className={tw('text-lg font-semibold text-gray-800 mb-2')}>Ready to suggest perfect chores!</h3>
+                <p className={tw('text-gray-600')}>Chat with AI or generate recommendations to get started</p>
+              </div>
+            ) : (
+              <div className={tw('divide-y divide-gray-100')}>
+                {recommendations.map((rec, index) => (
+                  <div key={index} className={tw('p-6 hover:bg-gray-50 transition-colors')}>
+                    <div className={tw('flex items-start justify-between')}>
+                      <div className={tw('flex items-start gap-4 flex-1')}>
+                        <div className={tw('w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg')}>
+                          <span className={tw('text-xl')}>⭐</span>
+                        </div>
+                        
+                        <div className={tw('flex-1')}>
+                          <div className={tw('flex items-center gap-3 mb-2')}>
+                            <h4 className={tw('text-lg font-bold text-gray-900')}>{rec.title}</h4>
+                            <span className={tw(`px-3 py-1 rounded-full text-xs font-medium ${
+                              rec.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                              rec.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`)}>
+                              {rec.difficulty === 'Easy' ? '⭐ Easy' :
+                               rec.difficulty === 'Medium' ? '⭐⭐ Medium' :
+                               '⭐⭐⭐ Hard'}
+                            </span>
+                          </div>
+                          <p className={tw('text-gray-600 mb-3')}>{rec.description}</p>
+                          <div className={tw('flex items-center gap-4 text-sm text-gray-600')}>
+                            <span className={tw('flex items-center gap-1')}>
+                              <span>📂</span>
+                              {rec.category}
+                            </span>
+                            <span className={tw('flex items-center gap-1')}>
+                              <span>📅</span>
+                              Due: {rec.dueDate}
+                            </span>
+                            <span className={tw('flex items-center gap-1')}>
+                              <span>💰</span>
+                              ${rec.reward.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className={tw('flex gap-2 ml-4')}>
+                        <button 
+                          onClick={() => handleEdit(rec)}
+                          className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors')}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          onClick={() => handleAdd(rec)}
+                          className={tw('px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg')}
+                        >
+                          ➕ Add to Child
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingChore && (
+        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
+          <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
+            <div className={tw('p-6 border-b border-gray-100')}>
+              <div className={tw('flex items-center justify-between')}>
+                <h3 className={tw('text-xl font-bold text-gray-900')}>✏️ Edit Chore</h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
                 >
                   ✕
                 </button>
               </div>
             </div>
-
-            <form onSubmit={handleCreateChore} className={tw('p-6')}>
-              <div className={tw('mb-4')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Chore Title
-                </label>
+            
+            <div className={tw('p-6 space-y-4')}>
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Title</label>
                 <input
                   type="text"
-                  value={choreForm.title}
-                  onChange={(e) => setChoreForm({ ...choreForm, title: e.target.value })}
-                  placeholder="e.g., Clean your room"
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                  required
+                  value={editingChore.title}
+                  onChange={(e) => setEditingChore({...editingChore, title: e.target.value})}
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 />
               </div>
-
-              <div className={tw('mb-4')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Description
-                </label>
+              
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Description</label>
                 <textarea
-                  value={choreForm.description}
-                  onChange={(e) => setChoreForm({ ...choreForm, description: e.target.value })}
-                  placeholder="Describe what needs to be done..."
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
+                  value={editingChore.description}
+                  onChange={(e) => setEditingChore({...editingChore, description: e.target.value})}
                   rows="3"
-                  required
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 />
               </div>
-
-              <div className={tw('grid grid-cols-2 gap-4 mb-4')}>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
                 <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    Assign to
-                  </label>
-                  <select
-                    value={choreForm.assignTo}
-                    onChange={(e) => setChoreForm({ ...choreForm, assignTo: e.target.value })}
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                    required
-                  >
-                    <option value="">Child Profile</option>
-                    {children.map((child) => (
-                      <option key={child.id} value={child.id}>
-                        {child.nickName || child.firstName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    Reward ($)
-                  </label>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Reward ($)</label>
                   <input
                     type="number"
                     step="0.01"
-                    value={choreForm.reward}
-                    onChange={(e) => setChoreForm({ ...choreForm, reward: e.target.value })}
-                    placeholder="0.00"
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                    required
+                    value={editingChore.reward}
+                    onChange={(e) => setEditingChore({...editingChore, reward: parseFloat(e.target.value)})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                   />
                 </div>
-              </div>
-
-              <div className={tw('grid grid-cols-2 gap-4 mb-6')}>
+                
                 <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={choreForm.dueDate}
-                    onChange={(e) => setChoreForm({ ...choreForm, dueDate: e.target.value })}
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    Difficulty
-                  </label>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Difficulty</label>
                   <select
-                    value={choreForm.difficulty}
-                    onChange={(e) => setChoreForm({ ...choreForm, difficulty: e.target.value })}
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
+                    value={editingChore.difficulty}
+                    onChange={(e) => setEditingChore({...editingChore, difficulty: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                   >
                     <option value="Easy">⭐ Easy</option>
                     <option value="Medium">⭐⭐ Medium</option>
@@ -868,503 +1420,99 @@ const ParentDashboard = () => {
                   </select>
                 </div>
               </div>
-
-              <div className={tw('flex gap-4')}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateChore(false)}
-                  className={tw('flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-turquoise hover:text-primary-turquoise transition-colors')}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
-                >
-                  Create Chore
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Profile Edit Modal */}
-      {showProfileModal && (
-        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-md')}>
-            <div className={tw('bg-gradient-to-r from-primary-turquoise to-accent-purple p-6 rounded-t-2xl')}>
-              <div className={tw('flex items-center justify-between text-white')}>
-                <h3 className={tw('text-xl font-bold flex items-center gap-2')}>
-                  <span>👤</span> Edit Profile
-                </h3>
-                <button
-                  onClick={() => setShowProfileModal(false)}
-                  className={tw('text-2xl hover:opacity-80')}
-                >
-                  ✕
-                </button>
-              </div>
             </div>
-
-            <form onSubmit={handleUpdateProfile} className={tw('p-6')}>
-              {/* Avatar Selection */}
-              <div className={tw('mb-6')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-3')}>
-                  Choose Avatar
-                </label>
-                <div className={tw('grid grid-cols-4 gap-3')}>
-                  {avatarOptions.map((avatar) => (
-                    <button
-                      key={avatar}
-                      type="button"
-                      onClick={() => setProfileForm({ ...profileForm, avatar })}
-                      className={tw(`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all ${
-                        profileForm.avatar === avatar
-                          ? 'bg-gradient-to-r from-primary-turquoise to-accent-purple shadow-lg scale-110'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`)}
-                    >
-                      {avatar}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={tw('grid grid-cols-2 gap-4 mb-4')}>
-                <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileForm.firstName}
-                    onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileForm.lastName}
-                    onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
-                    className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className={tw('mb-4')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={profileForm.email}
-                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise bg-gray-50')}
-                  disabled
-                />
-                <p className={tw('text-xs text-gray-500 mt-1')}>Email cannot be changed</p>
-              </div>
-
-              <div className={tw('mb-6')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={profileForm.phoneNumber}
-                  onChange={(e) => setProfileForm({ ...profileForm, phoneNumber: e.target.value })}
-                  placeholder="+1 (555) 123-4567"
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                />
-              </div>
-
-              <div className={tw('flex gap-4')}>
-                <button
-                  type="button"
-                  onClick={() => setShowProfileModal(false)}
-                  className={tw('flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-turquoise hover:text-primary-turquoise transition-colors')}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Family Management Modal */}
-      {showFamilyModal && (
-        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden')}>
-            <div className={tw('bg-gradient-to-r from-primary-turquoise to-accent-purple p-6 rounded-t-2xl')}>
-              <div className={tw('flex items-center justify-between text-white')}>
-                <h3 className={tw('text-xl font-bold flex items-center gap-2')}>
-                  <span>👨‍👩‍👧‍👦</span> Manage Family
-                </h3>
-                <button
-                  onClick={() => setShowFamilyModal(false)}
-                  className={tw('text-2xl hover:opacity-80')}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className={tw('p-6 overflow-y-auto max-h-[calc(80vh-100px)]')}>
-              {/* Parents Section */}
-              <div className={tw('mb-8')}>
-                <h4 className={tw('text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2')}>
-                  <span>👫</span> Parents
-                </h4>
-                <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4')}>
-                  {/* Current User */}
-                  <div className={tw('bg-gray-50 rounded-xl p-4 border border-gray-200')}>
-                    <div className={tw('flex items-center gap-3')}>
-                      <div className={tw('w-16 h-16 rounded-full bg-gradient-to-r from-primary-turquoise to-accent-purple flex items-center justify-center')}>
-                        <span className={tw('text-2xl')}>{userProfile?.avatar || '👩‍💼'}</span>
-                      </div>
-                      <div className={tw('flex-1')}>
-                        <h5 className={tw('font-semibold text-gray-800')}>
-                          {userProfile?.firstName} {userProfile?.lastName}
-                        </h5>
-                        <p className={tw('text-sm text-gray-600')}>{userProfile?.email}</p>
-                        <span className={tw('text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full')}>
-                          Current User
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Spouse/Partner */}
-                  {userProfile?.spouse ? (
-                    <div className={tw('bg-gray-50 rounded-xl p-4 border border-gray-200')}>
-                      <div className={tw('flex items-center gap-3')}>
-                        <div className={tw('w-16 h-16 rounded-full bg-accent-pink flex items-center justify-center')}>
-                          <span className={tw('text-2xl')}>{userProfile.spouse.avatar || '👨‍💼'}</span>
-                        </div>
-                        <div className={tw('flex-1')}>
-                          <h5 className={tw('font-semibold text-gray-800')}>
-                            {userProfile.spouse.name}
-                          </h5>
-                          <p className={tw('text-sm text-gray-600')}>{userProfile.spouse.role}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={tw('bg-gray-50 rounded-xl p-4 border-2 border-dashed border-gray-300 flex items-center justify-center')}>
-                      <button
-                        onClick={() => navigate('/profile')}
-                        className={tw('text-gray-500 hover:text-primary-turquoise flex flex-col items-center gap-2')}
-                      >
-                        <span className={tw('text-3xl')}>➕</span>
-                        <span className={tw('text-sm')}>Add Spouse/Partner</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Children Section */}
-              <div>
-                <div className={tw('flex items-center justify-between mb-4')}>
-                  <h4 className={tw('text-lg font-semibold text-gray-800 flex items-center gap-2')}>
-                    <span>👶</span> Children ({children.length})
-                  </h4>
-                  <button
-                    onClick={() => navigate('/profile')}
-                    className={tw('px-4 py-2 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-medium rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all text-sm')}
-                  >
-                    Add Child
-                  </button>
-                </div>
-
-                <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-4')}>
-                  {children.map((child) => (
-                    <div key={child.id} className={tw('bg-gray-50 rounded-xl p-4 border border-gray-200')}>
-                      <div className={tw('flex items-center justify-between')}>
-                        <div className={tw('flex items-center gap-3')}>
-                          <div className={tw('w-14 h-14 rounded-full bg-accent-pink flex items-center justify-center')}>
-                            <span className={tw('text-2xl')}>{child.avatar || '👧'}</span>
-                          </div>
-                          <div>
-                            <h5 className={tw('font-semibold text-gray-800')}>
-                              {child.nickName || child.firstName}
-                            </h5>
-                            <p className={tw('text-sm text-gray-600')}>
-                              Age: {child.age || 'Not set'}
-                            </p>
-                            <p className={tw('text-xs text-gray-500')}>
-                              Username: {child.username}
-                            </p>
-                          </div>
-                        </div>
-                        <div className={tw('flex gap-2')}>
-                          <button
-                            onClick={() => {
-                              setSelectedChild(child);
-                              setShowEditChildModal(true);
-                            }}
-                            className={tw('p-2 rounded-full hover:bg-gray-200 text-gray-600')}
-                          >
-                            <svg className={tw('w-4 h-4')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to remove ${child.nickName || child.firstName}?`)) {
-                                // TODO: Implement delete child
-                                console.log('Delete child:', child.id);
-                              }
-                            }}
-                            className={tw('p-2 rounded-full hover:bg-gray-200 text-red-500')}
-                          >
-                            <svg className={tw('w-4 h-4')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div className={tw('mt-3 pt-3 border-t border-gray-200')}>
-                        <div className={tw('flex justify-between text-sm')}>
-                          <span className={tw('text-gray-600')}>Tasks Completed:</span>
-                          <span className={tw('font-medium')}>{child.tasksCompleted || 0}</span>
-                        </div>
-                        <div className={tw('flex justify-between text-sm mt-1')}>
-                          <span className={tw('text-gray-600')}>Money Earned:</span>
-                          <span className={tw('font-medium text-green-600')}>${child.moneyAccumulated || 0}.00</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={tw('p-6 border-t border-gray-200')}>
+            
+            <div className={tw('p-6 border-t border-gray-100 flex gap-3')}>
               <button
-                onClick={() => setShowFamilyModal(false)}
-                className={tw('w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors')}
+                onClick={() => setShowEditModal(false)}
+                className={tw('flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors')}
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg')}
+              >
+                Save Changes
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Child Modal */}
-      {showEditChildModal && selectedChild && (
+      {/* Add to Child Modal */}
+      {showAddModal && editingChore && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-md')}>
-            <div className={tw('bg-gradient-to-r from-primary-turquoise to-accent-purple p-6 rounded-t-2xl')}>
-              <div className={tw('flex items-center justify-between text-white')}>
-                <h3 className={tw('text-xl font-bold flex items-center gap-2')}>
-                  <span>✏️</span> Edit Child Profile
-                </h3>
+          <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl')}>
+            <div className={tw('p-6 border-b border-gray-100')}>
+              <div className={tw('flex items-center justify-between')}>
+                <h3 className={tw('text-xl font-bold text-gray-900')}>➕ Add Chore to Child</h3>
                 <button
-                  onClick={() => {
-                    setShowEditChildModal(false);
-                    setSelectedChild(null);
-                  }}
-                  className={tw('text-2xl hover:opacity-80')}
+                  onClick={() => setShowAddModal(false)}
+                  className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
                 >
                   ✕
                 </button>
               </div>
             </div>
-
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              // TODO: Implement update child
-              console.log('Update child:', selectedChild);
-              setShowEditChildModal(false);
-              setSelectedChild(null);
-            }} className={tw('p-6')}>
-              <div className={tw('mb-4')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Nickname
-                </label>
-                <input
-                  type="text"
-                  value={selectedChild.nickName || ''}
-                  onChange={(e) => setSelectedChild({ ...selectedChild, nickName: e.target.value })}
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                />
-              </div>
-
-              <div className={tw('mb-4')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Age
-                </label>
-                <input
-                  type="number"
-                  value={selectedChild.age || ''}
-                  onChange={(e) => setSelectedChild({ ...selectedChild, age: e.target.value })}
-                  className={tw('w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise')}
-                  min="1"
-                  max="18"
-                />
-              </div>
-
-              <div className={tw('mb-6')}>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
-                  Avatar
-                </label>
-                <div className={tw('grid grid-cols-4 gap-3')}>
-                  {['👧', '👦', '🧒', '👶', '👧🏻', '👦🏻', '👧🏽', '👦🏽'].map((avatar) => (
-                    <button
-                      key={avatar}
-                      type="button"
-                      onClick={() => setSelectedChild({ ...selectedChild, avatar })}
-                      className={tw(`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all ${
-                        selectedChild.avatar === avatar
-                          ? 'bg-gradient-to-r from-primary-turquoise to-accent-purple shadow-lg scale-110'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`)}
-                    >
-                      {avatar}
-                    </button>
-                  ))}
+            
+            <div className={tw('p-6 space-y-6')}>
+              <div className={tw('bg-gray-50 rounded-2xl p-4')}>
+                <h4 className={tw('font-semibold text-gray-900 mb-2')}>{editingChore.title}</h4>
+                <p className={tw('text-gray-600 text-sm')}>{editingChore.description}</p>
+                <div className={tw('flex items-center gap-4 mt-2 text-sm text-gray-600')}>
+                  <span>💰 ${editingChore.reward}</span>
+                  <span>⭐ {editingChore.difficulty}</span>
                 </div>
               </div>
-
-              <div className={tw('flex gap-4')}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditChildModal(false);
-                    setSelectedChild(null);
-                  }}
-                  className={tw('flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-turquoise hover:text-primary-turquoise transition-colors')}
+              
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Select Child</label>
+                <select
+                  value={selectedChild}
+                  onChange={(e) => setSelectedChild(e.target.value)}
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-primary-turquoise to-accent-purple text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
-                >
-                  Save Changes
-                </button>
+                  <option value="">Choose a child...</option>
+                  {children.map((child) => (
+                    <option key={child.username} value={child.username}>
+                      {child.avatar} {child.nickName || child.firstName}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Notifications Modal */}
-      {showNotifications && (
-        <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden')}>
-            <div className={tw('bg-gradient-to-r from-primary-turquoise to-accent-purple p-6 rounded-t-2xl')}>
-              <div className={tw('flex items-center justify-between text-white')}>
-                <h3 className={tw('text-xl font-bold flex items-center gap-2')}>
-                  <BellIcon size={24} /> Goals & Notifications
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowNotifications(false);
-                    // Mark all as read
-                    fetch('http://localhost:5500/api/notifications/mark-read', {
-                      method: 'POST',
-                      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('app_token')}` }
-                    });
-                    setUnreadCount(0);
-                  }}
-                  className={tw('text-2xl hover:opacity-80')}
+              
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Add to Goal (Optional)</label>
+                <select
+                  value={selectedGoal}
+                  onChange={(e) => setSelectedGoal(e.target.value)}
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  disabled={!selectedChild}
                 >
-                  ✕
-                </button>
+                  <option value="">No specific goal</option>
+                  <option value="goal1">Gaming Setup - $400</option>
+                  <option value="goal2">Bicycle - $150</option>
+                </select>
               </div>
             </div>
-
-            <div className={tw('p-6 overflow-y-auto max-h-[calc(80vh-100px)]')}>
-              <p className={tw('text-gray-600 mb-6')}>
-                Review and manage your children's goals
-              </p>
-
-              {notifications.length === 0 ? (
-                <div className={tw('text-center py-12 text-gray-500')}>
-                  <BellIcon size={48} className={tw('mx-auto mb-4 opacity-50')} />
-                  <p>No new notifications</p>
-                </div>
-              ) : (
-                <div className={tw('space-y-4')}>
-                  {notifications.map((notification, index) => (
-                    <div key={index} className={tw('bg-gray-50 rounded-xl p-6 border border-gray-200')}>
-                      <div className={tw('flex items-start gap-4')}>
-                        <div className={tw('w-16 h-16 rounded-full bg-accent-pink flex items-center justify-center flex-shrink-0')}>
-                          <span className={tw('text-2xl')}>{notification.kid_avatar || '👧'}</span>
-                        </div>
-                        <div className={tw('flex-1')}>
-                          <h4 className={tw('text-lg font-semibold text-gray-800 mb-2')}>
-                            {notification.title}
-                          </h4>
-                          <p className={tw('text-gray-600 mb-4')}>
-                            {notification.message}
-                          </p>
-                          
-                          {notification.type === 'goal_approval_request' && (
-                            <div className={tw('flex items-center gap-4 mb-4')}>
-                              <div className={tw('flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full')}>
-                                <span className={tw('text-green-700 font-medium')}>💰 ${notification.title.match(/\$(\d+\.?\d*)/)?.[1] || '0'}</span>
-                              </div>
-                              <div className={tw('flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full')}>
-                                <span className={tw('text-blue-700 font-medium')}>🚶 10 weeks ( Steady pace )</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {notification.status === 'pending' ? (
-                            <div className={tw('flex gap-4')}>
-                              <button
-                                onClick={() => handleDeclineGoal(notification.goal_id)}
-                                className={tw('flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-red-500 hover:text-red-500 transition-colors font-medium')}
-                              >
-                                Decline & Suggest Goal
-                              </button>
-                              <button
-                                onClick={() => handleApproveGoal(notification.goal_id)}
-                                className={tw('flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all')}
-                              >
-                                Approve & Assign Chores
-                              </button>
-                            </div>
-                          ) : notification.status === 'approved' ? (
-                            <div className={tw('bg-green-100 border border-green-300 rounded-lg p-4 text-center')}>
-                              <p className={tw('text-green-700 font-medium flex items-center justify-center gap-2')}>
-                                <span className={tw('text-xl')}>✅</span>
-                                Goal Approved - Chores Assigned
-                              </p>
-                            </div>
-                          ) : notification.status === 'declined' ? (
-                            <div className={tw('bg-red-100 border border-red-300 rounded-lg p-4 text-center')}>
-                              <p className={tw('text-red-700 font-medium flex items-center justify-center gap-2')}>
-                                <span className={tw('text-xl')}>❌</span>
-                                Goal Declined
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            
+            <div className={tw('p-6 border-t border-gray-100 flex gap-3')}>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className={tw('flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors')}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAdd}
+                disabled={!selectedChild}
+                className={tw(`flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg ${
+                  !selectedChild ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                }`)}
+              >
+                Add Chore
+              </button>
             </div>
           </div>
         </div>
@@ -1373,4 +1521,162 @@ const ParentDashboard = () => {
   );
 };
 
-export default ParentDashboard;
+
+
+// Notifications Modal Component
+const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecline }) => {
+  const handleApproveProgress = async (notificationId, goalId, earnedAmount) => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/approve-progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ earnedAmount })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Progress approved! Your child\'s earnings have been added to their savings.');
+        window.location.reload(); // Refresh to update notifications
+      } else {
+        alert('Failed to approve progress. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error approving progress:', error);
+      alert('Failed to approve progress. Please check your connection and try again.');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
+      <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col')}>
+        <div className={tw('flex items-center justify-between p-6 border-b border-gray-100')}>
+          <h3 className={tw('text-xl font-bold text-gray-900 flex items-center gap-2')}>
+            <BellIcon size={24} />
+            Notifications
+          </h3>
+          <button onClick={onClose} className={tw('text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors')}>
+            <svg className={tw('w-6 h-6')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className={tw('flex-1 overflow-y-auto p-6')}>
+          {notifications.length === 0 ? (
+            <div className={tw('text-center text-gray-500 py-12')}>
+              <div className={tw('w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center')}>
+                <BellIcon size={32} />
+              </div>
+              <h3 className={tw('text-lg font-semibold text-gray-800 mb-2')}>All caught up!</h3>
+              <p className={tw('text-gray-600')}>No new notifications</p>
+            </div>
+          ) : (
+            <div className={tw('space-y-4')}>
+              {notifications.map((notif, index) => (
+                <div key={index} className={tw(`rounded-2xl p-4 border transition-all hover:shadow-md ${
+                  notif.type === 'progress_submission' 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-blue-50 border-blue-200'
+                }`)}>
+                  <div className={tw('flex items-start gap-4')}>
+                    <div className={tw(`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                      notif.type === 'progress_submission' 
+                        ? 'bg-green-200' 
+                        : 'bg-blue-200'
+                    }`)}>
+                      <span className={tw('text-xl')}>{notif.kid_avatar || '👧'}</span>
+                    </div>
+                    
+                    <div className={tw('flex-1 min-w-0')}>
+                      <div className={tw('flex items-start justify-between mb-2')}>
+                        <h4 className={tw('font-bold text-gray-900')}>{notif.title}</h4>
+                        <span className={tw(`px-2 py-1 rounded-full text-xs font-medium ${
+                          notif.status === 'pending' 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`)}>
+                          {notif.status === 'pending' ? 'Pending' : 'Reviewed'}
+                        </span>
+                      </div>
+                      
+                      <p className={tw('text-gray-700 mb-3')}>{notif.message}</p>
+                      
+                      {/* Progress Submission Details */}
+                      {notif.type === 'progress_submission' && notif.completed_chores && (
+                        <div className={tw('bg-white rounded-xl p-3 mb-3 border border-green-200')}>
+                          <h5 className={tw('font-semibold text-gray-800 mb-2')}>Completed Chores:</h5>
+                          <div className={tw('space-y-1')}>
+                            {notif.completed_chores.map((chore, choreIndex) => (
+                              <div key={choreIndex} className={tw('flex items-center justify-between text-sm')}>
+                                <span className={tw('text-gray-700')}>{chore.name}</span>
+                                <span className={tw('font-semibold text-green-600')}>${chore.amount}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className={tw('border-t border-green-200 mt-2 pt-2 flex justify-between font-bold')}>
+                            <span>Total Earned:</span>
+                            <span className={tw('text-green-600')}>${notif.earned_amount?.toFixed(2) || '0.00'}</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Action Buttons */}
+                      {notif.status === 'pending' && (
+                        <div className={tw('flex gap-2')}>
+                          {notif.type === 'progress_submission' ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveProgress(notif.id, notif.goal_id, notif.earned_amount)}
+                                className={tw('flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg')}
+                              >
+                                ✅ Approve Progress
+                              </button>
+                              <button
+                                className={tw('px-4 py-2 bg-yellow-100 text-yellow-700 rounded-xl text-sm font-medium hover:bg-yellow-200 transition-colors border border-yellow-300')}
+                              >
+                                💬 Ask for Details
+                              </button>
+                            </>
+                          ) : (
+                            // Goal approval buttons
+                            <>
+                              <button
+                                onClick={() => onApprove(notif.goal_id)}
+                                className={tw('flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg')}
+                              >
+                                ✅ Approve Goal
+                              </button>
+                              <button
+                                onClick={() => onDecline(notif.goal_id)}
+                                className={tw('px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium hover:bg-red-200 transition-colors border border-red-300')}
+                              >
+                                ❌ Decline
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Timestamp */}
+                      <div className={tw('text-xs text-gray-500 mt-3')}>
+                        {new Date(notif.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ParentDashboard; 

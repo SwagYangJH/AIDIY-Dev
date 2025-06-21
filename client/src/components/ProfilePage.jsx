@@ -463,10 +463,7 @@ const handleChildEdit = (kid) => {
   };
 
   /* ───────── handle kid click ───────── */
-  const handleKidClick = (kid) => {
-    // Remove navigation from kid click
-    // Kids are now only clickable in manage mode for editing
-  };
+  // Kids are now only clickable in manage mode for editing
 
   /* ─────────────────────── render ─────────────────────── */
   return (
