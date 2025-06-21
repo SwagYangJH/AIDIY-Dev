@@ -376,6 +376,7 @@ def kid_login():
         {
             "email": f"{username}@kids.aidiy",
             "name": child.get("nickName") or child["firstName"],
+            "username": username, 
         }
     )
     return jsonify(
@@ -625,6 +626,49 @@ def speech_to_text():
         return jsonify(error=f"Failed to process audio: {str(e)}"), 500
 
 # ---------- Goals management ---------- #
+
+def get_user_username_from_token():
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.replace("Bearer ", "")
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return decoded.get("username")  # <- this must match your JWT payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+@app.route("/api/goals", methods=["GET"])
+@auth_required
+def get_goals():
+    # 1. Extract kid_username directly from their JWT “email” claim
+    email = request.user.get("email", "")
+    kid_username = email.split("@")[0]
+
+    # 2. (Optional) verify that child exists
+    child = children_col.find_one({ "username": kid_username })
+    if not child:
+        return jsonify({ "success": False, "error": "Child not found" }), 404
+
+    # 3. Query by kid_username, not user_id
+    try:
+        raw_goals = goals_col.find({ "kid_username": kid_username })
+        goals = []
+        for g in raw_goals:
+            g["_id"] = str(g["_id"])
+            # ensure frontend fields exist
+            g.setdefault("saved", 0)
+            g.setdefault("progress", 0)
+            goals.append(g)
+
+        return jsonify({ "success": True, "goals": goals }), 200
+
+    except Exception as e:
+        return jsonify({ "success": False, "error": str(e) }), 500
+
 
 # ---------- Mark assessment complete ---------- #
 @app.route("/api/users/complete-assessment", methods=["POST"])
