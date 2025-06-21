@@ -1,12 +1,12 @@
 // src/api.js
 import axios from 'axios';
 
-// Use Vercel backend
+// Use local backend for development
 const getApiBaseURL = () => {
   if (process.env.NODE_ENV === 'production') {
-    return process.env.REACT_APP_API_URL || 'https://aidiy-dev.vercel.app';
+    return process.env.REACT_APP_API_URL || 'http://localhost:5000';
   }
-  return 'https://aidiy-dev.vercel.app'; // Use Vercel for dev too
+  return 'http://localhost:5000'; // Local Flask server
 };
 
 // Export the base URL for direct fetch calls
