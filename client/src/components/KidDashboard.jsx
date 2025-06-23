@@ -19,14 +19,14 @@ const KidDashboard = () => {
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data for demonstration
-  const totalEarnings = 0;
-  const totalSavings = 0;
-  const investments = 0;
-  const level = 0;
-  const progress = 1;
-
   const [activeGoals, setActiveGoals] = useState([]);
+
+  // Calculate real values from goals and user profile
+  const totalSavings = userProfile?.financial_info?.total_savings || activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
+  const totalEarnings = totalSavings; // For now, earnings = savings
+  const investments = 0; // Can be calculated later
+  const level = Math.floor(totalSavings / 50) + 1; // Level up every $50
+  const progress = Math.min((level - 1) * 10 + 1, 100); // Progress based on level
 
   const choreCategories = [
     {
@@ -75,6 +75,30 @@ const KidDashboard = () => {
   useEffect(() => {
     fetchUserData();
     fetchGoals();
+  }, []);
+
+  // Check for refresh flag when component becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && sessionStorage.getItem('refreshKidDashboard') === 'true') {
+        console.log('🔄 Refreshing KidDashboard data...');
+        fetchGoals();
+        sessionStorage.removeItem('refreshKidDashboard');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also check immediately when component mounts
+    if (sessionStorage.getItem('refreshKidDashboard') === 'true') {
+      console.log('🔄 Refreshing KidDashboard data on mount...');
+      fetchGoals();
+      sessionStorage.removeItem('refreshKidDashboard');
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchUserData = async () => {
@@ -423,95 +447,121 @@ const KidDashboard = () => {
             Active Goals
           </h3>
           <div className={tw("grid grid-cols-1 md:grid-cols-4 gap-4")}>
-            {activeGoals.map((goal) => (
-              <div
-                key={goal.id}
-                className={tw(
-                  `rounded-xl p-4 shadow ${
-                    goal.status === "approved" || goal.status === "declined"
-                      ? "bg-white-50 border border-blue-200"
-                      : "bg-white"
-                  }`
-                )}
-              >
-                <div className={tw("flex items-center justify-between mb-2")}>
-                  <span className={tw("text-sm font-medium")}>
-                    {goal.title}
-                  </span>
-                  {goal.status === "approved" ? (
-                    <span
-                      className={tw(
-                        "text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
-                      )}
-                    >
-                      Approved
-                    </span>
-                  ) : goal.status === "declined" ? (
-                    <span
-                      className={tw(
-                        "text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
-                      )}
-                    >
-                      Declined
-                    </span>
-                  ) : (
-                    <span
-                      className={tw(
-                        "text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
-                      )}
-                    >
-                      Approval Pending
-                    </span>
-                  )}
-                </div>
-
-                <div className={tw("text-sm text-gray-600 mb-2")}>
-                  Save ${goal.amount} for {goal.category || "your goal"}
-                </div>
-
-                <div
-                  className={tw(
-                    "flex items-center gap-2 text-xs text-gray-500 mb-3"
-                  )}
-                >
-                  <span>📅 Due in {goal.duration || "N/A"} Weeks</span>
-                  <span>💰 Saved: ${goal.saved}</span>
-                </div>
-
-                <div className={tw("mb-2")}>
+            {activeGoals
+              .filter(goal => {
+                const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
+                return progressPercent < 100; // Only show incomplete goals
+              })
+              .map((goal) => {
+                const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
+                const isCompleted = progressPercent >= 100;
+                
+                return (
                   <div
+                    key={goal._id || goal.id}
                     className={tw(
-                      "flex justify-between text-xs text-gray-600 mb-1"
+                      `rounded-xl p-4 shadow ${
+                        isCompleted 
+                          ? "bg-green-50 border border-green-200"
+                          : goal.status === "approved" || goal.status === "declined"
+                          ? "bg-white-50 border border-blue-200"
+                          : "bg-white"
+                      }`
                     )}
                   >
-                    <span>Progress</span>
-                    <span>{goal.progress}%</span>
-                  </div>
-                  <div className={tw("w-full bg-gray-200 rounded-full h-2")}>
+                    <div className={tw("flex items-center justify-between mb-2")}>
+                      <span className={tw("text-sm font-medium")}>
+                        {goal.title}
+                      </span>
+                      {isCompleted ? (
+                        <span
+                          className={tw(
+                            "text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                          )}
+                        >
+                          Completed! 🎉
+                        </span>
+                      ) : goal.status === "approved" ? (
+                        <span
+                          className={tw(
+                            "text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                          )}
+                        >
+                          Approved
+                        </span>
+                      ) : goal.status === "declined" ? (
+                        <span
+                          className={tw(
+                            "text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
+                          )}
+                        >
+                          Declined
+                        </span>
+                      ) : (
+                        <span
+                          className={tw(
+                            "text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                          )}
+                        >
+                          Approval Pending
+                        </span>
+                      )}
+                    </div>
+
+                    <div className={tw("text-sm text-gray-600 mb-2")}>
+                      Save ${goal.amount} for {goal.category || "your goal"}
+                    </div>
+
                     <div
                       className={tw(
-                        "bg-gradient-to-r from-primary-turquoise to-accent-purple h-2 rounded-full"
+                        "flex items-center gap-2 text-xs text-gray-500 mb-3"
                       )}
-                      style={{ width: `${goal.progress}%` }}
-                    />
-                  </div>
-                </div>
+                    >
+                      <span>📅 Due in {goal.duration || "N/A"} Weeks</span>
+                      <span>💰 Saved: ${(goal.saved || 0).toFixed(2)}</span>
+                    </div>
 
-                <button
-                  disabled={goal.status !== "approved"}
-                  onClick={() => navigate("/chore-quest", { state: { goal } })}
-                  className={tw(
-                    `w-full py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                      goal.status === "approved"
-                        ? "bg-primary-turquoise text-white hover:bg-primary-turquoise-dark"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                    }`
-                  )}
-                >
-                  Start
-                </button>
-              </div>
-            ))}
+                    <div className={tw("mb-2")}>
+                      <div
+                        className={tw(
+                          "flex justify-between text-xs text-gray-600 mb-1"
+                        )}
+                      >
+                        <span>Progress</span>
+                        <span>{progressPercent.toFixed(0)}%</span>
+                      </div>
+                      <div className={tw("w-full bg-gray-200 rounded-full h-2")}>
+                        <div
+                          className={tw(
+                            `h-2 rounded-full ${
+                              isCompleted 
+                                ? "bg-gradient-to-r from-green-400 to-green-600" 
+                                : "bg-gradient-to-r from-primary-turquoise to-accent-purple"
+                            }`
+                          )}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      disabled={goal.status !== "approved" || isCompleted}
+                      onClick={() => navigate("/chore-quest", { state: { goal } })}
+                      className={tw(
+                        `w-full py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                          isCompleted
+                            ? "bg-green-100 text-green-700 cursor-not-allowed"
+                            : goal.status === "approved"
+                            ? "bg-primary-turquoise text-white hover:bg-primary-turquoise-dark"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                        }`
+                      )}
+                    >
+                      {isCompleted ? "Goal Achieved! 🎉" : "Start"}
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         </div>
 
