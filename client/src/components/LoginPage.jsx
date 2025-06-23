@@ -34,10 +34,10 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { loading } = useSelector((s) => s.auth);
 
-  const resetErrors = useCallback(() => {
+  const resetErrors = () => {
     setErrorMsg('');
     dispatch(clearError());
-  }, [dispatch]);
+  };
 
   /* ────────────────────── Google One-Tap callback ──────────────────────── */
   const handleCredentialResponse = useCallback(
@@ -76,7 +76,7 @@ const LoginPage = () => {
         setErrorMsg('Network error – please try again');
       }
     },
-    [dispatch, navigate, resetErrors],
+    [dispatch, navigate],
   );
 
   /* ─────────────────────── init Google script ──────────────────────────── */

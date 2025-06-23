@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
-import CelebrationEffect from "./CelebrationEffect";
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const labelColors = ["#696EFF", "#FF85B8"];
@@ -12,70 +11,11 @@ const WeeklyProgress = () => {
   const selectedChores = state?.selectedChores || [];
   const goal = state?.goal || {};
   const [completedChores, setCompletedChores] = useState([]);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const toggleComplete = (name) => {
-    const wasCompleted = completedChores.includes(name);
-    
     setCompletedChores((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
-    
-    // Show celebration only when completing (not uncompleting)
-    if (!wasCompleted) {
-      setShowCelebration(true);
-    }
-  };
-
-  const handleSubmitProgress = async () => {
-    if (completedChores.length === 0) {
-      alert('Please complete at least one chore before submitting!');
-      return;
-    }
-
-    setIsSubmitting(true);
-    
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const completedChoreDetails = selectedChores.filter(chore => 
-        completedChores.includes(chore.name)
-      );
-      
-      const submissionData = {
-        goalId: goal._id || goal.id,
-        completedChores: completedChoreDetails,
-        totalEarned: completedChoreDetails.reduce((sum, chore) => sum + chore.amount, 0),
-        submissionDate: new Date().toISOString()
-      };
-
-      const response = await fetch('http://localhost:5500/api/goals/submit-progress', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(submissionData)
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setHasSubmitted(true);
-        alert('🎉 Great job! Your progress has been submitted to your parents for approval!');
-        
-        // Set a flag to trigger refresh in KidDashboard
-        sessionStorage.setItem('refreshKidDashboard', 'true');
-      } else {
-        alert('Failed to submit progress. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error submitting progress:', error);
-      alert('Failed to submit progress. Please check your connection and try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -164,59 +104,6 @@ const WeeklyProgress = () => {
         })}
       </div>
 
-      {/* Submit Progress Section */}
-      {completedChores.length > 0 && !hasSubmitted && (
-        <div className={tw("mt-8 max-w-4xl mx-auto bg-white rounded-3xl shadow-lg p-6 border-2 border-green-200")}>
-          <div className={tw("text-center")}>
-            <div className={tw("text-4xl mb-4")}>🎯</div>
-            <h3 className={tw("text-xl font-bold text-gray-800 mb-2")}>Ready to submit your progress?</h3>
-            <p className={tw("text-gray-600 mb-4")}>
-              You've completed {completedChores.length} task{completedChores.length > 1 ? 's' : ''} and earned ${selectedChores.filter(c => completedChores.includes(c.name)).reduce((sum, c) => sum + c.amount, 0).toFixed(2)}!
-            </p>
-            <button
-              onClick={handleSubmitProgress}
-              disabled={isSubmitting}
-              className={tw(`px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold text-lg rounded-2xl hover:shadow-xl transform hover:scale-105 transition-all ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed transform-none' : ''
-              }`)}
-            >
-              {isSubmitting ? (
-                <>
-                  <span className={tw("animate-spin mr-2")}>⏳</span>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  🚀 Submit My Progress to Parents
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Success Message */}
-      {hasSubmitted && (
-        <div className={tw("mt-8 max-w-4xl mx-auto bg-gradient-to-r from-green-400 to-blue-500 rounded-3xl shadow-lg p-6 text-white text-center")}>
-          <div className={tw("text-6xl mb-4")}>🎉</div>
-          <h3 className={tw("text-2xl font-bold mb-2")}>Awesome Work!</h3>
-          <p className={tw("text-lg mb-4")}>
-            Your parents will review your completed tasks and update your savings!
-          </p>
-          <div className={tw("text-xl font-bold mb-6")}>
-            💰 You earned ${selectedChores.filter(c => completedChores.includes(c.name)).reduce((sum, c) => sum + c.amount, 0).toFixed(2)} this week!
-          </div>
-          <button
-            onClick={() => navigate("/kid-dashboard")}
-            className={tw(
-              "px-8 py-4 bg-white text-green-600 font-bold text-lg rounded-2xl hover:shadow-xl transform hover:scale-105 transition-all"
-            )}
-          >
-            🏠 View Updated Dashboard
-          </button>
-        </div>
-      )}
-
       {/* Footer Buttons */}
       <div className={tw("mt-10 text-center flex flex-wrap justify-center gap-4")}>
         <button
@@ -236,12 +123,6 @@ const WeeklyProgress = () => {
           🏠 Return To Home Page
         </button>
       </div>
-
-      {/* Celebration Effect */}
-      <CelebrationEffect 
-        isVisible={showCelebration} 
-        onComplete={() => setShowCelebration(false)}
-      />
     </div>
   );
 };

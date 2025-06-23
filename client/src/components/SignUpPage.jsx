@@ -26,6 +26,7 @@ const SignUpPage = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');      // Google-sign-up message
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
 
   /* ------------- client-side validation ------------- */
   const validateForm = () => {
@@ -64,6 +65,7 @@ const SignUpPage = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result);
+        setAvatarFile(file);
       };
       reader.readAsDataURL(file);
       
