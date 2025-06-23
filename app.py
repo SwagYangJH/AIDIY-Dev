@@ -882,53 +882,104 @@ def get_children_progress():
         return jsonify(error=str(e)), 500
 
 # ---------- Chores API ---------- #
+chores_col = db["chores"]
+chores_col.create_index([("parent_email", 1)])
+from bson import ObjectId
+# …
+
 @app.route("/api/chores", methods=["GET"])
 @auth_required
 def get_chores():
-    """Get all chores for parent's children"""
+    """
+    Return all chores that belong to the logged-in parent.
+    Optionally filter by child (?kid=username) or status (?status=pending).
+    """
     try:
-        # For now, return mock data since chores collection might not exist yet
-        # This can be extended to use a real chores collection later
-        chores = [
-            {
-                "id": 1,
-                "title": "Clean bedroom",
-                "description": "Make bed, organize clothes",
-                "category": "Cleaning",
-                "difficulty": "Easy",
-                "value": 5.00,
-                "assignedTo": "Maya",
-                "status": "Completed",
-                "dueDate": "05/14/2025"
-            },
-            {
-                "id": 2,
-                "title": "Wash dishes",
-                "description": "Load dishwasher, hand wash pots",
-                "category": "Kitchen",
-                "difficulty": "Easy", 
-                "value": 5.00,
-                "assignedTo": "Alex",
-                "status": "Assigned",
-                "dueDate": "05/14/2025"
-            },
-            {
-                "id": 3,
-                "title": "Mow lawn",
-                "description": "Cut grass in front and back yard",
-                "category": "Out Door",
-                "difficulty": "Medium",
-                "value": 5.00,
-                "assignedTo": "Unassigned",
-                "status": "Pending",
-                "dueDate": "05/14/2025"
-            }
-        ]
-        
+        q = {"parent_email": request.user["email"]}
+        kid = request.args.get("kid")
+        status = request.args.get("status")
+        if kid:
+            q["kid_username"] = kid          # <= stored at create time
+        if status:
+            q["status"] = status
+
+        chores = []
+        for c in chores_col.find(q):
+            c["id"] = str(c.pop("_id"))
+            chores.append(c)
+
         return jsonify(success=True, chores=chores), 200
     except Exception as e:
-        print(f"[Chores Error] {e}")
+        print("[Chores GET error]", e)
         return jsonify(error=str(e)), 500
+@app.route("/api/chores", methods=["POST"])
+@auth_required
+def create_chore():
+    """
+    Parent creates a chore. Body must include at least
+    title, description, category, difficulty, reward, dueDate.
+    """
+    d = request.get_json() or {}
+    required = ("title", "description", "category", "difficulty", "reward", "dueDate")
+    if not all(d.get(k) for k in required):
+        return jsonify(error="Missing required fields"), 400
+
+    # optional assignment at creation time
+    kid_username = d.get("assignedTo")  # can be None / '' for unassigned
+
+    chore = {
+        "parent_email": request.user["email"],
+        "kid_username": kid_username,        # None if not yet assigned
+        "title": d["title"],
+        "description": d["description"],
+        "category": d["category"],
+        "difficulty": d["difficulty"],
+        "reward": float(d["reward"]),
+        "status": "Assigned" if kid_username else "Pending",
+        "dueDate": d["dueDate"],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    result = chores_col.insert_one(chore)
+    chore["id"] = str(result.inserted_id)
+    chore.pop("_id", None)
+    return jsonify(success=True, chore=chore), 201
+@app.route("/api/chores/<chore_id>", methods=["PUT"])
+@auth_required
+def update_chore(chore_id):
+    d = request.get_json() or {}
+    allowed = {
+        "title", "description", "category", "difficulty",
+        "reward", "dueDate", "status", "assignedTo"
+    }
+    update_data = {k: d[k] for k in allowed if k in d}
+
+    if not update_data:
+        return jsonify(error="No valid fields to update"), 400
+
+    update_data["updated_at"] = datetime.utcnow()
+
+    res = chores_col.update_one(
+        {"_id": ObjectId(chore_id), "parent_email": request.user["email"]},
+        {"$set": update_data}
+    )
+    if res.matched_count == 0:
+        return jsonify(error="Chore not found"), 404
+
+    updated = chores_col.find_one({"_id": ObjectId(chore_id)})
+    updated["id"] = chore_id
+    updated.pop("_id", None)
+    return jsonify(success=True, chore=updated)
+@app.route("/api/chores/<chore_id>", methods=["DELETE"])
+@auth_required
+def delete_chore(chore_id):
+    res = chores_col.delete_one(
+        {"_id": ObjectId(chore_id), "parent_email": request.user["email"]}
+    )
+    if res.deleted_count == 0:
+        return jsonify(error="Chore not found"), 404
+    return '', 204
+
 
 @app.route("/api/chores/recommendations", methods=["GET"])
 @auth_required
@@ -982,55 +1033,33 @@ def get_chore_recommendations():
 @app.route("/api/parent/children-chores", methods=["GET"])
 @auth_required
 def get_children_chores():
-    """Get assigned chores for all parent's children"""
     try:
-        # Get all children for this parent
-        children = list(children_col.find({"parent_email": request.user["email"]}, {"_id": 0}))
-        
-        # For each child, get their assigned chores (mock data for now)
+        children = list(children_col.find(
+            {"parent_email": request.user["email"]}, {"_id": 0}
+        ))
+
         for child in children:
             username = child["username"]
-            # In real implementation, you would query a chores collection
-            # For now, we'll use mock data based on the child
-            child_chores = [
-                {
-                    "id": f"{username}_1",
-                    "title": "Clean bedroom",
-                    "description": "Make bed, organize clothes",
-                    "status": "completed",
-                    "reward": 5.00,
-                    "dueDate": "2025-06-22",
-                    "assigned_date": "2025-06-20"
-                },
-                {
-                    "id": f"{username}_2", 
-                    "title": "Help with dishes",
-                    "description": "Load dishwasher and wipe counters",
-                    "status": "in_progress",
-                    "reward": 3.00,
-                    "dueDate": "2025-06-23",
-                    "assigned_date": "2025-06-21"
-                },
-                {
-                    "id": f"{username}_3",
-                    "title": "Take out trash", 
-                    "description": "Empty all trash bins",
-                    "status": "pending",
-                    "reward": 2.00,
-                    "dueDate": "2025-06-24",
-                    "assigned_date": "2025-06-22"
-                }
-            ]
-            
-            child["assigned_chores"] = child_chores
-            child["chores_completed"] = len([c for c in child_chores if c["status"] == "completed"])
-            child["chores_pending"] = len([c for c in child_chores if c["status"] in ["pending", "in_progress"]])
-            child["total_earned"] = sum([c["reward"] for c in child_chores if c["status"] == "completed"])
-        
+
+            # ⬇️  NEW — pull real chores for this kid
+            child_chores = list(
+                chores_col.find({"kid_username": username}, {"_id": 0})
+            )
+
+            child["assigned_chores"]  = child_chores
+            child["chores_completed"] = len([c for c in child_chores
+                                             if c["status"] == "completed"])
+            child["chores_pending"]   = len([c for c in child_chores
+                                             if c["status"] in ("pending",
+                                                                "in_progress")])
+            child["total_earned"]     = sum(c["reward"] for c in child_chores
+                                            if c["status"] == "completed")
+
         return jsonify(success=True, children=children), 200
     except Exception as e:
-        print(f"[Children Chores Error] {e}")
+        print("[Children Chores Error]", e)
         return jsonify(error=str(e)), 500
+
 
 @app.route("/api/goals/submit-progress", methods=["POST"])
 @auth_required

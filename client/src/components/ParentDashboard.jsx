@@ -4,33 +4,46 @@ import { tw } from '@twind/core';
 import BellIcon from './BellIcon';
 import AIAvatar from './AIAvatar';
 
+const tokenHeader = () => ({
+  Authorization: `Bearer ${sessionStorage.getItem('app_token')}`,
+});
+
+/* ───────────────────────────────────────────────────────────── */
 const ParentDashboard = () => {
   const navigate = useNavigate();
-  
-  // State management
-  const [activeTab, setActiveTab] = useState('goal-requests');
-  const [userProfile, setUserProfile] = useState(null);
-  const [children, setChildren] = useState([]);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [goals, setGoals] = useState([]);
-  const [childrenProgress, setChildrenProgress] = useState([]);
-  const [childrenChores, setChildrenChores] = useState([]);
-  const [chores, setChores] = useState([]);
-  const [choreRecommendations, setChoreRecommendations] = useState([]);
-  
-  // Chat related states
-  const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const fileInputRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
 
+  /* ————————————— state ————————————— */
+  const [activeTab, setActiveTab]                   = useState('goal-requests');
+  const [userProfile, setUserProfile]               = useState(null);
+  const [children, setChildren]                     = useState([]);
+  const [showUserMenu, setShowUserMenu]             = useState(false);
+  const [showNotifications, setShowNotifications]   = useState(false);
+  const [notifications, setNotifications]           = useState([]);
+  const [unreadCount, setUnreadCount]               = useState(0);
+
+  const [goals, setGoals]                           = useState([]);
+  const [childrenProgress, setChildrenProgress]     = useState([]);
+  const [childrenChores, setChildrenChores]         = useState([]);
+
+  const [chores, setChores]                         = useState([]);
+  const [choreRecommendations, setChoreRecommendations] = useState([]);
+
+  /* chat */
+  const [message, setMessage]                       = useState('');
+  const [chatHistory, setChatHistory]               = useState([]);
+  const [isLoading, setIsLoading]                   = useState(false);
+  const [selectedImage, setSelectedImage]           = useState(null);
+  const [isRecording, setIsRecording]               = useState(false);
+  const fileInputRef  = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef  = useRef([]);
+
+  /* lifted chore callbacks for child tab */
+  const addChore    = (c) => setChores(prev => [...prev, c]);
+  const patchChore  = (c) => setChores(prev => prev.map(x => x.id === c.id ? c : x));
+  const removeChore = (id) => setChores(prev => prev.filter(x => x.id !== id));
+
+  /* ───────── load on mount ───────── */
   useEffect(() => {
     fetchUserData();
     fetchNotifications();
@@ -41,129 +54,72 @@ const ParentDashboard = () => {
     fetchChoreRecommendations();
   }, []);
 
+  /* close user‑menu when clicking outside */
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-menu-container')) {
-        setShowUserMenu(false);
-      }
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const close = (e) => !e.target.closest('.user-menu-container') && setShowUserMenu(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
   }, []);
 
+  /* ——————————— REST helpers ——————————— */
   const fetchUserData = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
       const [profileRes, childrenRes] = await Promise.all([
-        fetch('http://localhost:5500/api/users/profile', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('http://localhost:5500/api/users/children', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        fetch('http://localhost:5500/api/users/profile',  { headers: tokenHeader() }),
+        fetch('http://localhost:5500/api/users/children', { headers: tokenHeader() }),
       ]);
-
-      const [profileData, childrenData] = await Promise.all([
-        profileRes.json(),
-        childrenRes.json()
-      ]);
-
-      if (profileData.success) setUserProfile(profileData.user);
+      const [profileData, childrenData] = await Promise.all([profileRes.json(), childrenRes.json()]);
+      if (profileData.success)  setUserProfile(profileData.user);
       if (childrenData.success) setChildren(childrenData.children);
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const fetchNotifications = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/notifications', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.unread_count);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/notifications', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success){ setNotifications(data.notifications); setUnreadCount(data.unread_count); }
+    } catch(e){ console.error(e); }
   };
 
   const fetchGoals = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/parent/goals', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setGoals(data.goals);
-      }
-    } catch (error) {
-      console.error('Failed to fetch goals:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/parent/goals', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success) setGoals(data.goals);
+    } catch(e){ console.error(e); }
   };
 
   const fetchChildrenProgress = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/parent/children-progress', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setChildrenProgress(data.children);
-      }
-    } catch (error) {
-      console.error('Failed to fetch children progress:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/parent/children-progress', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success) setChildrenProgress(data.children);
+    } catch(e){ console.error(e); }
   };
 
   const fetchChildrenChores = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/parent/children-chores', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setChildrenChores(data.children);
-      }
-    } catch (error) {
-      console.error('Failed to fetch children chores:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/parent/children-chores', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success) setChildrenChores(data.children);
+    } catch(e){ console.error(e); }
   };
 
   const fetchChores = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/chores', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setChores(data.chores);
-      }
-    } catch (error) {
-      console.error('Failed to fetch chores:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/chores', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success) setChores(data.chores);
+    } catch(e){ console.error(e); }
   };
 
   const fetchChoreRecommendations = async () => {
     try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/chores/recommendations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setChoreRecommendations(data.recommendations);
-      }
-    } catch (error) {
-      console.error('Failed to fetch chore recommendations:', error);
-    }
+      const res  = await fetch('http://localhost:5500/api/chores/recommendations', { headers: tokenHeader() });
+      const data = await res.json();
+      if (data.success) setChoreRecommendations(data.recommendations);
+    } catch(e){ console.error(e); }
   };
 
   const handleApproveGoal = async (goalId) => {
@@ -666,6 +622,9 @@ const ParentDashboard = () => {
             chores={chores}
             recommendations={choreRecommendations}
             children={children}
+            onAddChore={addChore}
+            onUpdateChore={patchChore}
+            onDeleteChore={removeChore}
             message={message}
             setMessage={setMessage}
             chatHistory={chatHistory}
@@ -673,11 +632,7 @@ const ParentDashboard = () => {
             onSendMessage={handleSendMessage}
           />
         )}
-
-
       </div>
-
-
 
       {/* Notifications Modal */}
       {showNotifications && (
@@ -955,104 +910,99 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
 };
 
 // Chore Management Tab Component
-const ChoreManagementTab = ({ chores, recommendations, children, message, setMessage, chatHistory, isLoading, onSendMessage }) => {
+const ChoreManagementTab = ({
+  chores,
+  recommendations,
+  children,
+  onAddChore,
+  onUpdateChore,
+  onDeleteChore,
+  message,
+  setMessage,
+  chatHistory,
+  isLoading,
+  onSendMessage,
+}) => {
   const [activeManagementTab, setActiveManagementTab] = useState('manage-chores');
-  const [aiRecommendations, setAiRecommendations] = useState([]);
-  const [showAiChat, setShowAiChat] = useState(false);
-  const [editingChore, setEditingChore] = useState(null);
+  const [editingChore, setEditingChore]   = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedChild, setSelectedChild] = useState('');
-  const [selectedGoal, setSelectedGoal] = useState('');
-  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [showCreateChoreModal, setShowCreateChoreModal] = useState(false);
+  const [showAddModal, setShowAddModal]   = useState(false);
+  const [showAiChat, setShowAiChat]       = useState(false);
+  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
+
+  const [selectedChild, setSelectedChild] = useState('');
+  const [selectedGoal, setSelectedGoal]   = useState('');
+
   const [newChore, setNewChore] = useState({
-    title: '',
-    description: '',
-    category: 'Cleaning',
-    difficulty: 'Easy',
-    reward: 5.00,
-    dueDate: ''
+    title:'', description:'', category:'Cleaning', difficulty:'Easy', reward:5, dueDate:''
   });
 
-  const handleEdit = (chore) => {
-    setEditingChore(chore);
-    setShowEditModal(true);
+  /* ——— handlers ——— */
+  const handleCreateChore     = () => setShowCreateChoreModal(true);
+  const handleEdit            = (c) => { setEditingChore(c); setShowEditModal(true);} ;
+  const handleAdd             = (c) => { setEditingChore(c); setShowAddModal(true);} ;
+
+  /* create */
+  const handleSaveNewChore = async () => {
+    const res  = await fetch('http://localhost:5500/api/chores', {
+      method:'POST', headers:{ 'Content-Type':'application/json', ...tokenHeader() },
+      body: JSON.stringify(newChore)
+    });
+    const data = await res.json();
+    if (data.success){ 
+      onAddChore(data.chore); 
+      setShowCreateChoreModal(false); 
+      setNewChore({ title:'', description:'', category:'Cleaning', difficulty:'Easy', reward:5, dueDate:'' }); 
+    }
   };
 
-  const handleAdd = (chore) => {
-    setEditingChore(chore);
-    setShowAddModal(true);
+  /* update */
+  const handleSaveEdit = async () => {
+    const res  = await fetch(`http://localhost:5500/api/chores/${editingChore.id}`, {
+      method:'PUT', headers:{ 'Content-Type':'application/json', ...tokenHeader() },
+      body: JSON.stringify(editingChore)
+    });
+    const data = await res.json();
+    if (data.success){ 
+      onUpdateChore(data.chore); 
+      setShowEditModal(false);
+    }  
   };
 
-  const handleSaveEdit = () => {
-    // 这里可以添加保存编辑的API调用
-    console.log('Saving edited chore:', editingChore);
-    setShowEditModal(false);
-    setEditingChore(null);
+  /* delete */
+  const handleDelete = async (c) => {
+    if (!window.confirm('Delete this chore?')) return;
+    const res = await fetch(`http://localhost:5500/api/chores/${c.id}`, { 
+      method:'DELETE', 
+      headers: tokenHeader() 
+    });
+    if (res.ok) onDeleteChore(c.id);
   };
 
+  /* add to child – mock only for UI */
   const handleSaveAdd = () => {
-    // 这里可以添加添加chore到孩子目标的API调用
-    console.log('Adding chore to child:', selectedChild, 'goal:', selectedGoal, 'chore:', editingChore);
+    // You would POST /api/assign‑chore here …
+    alert(`Assigned '${editingChore.title}' to ${selectedChild || 'child'}!`);
     setShowAddModal(false);
-    setEditingChore(null);
     setSelectedChild('');
     setSelectedGoal('');
   };
 
-  const handleCreateChore = () => {
-    setShowCreateChoreModal(true);
-  };
-
-  const handleSaveNewChore = async () => {
-    try {
-      // 这里调用API创建新chore
-      console.log('Creating new chore:', newChore);
-      // TODO: 调用后端API创建chore
-      
-      // 重置表单
-      setNewChore({
-        title: '',
-        description: '',
-        category: 'Cleaning',
-        difficulty: 'Easy',
-        reward: 5.00,
-        dueDate: ''
-      });
-      setShowCreateChoreModal(false);
-      alert('家务创建成功！');
-    } catch (error) {
-      console.error('Failed to create chore:', error);
-      alert('创建失败，请重试');
-    }
-  };
-
+  /* regenerate AI recs */
   const handleRegenerateRecommendations = async () => {
     setIsGeneratingRecommendations(true);
     try {
-      // 调用API获取新的推荐
-      const response = await fetch('/api/chores/recommendations', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const res  = await fetch('http://localhost:5500/api/chores/recommendations', { 
+        headers: tokenHeader() 
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // 通过props更新推荐数据 - 这里需要父组件提供更新函数
-        console.log('New recommendations generated:', data);
-        window.location.reload(); // 临时解决方案，刷新页面获取新数据
-      } else {
-        throw new Error('Failed to fetch recommendations');
+      const data = await res.json();
+      if (data.success) {
+        setChoreRecommendations(data.recommendations);
+        alert('New recommendations fetched!');
       }
-    } catch (error) {
-      console.error('Failed to regenerate recommendations:', error);
-      alert('获取推荐失败，请重试');
-    } finally {
-      setIsGeneratingRecommendations(false);
-    }
+    } catch(e){ console.error(e); }
+    finally { setIsGeneratingRecommendations(false);}  
   };
 
   return (
@@ -1138,10 +1088,8 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                         chore.status === 'Assigned' ? 'bg-blue-100 text-blue-600' :
                         'bg-yellow-100 text-yellow-600'
                       }`)}>
-                        <span className={tw('text-xl')}>
-                          {chore.status === 'Completed' ? '✅' :
-                           chore.status === 'Assigned' ? '📋' : '⏳'}
-                        </span>
+                        {chore.status === 'Completed' ? '✅' :
+                         chore.status === 'Assigned' ? '📋' : '⏳'}
                       </div>
                       
                       <div className={tw('flex-1')}>
@@ -1167,24 +1115,20 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                         <p className={tw('text-gray-600 mb-2')}>{chore.description}</p>
                         <div className={tw('flex items-center gap-4 text-sm text-gray-600')}>
                           <span className={tw('flex items-center gap-1')}>
-                            <span>📂</span>
-                            {chore.category}
+                            📂 {chore.category}
                           </span>
                           <span className={tw('flex items-center gap-1')}>
-                            <span>📅</span>
-                            Due: {chore.dueDate}
+                            📅 Due: {chore.dueDate}
                           </span>
                           <span className={tw('flex items-center gap-1')}>
-                            <span>👤</span>
-                            {chore.assignedTo}
+                            👤 {chore.assignedTo}
                           </span>
                         </div>
                       </div>
                     </div>
-                    
                     <div className={tw('flex items-center gap-3')}>
                       <div className={tw('text-right mr-4')}>
-                        <div className={tw('text-2xl font-bold text-green-600')}>${chore.value.toFixed(2)}</div>
+                        <div className={tw('text-2xl font-bold text-green-600')}>${chore.reward.toFixed(2)}</div>
                         <div className={tw('text-xs text-gray-600')}>Reward</div>
                       </div>
                       
@@ -1200,7 +1144,10 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                           >
                             ✏️
                           </button>
-                          <button className={tw('p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors')}>
+                          <button 
+                            onClick={() => handleDelete(chore)}
+                            className={tw('p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors')}
+                          >
                             🗑️
                           </button>
                         </div>
@@ -1328,7 +1275,7 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                     onClick={handleRegenerateRecommendations}
                     disabled={isGeneratingRecommendations}
                     className={tw(`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg ${
-                      isGeneratingRecommendations ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                      isGeneratingRecommendations ? 'opacity-50 cursor-not-allowed' : ''
                     }`)}
                   >
                     {isGeneratingRecommendations ? '🔄 Generating...' : '🎲 New Recommendations'}
@@ -1559,7 +1506,7 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
                 onClick={handleSaveAdd}
                 disabled={!selectedChild}
                 className={tw(`flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg ${
-                  !selectedChild ? 'opacity-50 cursor-not-allowed transform-none' : ''
+                  !selectedChild ? 'opacity-50 cursor-not-allowed' : ''
                 }`)}
               >
                 Add Chore
@@ -1687,8 +1634,6 @@ const ChoreManagementTab = ({ chores, recommendations, children, message, setMes
     </div>
   );
 };
-
-
 
 // Notifications Modal Component
 const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecline }) => {
@@ -1846,4 +1791,4 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
   );
 };
 
-export default ParentDashboard; 
+export default ParentDashboard;
