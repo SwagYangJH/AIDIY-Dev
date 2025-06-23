@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient, errors
+from pymongo import MongoClient, errors,DESCENDING
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import bcrypt, jwt
@@ -12,6 +12,11 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import base64
 import tempfile
+from bson import ObjectId          
+from datetime import datetime 
+import logging
+
+
 
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
@@ -1035,33 +1040,35 @@ def get_children_chores():
 @app.route("/api/goals/submit-progress", methods=["POST"])
 @auth_required
 def submit_progress():
-    """Handle child's progress submission for completed chores"""
+    """
+    Kid finishes chores → push a PENDING progress-submission
+    + drop a notification for the parent.
+    """
     try:
-        data = request.get_json()
-        goal_id = data.get("goalId")
-        completed_chores = data.get("completedChores", [])
-        total_earned = data.get("totalEarned", 0)
-        submission_date = data.get("submissionDate")
+        payload          = request.get_json() or {}
+        goal_id          = payload.get("goalId")
+        completed_chores = payload.get("completedChores", [])
+        total_earned     = payload.get("totalEarned", 0.0)
+        submitted_at     = payload.get("submissionDate") or datetime.utcnow().isoformat()
 
         if not goal_id or not completed_chores:
-            return jsonify(error="Missing required data"), 400
+            return jsonify(error="goalId & completedChores required"), 400
 
-        # Get current goal to calculate progress
-        current_goal = goals_col.find_one({"_id": ObjectId(goal_id)})
-        if not current_goal:
-            return jsonify(error="Goal not found"), 404
-        
-        # Calculate new progress (temporarily, will be updated when parent approves)
-        current_saved = current_goal.get("saved", 0)
-        goal_amount = current_goal.get("amount", 1)
-        
-        # Update the goal progress and earnings (pending approval)
+        # --- who is the kid & who is the parent? -------------------------
+        kid_username = request.user.get("username") or request.user["email"].split("@")[0]
+        child_doc    = children_col.find_one({"username": kid_username})
+        if not child_doc:
+            return jsonify(error="Child profile not found"), 404
+
+        parent_email = child_doc["parent_email"]
+
+        # --- update goal with pending progress ---------------------------
         goals_col.update_one(
             {"_id": ObjectId(goal_id)},
             {
                 "$push": {
                     "progress_submissions": {
-                        "date": submission_date,
+                        "date": submitted_at,
                         "completed_chores": completed_chores,
                         "earned": total_earned,
                         "status": "pending_parent_approval"
@@ -1070,30 +1077,25 @@ def submit_progress():
             }
         )
 
-        # Create notification for parents
-        user = users_col.find_one({"email": request.user["email"]})
-        if user and user.get("parent_email"):
-            notification = {
-                "type": "progress_submission",
-                "title": f"{user.get('nickName', user.get('firstName'))} completed chores!",
-                "message": f"Your child completed {len(completed_chores)} chore(s) and earned ${total_earned:.2f}",
-                "kid_name": user.get('nickName', user.get('firstName')),
-                "kid_avatar": user.get('avatar', '👧'),
-                "goal_id": goal_id,
-                "earned_amount": total_earned,
-                "completed_chores": completed_chores,
-                "status": "pending",
-                "created_at": datetime.now().isoformat(),
-                "parent_email": user["parent_email"]
-            }
+        # --- single notifications collection, single field --------------
+        notifications_col.insert_one({
+            "recipient_email": parent_email,          # <- one canonical field
+            "type":            "progress_submission",
+            "kid_name":        child_doc.get("nickName") or child_doc["firstName"],
+            "kid_avatar":      child_doc.get("avatar", "👧"),
+            "goal_id":         str(goal_id),
+            "title":   f"{kid_username} submitted progress!",
+            "message": f"Completed {len(completed_chores)} chore(s) • Earned ${total_earned:.2f}",
+            "completed_chores": completed_chores,
+            "earned_amount":    total_earned,
+            "status":        "pending",
+            "created_at":    datetime.utcnow()
+        })
 
-            # Add to notifications collection (you might want to create this)
-            db.notifications.insert_one(notification)
-
-        return jsonify(success=True, message="Progress submitted successfully!"), 200
+        return jsonify(success=True, message="Progress submitted – awaiting parent approval"), 200
 
     except Exception as e:
-        print(f"[Submit Progress Error] {e}")
+        print("[Submit Progress Error]", e)
         return jsonify(error=str(e)), 500
 
 @app.route("/api/goals/<goal_id>/approve-progress", methods=["POST"])
@@ -1159,50 +1161,63 @@ def approve_progress(goal_id):
         print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
+from flask import jsonify, request
+from pymongo import DESCENDING
+import logging
+
+# ─── put this near your other imports ─────────────────────────
+from pymongo import DESCENDING
+from datetime import datetime          # you already import it earlier
+# ──────────────────────────────────────────────────────────────
+
 @app.route("/api/notifications")
-@auth_required
+@auth_required                        # <- keep your existing decorator
 def get_notifications():
-    all_notifications = []
-    
-    # Get goal approval notifications from notifications_col
-    goal_notifications = list(
-        notifications_col.find(
-            {"recipient_email": request.user["email"]},
-            {"_id": 0}
-        ).sort("created_at", -1)
-    )
-    
-    # Get progress submission notifications from db.notifications
-    progress_notifications = list(
-        db.notifications.find(
-            {"parent_email": request.user["email"]},
-            {"_id": 0}
-        ).sort("created_at", -1)
-    )
-    
-    # Combine and sort all notifications
-    all_notifications.extend(goal_notifications)
-    all_notifications.extend(progress_notifications)
-    
-    # Convert datetime to ISO format and sort by date
-    for notif in all_notifications:
-        if "created_at" in notif:
-            if hasattr(notif["created_at"], "isoformat"):
-                notif["created_at"] = notif["created_at"].isoformat()
-        # Ensure all notifications have required fields
-        notif.setdefault("status", "pending")
-        notif.setdefault("type", "unknown")
-    
-    # Sort by created_at date (most recent first)
-    all_notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    # Limit to 20 most recent
-    all_notifications = all_notifications[:20]
-    
-    # Count unread notifications
-    unread_count = len([n for n in all_notifications if n.get("status") == "pending"])
-    
-    return jsonify(success=True, notifications=all_notifications, unread_count=unread_count)
+    """
+    Return the 20 most-recent notifications for the logged-in user
+    (parent), plus a count of how many are still 'pending'.
+    """
+    user_email = request.user["email"]
+
+    try:
+        cursor = (
+            notifications_col
+            .find({"recipient_email": user_email})
+            .sort("created_at", DESCENDING)
+            .limit(20)
+        )
+
+        notifications = []
+        for doc in cursor:
+            doc["_id"] = str(doc["_id"])          # make JSON-serialisable
+            # created_at → ISO 8601 string
+            if isinstance(doc.get("created_at"), datetime):
+                doc["created_at"] = doc["created_at"].isoformat()
+            else:
+                doc["created_at"] = str(doc.get("created_at"))
+
+            doc.setdefault("status", "pending")
+            doc.setdefault("type",   "notification")
+            notifications.append(doc)
+
+        unread_count = notifications_col.count_documents({
+            "recipient_email": user_email,
+            "status": "pending"
+        })
+
+        return jsonify(
+            success=True,
+            notifications=notifications,
+            unread_count=unread_count
+        ), 200
+
+    except Exception as e:
+        print("[Notifications Error]", e)
+        return jsonify(
+            success=False,
+            error="Failed to fetch notifications, please try again later."
+        ), 500
+
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
