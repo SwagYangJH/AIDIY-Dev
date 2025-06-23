@@ -621,6 +621,7 @@ const ParentDashboard = () => {
           <ChoreManagementTab 
             chores={chores}
             recommendations={choreRecommendations}
+            setChoreRecommendations={setChoreRecommendations} //small bug fixed
             children={children}
             onAddChore={addChore}
             onUpdateChore={patchChore}
