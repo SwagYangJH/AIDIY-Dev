@@ -621,6 +621,7 @@ const ParentDashboard = () => {
           <ChoreManagementTab 
             chores={chores}
             recommendations={choreRecommendations}
+            setChoreRecommendations={setChoreRecommendations} //
             children={children}
             onAddChore={addChore}
             onUpdateChore={patchChore}
@@ -913,6 +914,7 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
 const ChoreManagementTab = ({
   chores,
   recommendations,
+  setChoreRecommendations,
   children,
   onAddChore,
   onUpdateChore,
