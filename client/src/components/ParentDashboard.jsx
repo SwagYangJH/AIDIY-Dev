@@ -959,17 +959,44 @@ const ChoreManagementTab = ({
   };
 
   /* update */
-  const handleSaveEdit = async () => {
-    const res  = await fetch(`http://localhost:5500/api/chores/${editingChore.id}`, {
-      method:'PUT', headers:{ 'Content-Type':'application/json', ...tokenHeader() },
-      body: JSON.stringify(editingChore)
+const handleSaveEdit = async () => {
+  try {
+    // Extract only editable fields
+    const { id, title, description, category, difficulty, reward, dueDate, status, assignedTo } = editingChore;
+    
+    const response = await fetch(`http://localhost:5500/api/chores/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...tokenHeader()
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        category,
+        difficulty,
+        reward,
+        dueDate,
+        status,
+        assignedTo
+      })
     });
-    const data = await res.json();
-    if (data.success){ 
-      onUpdateChore(data.chore); 
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update chore');
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      onUpdateChore(data.chore);
       setShowEditModal(false);
-    }  
-  };
+    }
+  } catch (error) {
+    console.error('Error updating chore:', error);
+    alert(`Error updating chore: ${error.message}`);
+  }
+};
 
   /* delete */
   const handleDelete = async (c) => {

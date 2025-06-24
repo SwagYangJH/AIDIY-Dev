@@ -924,8 +924,8 @@ def create_chore():
     if not all(d.get(k) for k in required):
         return jsonify(error="Missing required fields"), 400
 
-    # optional assignment at creation time
-    kid_username = d.get("assignedTo")  # can be None / '' for unassigned
+    # Use 'kid_username' field instead of 'assignedTo'
+    kid_username = d.get("kid_username")  # can be None for unassigned
 
     chore = {
         "parent_email": request.user["email"],
@@ -935,7 +935,8 @@ def create_chore():
         "category": d["category"],
         "difficulty": d["difficulty"],
         "reward": float(d["reward"]),
-        "status": "Assigned" if kid_username else "Pending",
+        # Use consistent status values ('Pending' instead of 'Assigned')
+        "status": "assigned" if kid_username else "pending",
         "dueDate": d["dueDate"],
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
@@ -944,13 +945,22 @@ def create_chore():
     chore["id"] = str(result.inserted_id)
     chore.pop("_id", None)
     return jsonify(success=True, chore=chore), 201
+# ... existing imports ...
+
 @app.route("/api/chores/<chore_id>", methods=["PUT"])
 @auth_required
 def update_chore(chore_id):
+    from bson import ObjectId
+    
+    try:
+        obj_id = ObjectId(chore_id)
+    except Exception:
+        return jsonify(error="Invalid chore ID format"), 400
+
     d = request.get_json() or {}
     allowed = {
         "title", "description", "category", "difficulty",
-        "reward", "dueDate", "status", "assignedTo"
+        "reward", "dueDate", "status", "kid_username"
     }
     update_data = {k: d[k] for k in allowed if k in d}
 
@@ -959,17 +969,23 @@ def update_chore(chore_id):
 
     update_data["updated_at"] = datetime.utcnow()
 
-    res = chores_col.update_one(
-        {"_id": ObjectId(chore_id), "parent_email": request.user["email"]},
-        {"$set": update_data}
-    )
-    if res.matched_count == 0:
-        return jsonify(error="Chore not found"), 404
+    try:
+        res = chores_col.update_one(
+            {"_id": obj_id, "parent_email": request.user["email"]},
+            {"$set": update_data}
+        )
+        if res.matched_count == 0:
+            return jsonify(error="Chore not found or access denied"), 404
 
-    updated = chores_col.find_one({"_id": ObjectId(chore_id)})
-    updated["id"] = chore_id
-    updated.pop("_id", None)
-    return jsonify(success=True, chore=updated)
+        updated = chores_col.find_one({"_id": obj_id})
+        if updated:
+            updated["id"] = str(updated.pop("_id"))
+            return jsonify(success=True, chore=updated)
+        return jsonify(error="Chore not found after update"), 404
+
+    except Exception as e:
+        print(f"[Chore Update Error] {e}")
+        return jsonify(error=str(e)), 500
 @app.route("/api/chores/<chore_id>", methods=["DELETE"])
 @auth_required
 def delete_chore(chore_id):
