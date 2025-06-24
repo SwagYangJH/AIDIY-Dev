@@ -914,7 +914,7 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
 const ChoreManagementTab = ({
   chores,
   recommendations,
-  setChoreRecommendations,
+  setChoreRecommendations, //added this to define setChoreRecommendations
   children,
   onAddChore,
   onUpdateChore,
@@ -1329,7 +1329,7 @@ const ChoreManagementTab = ({
                             </span>
                             <span className={tw('flex items-center gap-1')}>
                               <span>💰</span>
-                              ${rec.reward.toFixed(2)}
+                              ${(rec.reward ?? 0).toFixed(2)}
                             </span>
                           </div>
                         </div>

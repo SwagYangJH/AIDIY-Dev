@@ -645,6 +645,47 @@ def speech_to_text():
         traceback.print_exc()
         return jsonify(error=f"Failed to process audio: {str(e)}"), 500
 
+# ---------- Recommend chores to parent ---------- #
+@app.route("/api/chores/recommendations", methods=["GET"])
+@auth_required
+def generate_chore_recommendations():
+    try:
+        prompt = (
+            "Generate a list of 5 helpful, age-appropriate chores for kids. "
+            "Format the response as a JSON array with objects like: "
+            "[{\"title\": \"Clean your room\", \"description\": \"Tidy up and organize toys and books\"}, ...]"
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant who generates chore ideas for kids. "
+                        "Respond only with a JSON array of objects, each containing a 'title' and 'description'. "
+                        "Do NOT include code blocks, markdown, or any explanation."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=300
+        )
+
+        raw_output = response.choices[0].message.content
+        print("[AI RAW RESPONSE]", raw_output)
+        # Try to parse it into JSON
+        import json
+        chores = json.loads(raw_output)
+
+        return jsonify(success=True, recommendations=chores)
+
+    except Exception as e:
+        print(f"[AI Chore Recommendation Error] {e}")
+        return jsonify(error="Could not generate recommendations"), 500
+
+
 # ---------- Goals management ---------- #
 
 def get_user_username_from_token():
