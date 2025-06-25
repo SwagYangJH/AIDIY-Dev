@@ -1077,21 +1077,36 @@ from bson import ObjectId
 @auth_required
 def get_chores():
     """
-    Return all chores that belong to the logged-in parent.
-    Optionally filter by child (?kid=username) or status (?status=pending).
+    Return chores based on user type:
+    - For parents: all their created chores
+    - For kids: chores assigned to them
     """
     try:
-        q = {"parent_email": request.user["email"]}
-        kid = request.args.get("kid")
-        status = request.args.get("status")
-        if kid:
-            q["kid_username"] = kid          # <= stored at create time
-        if status:
-            q["status"] = status
+        # Check if this is a kid user
+        if "@kids.aidiy" in request.user["email"]:
+            # Extract kid username from email
+            kid_username = request.user["email"].split("@")[0]
+            q = {"kid_username": kid_username}
+        else:
+            # Parent user - get all their chores
+            q = {"parent_email": request.user["email"]}
+            
+            # Optional filters for parents
+            kid = request.args.get("kid")
+            status = request.args.get("status")
+            if kid:
+                q["kid_username"] = kid
+            if status:
+                q["status"] = status
 
         chores = []
         for c in chores_col.find(q):
             c["id"] = str(c.pop("_id"))
+            # Convert datetime to ISO format
+            if "created_at" in c and hasattr(c["created_at"], "isoformat"):
+                c["created_at"] = c["created_at"].isoformat()
+            if "updated_at" in c and hasattr(c["updated_at"], "isoformat"):
+                c["updated_at"] = c["updated_at"].isoformat()
             chores.append(c)
 
         return jsonify(success=True, chores=chores), 200

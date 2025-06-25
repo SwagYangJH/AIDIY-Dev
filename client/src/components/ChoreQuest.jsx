@@ -55,6 +55,7 @@ const ChoreQuest = () => {
 
   const [allChores, setAllChores] = useState(defaultChoresList);
   const [selectedChores, setSelectedChores] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // If goal is not approved, prevent access
   useEffect(() => {
@@ -64,21 +65,31 @@ const ChoreQuest = () => {
     }
   }, [goal, navigate]);
 
-  // Fetch chores assigned to this child (if any) and integrate into chore list
+  // Fetch chores assigned to this child
   useEffect(() => {
     if (goal && goal.status === "approved") {
-      // Determine the child's username (assuming goal contains child identifier)
-      const childUsername = goal.kid_username || goal.username;
-      if (!childUsername) return;
-      const token = sessionStorage.getItem('app_token');
-      fetch(`http://localhost:5500/api/chores?kid=${childUsername}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            // Filter out chores that are already completed
-            const assignedChores = data.chores.filter(chore => chore.status !== 'completed');
+      const fetchChores = async () => {
+        setLoading(true);
+        try {
+          const token = sessionStorage.getItem('app_token');
+          
+          // Direct API call - the backend will determine the kid from the token
+          const response = await fetch('http://localhost:5500/api/chores', {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          console.log("Fetched chores:", data);
+          
+          if (data.success && data.chores) {
+            // Filter out completed chores and only show assigned ones
+            const assignedChores = data.chores.filter(
+              chore => chore.status === 'Assigned' || chore.status === 'pending'
+            );
+            
             // Convert each assigned chore to match the format of defaultChoresList
             const emojiMap = {
               Cleaning: '🧹',
@@ -88,43 +99,54 @@ const ChoreQuest = () => {
               'Pet Care': '🐕',
               Other: '📝'
             };
+            
             const convertedChores = assignedChores.map(chore => {
-              // Prefix title with an emoji based on category, if available
+              // Prefix title with an emoji based on category
               const prefix = chore.category && emojiMap[chore.category] ? emojiMap[chore.category] + ' ' : '';
+              
               // Map difficulty to child-friendly format with emoji
               let diffLabel;
               if (chore.difficulty.toLowerCase() === 'easy') diffLabel = '☺️ Easy';
               else if (chore.difficulty.toLowerCase() === 'medium') diffLabel = '💪 Medium';
               else if (chore.difficulty.toLowerCase() === 'hard') diffLabel = '🔥 Hard';
+              else diffLabel = chore.difficulty;
+              
               return {
+                id: chore.id, // Keep the chore ID for tracking
                 name: prefix + chore.title,
                 description: chore.description,
-                amount: Math.round(chore.reward),  // round reward to nearest whole number for display
-                // no time (use dueDate instead if present)
-                difficulty: diffLabel || chore.difficulty
+                amount: Math.round(chore.reward), // round reward to nearest whole number
+                difficulty: diffLabel,
+                dueDate: chore.dueDate,
+                status: chore.status,
+                category: chore.category
               };
             });
-            // Merge assigned chores with default suggestions, avoiding duplicates by name
-            const filteredDefaults = defaultChoresList.filter(dc => 
-              !convertedChores.some(ac => ac.name === dc.name)
-            );
-            const mergedList = [...convertedChores, ...filteredDefaults];
-            setAllChores(mergedList);
-            // Pre-select all assigned chores in the list
-            setSelectedChores(prevSelected => {
-              const preselected = convertedChores;
-              // Avoid duplicating if some were already selected
-              const combined = [...prevSelected];
-              preselected.forEach(pc => {
-                if (!combined.find(c => c.name === pc.name)) {
-                  combined.push(pc);
-                }
-              });
-              return combined;
-            });
+            
+            if (convertedChores.length > 0) {
+              // If there are assigned chores, show only those
+              setAllChores(convertedChores);
+              // Pre-select all assigned chores
+              setSelectedChores(convertedChores);
+            } else {
+              // If no assigned chores, show default suggestions
+              console.log("No assigned chores found, showing default suggestions");
+              setAllChores(defaultChoresList);
+            }
+          } else {
+            console.log("No chores data received, showing default suggestions");
+            setAllChores(defaultChoresList);
           }
-        })
-        .catch(err => console.error("Failed to fetch child's chores:", err));
+        } catch (err) {
+          console.error("Failed to fetch chores:", err);
+          // On error, show default suggestions
+          setAllChores(defaultChoresList);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchChores();
     }
   }, [goal]);
 
@@ -135,7 +157,7 @@ const ChoreQuest = () => {
     setSelectedChores((prev) => {
       const exists = prev.find((c) => c.name === chore.name);
       if (exists) {
-        // Remove chore if already selected (allow deselecting if not mandatory)
+        // Remove chore if already selected
         return prev.filter((c) => c.name !== chore.name);
       } else {
         return [...prev, chore];
@@ -147,6 +169,14 @@ const ChoreQuest = () => {
   const easyStyle = { backgroundColor: "#DCFCE7", color: "#22C55E", borderColor: "#187235" };
   const mediumStyle = { backgroundColor: "#FCEDDC", color: "#C57E22", borderColor: "#C57E22" };
   const hardStyle = { backgroundColor: "#FEE2E2", color: "#DC2626", borderColor: "#DC2626" };
+
+  if (loading) {
+    return (
+      <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center")}>
+        <div className={tw("text-xl font-semibold text-purple-700")}>Loading your chores...</div>
+      </div>
+    );
+  }
 
   return (
     <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100")}>
@@ -165,8 +195,8 @@ const ChoreQuest = () => {
           </h2>
           <div className={tw("w-full bg-gray-200 h-3 rounded-full")}>
             <div
-              className={tw("bg-green-400 h-3 rounded-full")}
-              style={{ width: `${(earnedSoFar / weeklyTarget) * 100}%` }}
+              className={tw("bg-green-400 h-3 rounded-full transition-all duration-500")}
+              style={{ width: `${Math.min((earnedSoFar / weeklyTarget) * 100, 100)}%` }}
             />
           </div>
           <p className={tw("mt-2 text-lg font-bold text-purple-700 text-right")}>
@@ -177,86 +207,92 @@ const ChoreQuest = () => {
           </p>
         </div>
 
-        {/* Chore Selection Grid */}
-        <div className={tw("grid grid-cols-1 md:grid-cols-3 gap-8 mb-8")}>
-          {allChores.map((chore, index) => {
-            const selected = !!selectedChores.find((c) => c.name === chore.name);
-            // Determine difficulty badge style
-            let diffStyleObj;
-            if (chore.difficulty.includes('Hard')) diffStyleObj = hardStyle;
-            else if (chore.difficulty.includes('Medium')) diffStyleObj = mediumStyle;
-            else diffStyleObj = easyStyle;
-            return (
-              <div
-                key={index}
-                onClick={() => toggleChore(chore)}
+        {/* Show message if no chores available */}
+        {allChores.length === 0 ? (
+          <div className={tw("text-center py-10")}>
+            <p className={tw("text-lg text-gray-600 mb-4")}>
+              No chores have been assigned to you yet!
+            </p>
+            <p className={tw("text-sm text-gray-500")}>
+              Ask your parent to assign some chores for this goal.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Chore Selection Grid */}
+            <div className={tw("grid grid-cols-1 md:grid-cols-3 gap-8 mb-8")}>
+              {allChores.map((chore, index) => {
+                const selected = !!selectedChores.find((c) => c.name === chore.name);
+                // Determine difficulty badge style
+                let diffStyleObj;
+                if (chore.difficulty.includes('Hard')) diffStyleObj = hardStyle;
+                else if (chore.difficulty.includes('Medium')) diffStyleObj = mediumStyle;
+                else diffStyleObj = easyStyle;
+                
+                return (
+                  <div
+                    key={chore.id || index}
+                    onClick={() => toggleChore(chore)}
+                    className={tw(
+                      `p-4 border rounded-xl shadow cursor-pointer transition-transform hover:scale-105 ${
+                        selected ? "bg-green-100 border-green-400" : "bg-white"
+                      }`
+                    )}
+                  >
+                    <h3 className={tw("font-bold text-lg text-black-800")}>
+                      {chore.name}
+                    </h3>
+                    <p className={tw("text-sm text-left text-gray-500 mb-10")}>
+                      {chore.description}
+                    </p>
+                    {/* Amount and Time/Due aligned */}
+                    <div className={tw("flex items-center justify-between mb-2")}>
+                      <span
+                        className={tw("px-3 text-sm rounded-full font-bold text-green-600")}
+                        style={{ backgroundColor: "#DCFCE7" }}
+                      >
+                        $ {chore.amount}.00
+                      </span>
+                      {/* Show due date if available */}
+                      {chore.dueDate && (
+                        <span
+                          className={tw("text-xs font-medium rounded-full px-2 py-1 flex items-center gap-1 border")}
+                          style={{ backgroundColor: "#D9E1FF", color: "#2235C5", borderColor: "#2235C5" }}
+                        >
+                          📅 {new Date(chore.dueDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {/* Difficulty badge */}
+                    <span
+                      className={tw("text-xs font-medium rounded-full px-2 py-1 border")}
+                      style={diffStyleObj}
+                    >
+                      {chore.difficulty}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Launch Mission Button */}
+            <div className={tw("text-center")}>
+              <button
+                onClick={() => navigate("/weekly-progress", { state: { selectedChores, goal } })}
+                disabled={selectedChores.length === 0}
                 className={tw(
-                  `p-4 border rounded-xl shadow cursor-pointer transition-transform hover:scale-105 ${
-                    selected ? "bg-green-100 border-green-400" : "bg-white"
+                  `px-20 py-3 rounded text-white font-semibold text-lg transition-all ${
+                    selectedChores.length === 0
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-teal-400 to-purple-500 hover:opacity-90"
                   }`
                 )}
               >
-                <h3 className={tw("font-bold text-lg text-black-800")}>
-                  {chore.name}
-                </h3>
-                <p className={tw("text-sm text-left text-gray-500 mb-10")}>
-                  {chore.description}
-                </p>
-                {/* Amount and Time/Due aligned */}
-                <div className={tw("flex items-center justify-between mb-2")}>
-                  <span
-                    className={tw("px-3 text-sm rounded-full font-bold text-green-600")}
-                    style={{ backgroundColor: "#DCFCE7" }}
-                  >
-                    $ {chore.amount}.00
-                  </span>
-                  {/* Show time if available, otherwise due date if available */}
-                  {chore.time ? (
-                    <span
-                      className={tw("text-xs font-medium rounded-full px-2 py-1 flex items-center gap-1 border")}
-                      style={{ backgroundColor: "#D9E1FF", color: "#2235C5", borderColor: "#2235C5" }}
-                    >
-                      ⏰ {chore.time}
-                    </span>
-                  ) : chore.dueDate ? (
-                    <span
-                      className={tw("text-xs font-medium rounded-full px-2 py-1 flex items-center gap-1 border")}
-                      style={{ backgroundColor: "#D9E1FF", color: "#2235C5", borderColor: "#2235C5" }}
-                    >
-                      📅 {new Date(chore.dueDate).toLocaleDateString()}
-                    </span>
-                  ) : (
-                    <span />
-                  )}
-                </div>
-                {/* Difficulty badge */}
-                <span
-                  className={tw("text-xs font-medium rounded-full px-2 py-1 border")}
-                  style={diffStyleObj}
-                >
-                  {chore.difficulty}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Launch Mission Button */}
-        <div className={tw("text-center")}>
-          <button
-            onClick={() => navigate("/weekly-progress", { state: { selectedChores, goal } })}
-            disabled={selectedChores.length === 0}
-            className={tw(
-              `px-20 py-3 rounded text-white font-semibold text-lg transition-all ${
-                selectedChores.length === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-teal-400 to-purple-500 hover:opacity-90"
-              }`
-            )}
-          >
-            🎯 Launch My Mission
-          </button>
-        </div>
+                🎯 Launch My Mission
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
