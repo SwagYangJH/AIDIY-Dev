@@ -1431,6 +1431,42 @@ const ChoreManagementTab = ({
                 />
               </div>
               {/* ... other fields like description, reward, difficulty ... */}
+
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Description</label>
+                <textarea
+                  value={editingChore.description}
+                  onChange={(e) => setEditingChore({...editingChore, description: e.target.value})}
+                  rows="3"
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                />
+              </div>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Reward ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingChore.reward}
+                    onChange={(e) => setEditingChore({...editingChore, reward: parseFloat(e.target.value)})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  />
+                </div>
+                
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Difficulty</label>
+                  <select
+                    value={editingChore.difficulty}
+                    onChange={(e) => setEditingChore({...editingChore, difficulty: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  >
+                    <option value="Easy">⭐ Easy</option>
+                    <option value="Medium">⭐⭐ Medium</option>
+                    <option value="Hard">⭐⭐⭐ Hard</option>
+                  </select>
+                </div>
+              </div>
             </div>
             
             <div className={tw('p-6 border-t border-gray-100 flex gap-3')}>
