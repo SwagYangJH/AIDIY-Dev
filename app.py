@@ -1374,50 +1374,62 @@ def approve_progress(goal_id):
         print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
+from flask import jsonify, request
+from pymongo import DESCENDING
+import logging
+
+# ─── put this near your other imports ─────────────────────────
+from datetime import datetime          # you already import it earlier
+# ──────────────────────────────────────────────────────────────
+
 @app.route("/api/notifications")
-@auth_required
+@auth_required                        # <- keep your existing decorator
 def get_notifications():
-    all_notifications = []
-    
-    # Get goal approval notifications from notifications_col
-    goal_notifications = list(
-        notifications_col.find(
-            {"recipient_email": request.user["email"]},
-            {"_id": 0}
-        ).sort("created_at", -1)
-    )
-    
-    # Get progress submission notifications from db.notifications
-    progress_notifications = list(
-        db.notifications.find(
-            {"parent_email": request.user["email"]},
-            {"_id": 0}
-        ).sort("created_at", -1)
-    )
-    
-    # Combine and sort all notifications
-    all_notifications.extend(goal_notifications)
-    all_notifications.extend(progress_notifications)
-    
-    # Convert datetime to ISO format and sort by date
-    for notif in all_notifications:
-        if "created_at" in notif:
-            if hasattr(notif["created_at"], "isoformat"):
-                notif["created_at"] = notif["created_at"].isoformat()
-        # Ensure all notifications have required fields
-        notif.setdefault("status", "pending")
-        notif.setdefault("type", "unknown")
-    
-    # Sort by created_at date (most recent first)
-    all_notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    # Limit to 20 most recent
-    all_notifications = all_notifications[:20]
-    
-    # Count unread notifications
-    unread_count = len([n for n in all_notifications if n.get("status") == "pending"])
-    
-    return jsonify(success=True, notifications=all_notifications, unread_count=unread_count)
+    """
+    Return the 20 most-recent notifications for the logged-in user
+    (parent), plus a count of how many are still 'pending'.
+    """
+    user_email = request.user["email"]
+
+    try:
+        cursor = (
+            notifications_col
+            .find({"recipient_email": user_email})
+            .sort("created_at", DESCENDING)
+            .limit(20)
+        )
+
+        notifications = []
+        for doc in cursor:
+            doc["_id"] = str(doc["_id"])          # make JSON-serialisable
+            # created_at → ISO 8601 string
+            if isinstance(doc.get("created_at"), datetime):
+                doc["created_at"] = doc["created_at"].isoformat()
+            else:
+                doc["created_at"] = str(doc.get("created_at"))
+
+            doc.setdefault("status", "pending")
+            doc.setdefault("type",   "notification")
+            notifications.append(doc)
+
+        unread_count = notifications_col.count_documents({
+            "recipient_email": user_email,
+            "status": "pending"
+        })
+
+        return jsonify(
+            success=True,
+            notifications=notifications,
+            unread_count=unread_count
+        ), 200
+
+    except Exception as e:
+        print("[Notifications Error]", e)
+        return jsonify(
+            success=False,
+            error="Failed to fetch notifications, please try again later."
+        ), 500
+
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
