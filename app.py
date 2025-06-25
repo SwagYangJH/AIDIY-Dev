@@ -674,7 +674,7 @@ def generate_chore_recommendations():
         )
 
         raw_output = response.choices[0].message.content
-        print("[AI RAW RESPONSE]", raw_output)
+        #print("[AI RAW RESPONSE]", raw_output)
         # Try to parse it into JSON
         import json
         chores = json.loads(raw_output)
