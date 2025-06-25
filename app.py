@@ -50,6 +50,11 @@ otps_col = db["otps"]
 children_col = db["children"]
 goals_col = db["goals"]
 notifications_col = db["notifications"]
+chat_sessions_col = db["chat_sessions"]
+
+# Enforce indexing for faster queries
+chat_sessions_col.create_index("user_email")
+chat_sessions_col.create_index("created_at")
 
 # enforce kid-username uniqueness
 try:
@@ -554,6 +559,100 @@ from openai import OpenAI
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+@app.route("/api/chat/sessions", methods=["POST"])
+@auth_required
+def create_chat_session():
+    user_email = request.user["email"]
+    title = request.json.get("title", "New Chat")
+    
+    session = {
+        "user_email": user_email,
+        "title": title,
+        "messages": [],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+    
+    result = chat_sessions_col.insert_one(session)
+    return jsonify(
+        success=True,
+        session_id=str(result.inserted_id),
+        title=title
+    )
+
+@app.route("/api/chat/sessions", methods=["GET"])
+@auth_required
+def get_chat_sessions():
+    sessions = list(chat_sessions_col.find(
+        {"user_email": request.user["email"]},
+        {"messages": 0}  # Exclude messages for list view
+    ).sort("updated_at", -1).limit(20))
+    
+    for session in sessions:
+        session["_id"] = str(session["_id"])
+        session["created_at"] = session["created_at"].isoformat()
+        session["updated_at"] = session["updated_at"].isoformat()
+    
+    return jsonify(success=True, sessions=sessions)
+
+@app.route("/api/chat/sessions/<session_id>", methods=["GET"])
+@auth_required
+def get_chat_session(session_id):
+    try:
+        session = chat_sessions_col.find_one(
+            {"_id": ObjectId(session_id), "user_email": request.user["email"]}
+        )
+        if not session:
+            return jsonify(error="Session not found"), 404
+            
+        session["_id"] = str(session["_id"])
+        session["created_at"] = session["created_at"].isoformat()
+        session["updated_at"] = session["updated_at"].isoformat()
+        
+        # Convert message timestamps
+        for msg in session["messages"]:
+            msg["timestamp"] = msg["timestamp"].isoformat()
+        
+        return jsonify(success=True, session=session)
+    except Exception as e:
+        return jsonify(error="Invalid session ID"), 400
+
+@app.route("/api/chat/sessions/<session_id>", methods=["PUT"])
+@auth_required
+def update_chat_session(session_id):
+    try:
+        title = request.json.get("title")
+        if not title:
+            return jsonify(error="Title required"), 400
+            
+        result = chat_sessions_col.update_one(
+            {"_id": ObjectId(session_id), "user_email": request.user["email"]},
+            {"$set": {"title": title, "updated_at": datetime.utcnow()}}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify(error="Session not found"), 404
+            
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(error="Invalid session ID"), 400
+
+@app.route("/api/chat/sessions/<session_id>", methods=["DELETE"])
+@auth_required
+def delete_chat_session(session_id):
+    try:
+        result = chat_sessions_col.delete_one(
+            {"_id": ObjectId(session_id), "user_email": request.user["email"]}
+        )
+        if result.deleted_count == 0:
+            return jsonify(error="Session not found"), 404
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(error="Invalid session ID"), 400
+
+from datetime import datetime
+from bson.objectid import ObjectId
+
 @app.route("/api/ai/chat", methods=["POST"])
 @auth_required
 def ai_chat():
@@ -561,6 +660,7 @@ def ai_chat():
         d = request.get_json() or {}
         message = d.get("message", "")
         image_base64 = d.get("image")
+        session_id = d.get("session_id")  # Get session_id from request
         
         if not message and not image_base64:
             return jsonify(error="Message or image required"), 400
@@ -587,6 +687,51 @@ def ai_chat():
         )
         
         ai_response = response.choices[0].message.content
+        
+        # Save to chat history if session_id exists
+        if session_id:
+            try:
+                # Check if this is the first message in the session
+                session = chat_sessions_col.find_one(
+                    {"_id": ObjectId(session_id)},
+                    projection={"messages": 1}
+                )
+                is_first_message = session and len(session.get('messages', [])) == 0
+
+                # Prepare update data
+                update_data = {
+                    "$push": {
+                        "messages": {
+                            "$each": [
+                                {
+                                    "role": "user",
+                                    "content": message,
+                                    "image": image_base64,
+                                    "timestamp": datetime.utcnow()
+                                },
+                                {
+                                    "role": "assistant",
+                                    "content": ai_response,
+                                    "timestamp": datetime.utcnow()
+                                }
+                            ]
+                        }
+                    },
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+                
+                # Set title if first message
+                if is_first_message:
+                    user_message = message[:30] + "..." if len(message) > 30 else message
+                    update_data["$set"]["title"] = f"Chat: {user_message}"
+                
+                # Update session
+                chat_sessions_col.update_one(
+                    {"_id": ObjectId(session_id)},
+                    update_data
+                )
+            except Exception as e:
+                print(f"[Chat History] Update failed: {str(e)}")
         
         return jsonify(success=True, response=ai_response)
         
