@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
 import BellIcon from './BellIcon';
 import AIAvatar from './AIAvatar';
+import NotificationsModal from './NotificationsModal';
+
 
 const tokenHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem('app_token')}`,
