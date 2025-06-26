@@ -1397,15 +1397,63 @@ import logging
 from datetime import datetime          # you already import it earlier
 # ──────────────────────────────────────────────────────────────
 
+# @app.route("/api/notifications")
+# @auth_required                        # <- keep your existing decorator
+# def get_notifications():
+#     """
+#     Return the 20 most-recent notifications for the logged-in user
+#     (parent), plus a count of how many are still 'pending'.
+#     """
+#     user_email = request.user["email"]
+
+#     try:
+#         cursor = (
+#             notifications_col
+#             .find({"recipient_email": user_email})
+#             .sort("created_at", DESCENDING)
+#             .limit(20)
+#         )
+
+#         notifications = []
+#         for doc in cursor:
+#             doc["_id"] = str(doc["_id"])          # make JSON-serialisable
+#             # created_at → ISO 8601 string
+#             if isinstance(doc.get("created_at"), datetime):
+#                 doc["created_at"] = doc["created_at"].isoformat()
+#             else:
+#                 doc["created_at"] = str(doc.get("created_at"))
+
+#             doc.setdefault("status", "pending")
+#             doc.setdefault("type",   "notification")
+#             notifications.append(doc)
+
+#         unread_count = notifications_col.count_documents({
+#             "recipient_email": user_email,
+#             "status": "pending"
+#         })
+
+#         return jsonify(
+#             success=True,
+#             notifications=notifications,
+#             unread_count=unread_count
+#         ), 200
+
+#     except Exception as e:
+#         print("[Notifications Error]", e)
+#         return jsonify(
+#             success=False,
+#             error="Failed to fetch notifications, please try again later."
+#         ), 500
+
+
 @app.route("/api/notifications")
-@auth_required                        # <- keep your existing decorator
+@auth_required
 def get_notifications():
     """
     Return the 20 most-recent notifications for the logged-in user
-    (parent), plus a count of how many are still 'pending'.
+    (parent), plus a count of how many are unread.
     """
     user_email = request.user["email"]
-
     try:
         cursor = (
             notifications_col
@@ -1413,31 +1461,34 @@ def get_notifications():
             .sort("created_at", DESCENDING)
             .limit(20)
         )
-
         notifications = []
         for doc in cursor:
-            doc["_id"] = str(doc["_id"])          # make JSON-serialisable
+            doc["_id"] = str(doc["_id"])
             # created_at → ISO 8601 string
             if isinstance(doc.get("created_at"), datetime):
                 doc["created_at"] = doc["created_at"].isoformat()
             else:
                 doc["created_at"] = str(doc.get("created_at"))
-
-            doc.setdefault("status", "pending")
-            doc.setdefault("type",   "notification")
+            
+            # Fix: Use consistent field names
+            # Set read status (default to False if not present)
+            doc.setdefault("read", False)
+            # Set type
+            doc.setdefault("type", "notification")
+            
             notifications.append(doc)
-
+        
+        # Fix: Count unread notifications consistently
         unread_count = notifications_col.count_documents({
             "recipient_email": user_email,
-            "status": "pending"
+            "read": {"$ne": True}  # Count notifications where read is not True
         })
-
+        
         return jsonify(
             success=True,
             notifications=notifications,
             unread_count=unread_count
         ), 200
-
     except Exception as e:
         print("[Notifications Error]", e)
         return jsonify(
@@ -1445,15 +1496,56 @@ def get_notifications():
             error="Failed to fetch notifications, please try again later."
         ), 500
 
-
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
 def mark_notifications_read():
-    notifications_col.update_many(
-        {"recipient_email": request.user["email"]},
-        {"$set": {"read": True}}
-    )
-    return jsonify(success=True)
+    """Mark all notifications as read for the current user"""
+    try:
+        result = notifications_col.update_many(
+            {"recipient_email": request.user["email"]},
+            {"$set": {"read": True}}
+        )
+        return jsonify(
+            success=True,
+            message=f"Marked {result.modified_count} notifications as read"
+        ), 200
+    except Exception as e:
+        print("[Mark Read Error]", e)
+        return jsonify(
+            success=False,
+            error="Failed to mark notifications as read"
+        ), 500
+
+@app.route("/api/notifications/<notification_id>/mark-read", methods=["POST"])
+@auth_required
+def mark_single_notification_read(notification_id):
+    """Mark a single notification as read"""
+    try:
+        from bson import ObjectId
+        result = notifications_col.update_one(
+            {
+                "_id": ObjectId(notification_id),
+                "recipient_email": request.user["email"]
+            },
+            {"$set": {"read": True}}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify(
+                success=False,
+                error="Notification not found"
+            ), 404
+            
+        return jsonify(
+            success=True,
+            message="Notification marked as read"
+        ), 200
+    except Exception as e:
+        print("[Mark Single Read Error]", e)
+        return jsonify(
+            success=False,
+            error="Failed to mark notification as read"
+        ), 500
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":

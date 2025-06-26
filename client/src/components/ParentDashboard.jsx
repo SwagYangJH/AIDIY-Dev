@@ -5,47 +5,38 @@ import BellIcon from './BellIcon';
 import AIAvatar from './AIAvatar';
 import NotificationsModal from './NotificationsModal';
 
-
 const tokenHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem('app_token')}`,
 });
 
-/* ───────────────────────────────────────────────────────────── */
 const ParentDashboard = () => {
   const navigate = useNavigate();
 
-  /* ————————————— state ————————————— */
-  const [activeTab, setActiveTab]                   = useState('goal-requests');
-  const [userProfile, setUserProfile]               = useState(null);
-  const [children, setChildren]                     = useState([]);
-  const [showUserMenu, setShowUserMenu]             = useState(false);
-  const [showNotifications, setShowNotifications]   = useState(false);
-  const [notifications, setNotifications]           = useState([]);
-  const [unreadCount, setUnreadCount]               = useState(0);
-
-  const [goals, setGoals]                           = useState([]);
-  const [childrenProgress, setChildrenProgress]     = useState([]);
-  const [childrenChores, setChildrenChores]         = useState([]);
-
-  const [chores, setChores]                         = useState([]);
+  const [activeTab, setActiveTab] = useState('goal-requests');
+  const [userProfile, setUserProfile] = useState(null);
+  const [children, setChildren] = useState([]);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [goals, setGoals] = useState([]);
+  const [childrenProgress, setChildrenProgress] = useState([]);
+  const [childrenChores, setChildrenChores] = useState([]);
+  const [chores, setChores] = useState([]);
   const [choreRecommendations, setChoreRecommendations] = useState([]);
-
-  /* chat */
-  const [message, setMessage]                       = useState('');
-  const [chatHistory, setChatHistory]               = useState([]);
-  const [isLoading, setIsLoading]                   = useState(false);
-  const [selectedImage, setSelectedImage]           = useState(null);
-  const [isRecording, setIsRecording]               = useState(false);
-  const fileInputRef  = useRef(null);
+  const [message, setMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-  const audioChunksRef  = useRef([]);
+  const audioChunksRef = useRef([]);
 
-  /* lifted chore callbacks for child tab */
-  const addChore    = (c) => setChores(prev => [...prev, c]);
-  const patchChore  = (c) => setChores(prev => prev.map(x => x.id === c.id ? c : x));
+  const addChore = (c) => setChores(prev => [...prev, c]);
+  const patchChore = (c) => setChores(prev => prev.map(x => x.id === c.id ? c : x));
   const removeChore = (id) => setChores(prev => prev.filter(x => x.id !== id));
 
-  /* ───────── load on mount ───────── */
   useEffect(() => {
     fetchUserData();
     fetchNotifications();
@@ -56,82 +47,79 @@ const ParentDashboard = () => {
     fetchChoreRecommendations();
   }, []);
 
-  /* close user‑menu when clicking outside */
   useEffect(() => {
     const close = (e) => !e.target.closest('.user-menu-container') && setShowUserMenu(false);
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, []);
 
-  /* ——————————— REST helpers ——————————— */
   const fetchUserData = async () => {
     try {
       const [profileRes, childrenRes] = await Promise.all([
-        fetch('http://localhost:5500/api/users/profile',  { headers: tokenHeader() }),
+        fetch('http://localhost:5500/api/users/profile', { headers: tokenHeader() }),
         fetch('http://localhost:5500/api/users/children', { headers: tokenHeader() }),
       ]);
       const [profileData, childrenData] = await Promise.all([profileRes.json(), childrenRes.json()]);
-      if (profileData.success)  setUserProfile(profileData.user);
+      if (profileData.success) setUserProfile(profileData.user);
       if (childrenData.success) setChildren(childrenData.children);
     } catch (err) { console.error(err); }
   };
 
   const fetchNotifications = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/notifications', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/notifications', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) {
         setNotifications(data.notifications);
         setUnreadCount(data.unread_count);
       }
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchGoals = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/parent/goals', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/parent/goals', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) setGoals(data.goals);
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchChildrenProgress = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/parent/children-progress', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/parent/children-progress', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) setChildrenProgress(data.children);
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchChildrenChores = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/parent/children-chores', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/parent/children-chores', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) setChildrenChores(data.children);
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchChores = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/chores', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/chores', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) {
-        // Map kid_username to assignedTo for easier use in UI (assign "Unassigned" if no kid)
         const choresData = data.chores.map(chore => {
           chore.assignedTo = chore.kid_username ? chore.kid_username : 'Unassigned';
           return chore;
         });
         setChores(choresData);
       }
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchChoreRecommendations = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/chores/recommendations', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/chores/recommendations', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) setChoreRecommendations(data.recommendations);
-    } catch(e){ console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const handleApproveGoal = async (goalId) => {
@@ -185,7 +173,6 @@ const ParentDashboard = () => {
     }
   };
 
-  // Chat functions
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.size <= 5 * 1024 * 1024) {
@@ -251,13 +238,9 @@ const ParentDashboard = () => {
     }
   };
 
-  // Speech recording functions
   const startRecording = async () => {
     try {
-      // Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Check for supported MIME types
       const mimeType = MediaRecorder.isTypeSupported('audio/webm')
         ? 'audio/webm'
         : MediaRecorder.isTypeSupported('audio/mp4')
@@ -280,7 +263,6 @@ const ParentDashboard = () => {
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await sendAudioToServer(audioBlob);
-        // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -290,7 +272,6 @@ const ParentDashboard = () => {
         setIsRecording(false);
       };
 
-      // Start recording with timeslice to get data periodically
       mediaRecorder.start(1000);
       setIsRecording(true);
       console.log('Recording started with MIME type:', mimeType);
@@ -314,7 +295,6 @@ const ParentDashboard = () => {
   };
 
   const sendAudioToServer = async (audioBlob) => {
-    // Determine file extension based on MIME type
     const mimeType = audioBlob.type;
     let extension = 'webm';
     if (mimeType.includes('mp4')) {
@@ -362,7 +342,6 @@ const ParentDashboard = () => {
 
   return (
     <div className={tw('min-h-screen bg-gradient-to-r from-purple-100 to-blue-100')}>
-      {/* Header */}
       <header className={tw('bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4')}>
         <div className={tw('max-w-7xl mx-auto flex items-center justify-between')}>
           <div className={tw('flex items-center space-x-2 cursor-pointer')} onClick={() => navigate('/')}>
@@ -370,7 +349,6 @@ const ParentDashboard = () => {
             <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
           </div>
           <div className={tw('flex items-center gap-4')}>
-            {/* Notifications Icon */}
             <button 
               onClick={() => setShowNotifications(true)}
               className={tw('p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative')}
@@ -383,7 +361,6 @@ const ParentDashboard = () => {
               )}
             </button>
             
-            {/* User Menu */}
             <div className="user-menu-container relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -436,15 +413,12 @@ const ParentDashboard = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <div className={tw('max-w-7xl mx-auto px-4 py-6')}>
-        {/* Welcome Message */}
         <div className={tw('text-center mb-8')}>
           <h1 className={tw('text-3xl font-bold text-gray-800 mb-2')}>Parent Dashboard</h1>
           <p className={tw('text-lg text-gray-600')}>Help your kids achieve their financial goals through meaningful chores</p>
         </div>
 
-        {/* Navigation Tabs - Apple Style */}
         <div className={tw('flex justify-center mb-8')}>
           <div className={tw('inline-flex items-center bg-gray-100 rounded-2xl p-1')}>
             <button
@@ -494,14 +468,11 @@ const ParentDashboard = () => {
           </div>
         </div>
 
-        {/* AI Chat Section */}
         <div className={tw('bg-white rounded-3xl shadow-xl p-8 mb-8')}>
-          {/* AI Avatar */}
           <div className={tw('flex justify-center mb-6')}>
             <AIAvatar size="medium" animated={true} />
           </div>
 
-          {/* Chat History */}
           {chatHistory.length > 0 && (
             <div className={tw('mb-4 max-h-96 overflow-y-auto space-y-4')}>
               {chatHistory.map((msg, index) => (
@@ -537,7 +508,6 @@ const ParentDashboard = () => {
             </div>
           )}
 
-          {/* AI Chat Input */}
           <div className={tw('relative bg-gray-50 rounded-2xl p-4 border-2 border-gray-200')}>
             <textarea
               value={message}
@@ -612,7 +582,6 @@ const ParentDashboard = () => {
           </div>
         </div>
 
-        {/* Tab Content */}
         {activeTab === 'goal-requests' && (
           <GoalRequestsTab 
             goals={goals}
@@ -633,7 +602,7 @@ const ParentDashboard = () => {
           <ChoreManagementTab 
             chores={chores}
             recommendations={choreRecommendations}
-            setChoreRecommendations={setChoreRecommendations} //
+            setChoreRecommendations={setChoreRecommendations}
             children={children}
             onAddChore={addChore}
             onUpdateChore={patchChore}
@@ -647,7 +616,6 @@ const ParentDashboard = () => {
         )}
       </div>
 
-      {/* Notifications Modal */}
       {showNotifications && (
         <NotificationsModal 
           isOpen={showNotifications}
@@ -661,13 +629,11 @@ const ParentDashboard = () => {
   );
 };
 
-// Goal Requests Tab Component
 const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
   const pendingGoals = goals.filter(g => g.status === 'pending_approval');
   
   return (
     <div className={tw('space-y-6')}>
-      {/* Stats Header */}
       <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
         <div className={tw('flex items-center justify-between')}>
           <div>
@@ -687,7 +653,6 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
         </div>
       </div>
 
-      {/* Goal Requests List */}
       <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
         {pendingGoals.length === 0 ? (
           <div className={tw('text-center py-16')}>
@@ -766,9 +731,7 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
   );
 };
 
-// Progress Tracking Tab Component
 const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
-  // Calculate overall stats from real data
   const overallStats = childrenChores.reduce((acc, child) => {
     acc.completed += child.chores_completed || 0;
     acc.pending += child.chores_pending || 0;
@@ -778,7 +741,6 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
 
   return (
     <div className={tw('space-y-6')}>
-      {/* Stats Overview */}
       <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
         <div className={tw('flex items-center justify-between mb-6')}>
           <div>
@@ -810,16 +772,13 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
         </div>
       </div>
 
-      {/* Individual Child Progress */}
       {childrenChores.map((child) => {
-        // Find corresponding goal data
         const childGoals = childrenProgress.find(cp => cp.username === child.username);
         const activeGoal = childGoals?.goals?.find(g => g.status === 'approved');
         const progressPercentage = activeGoal ? Math.min((child.total_earned / activeGoal.amount) * 100, 100) : 0;
         
         return (
           <div key={child.username} className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
-            {/* Child Header */}
             <div className={tw('bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200')}>
               <div className={tw('flex items-center justify-between')}>
                 <div className={tw('flex items-center gap-4')}>
@@ -866,7 +825,6 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
               </div>
             </div>
 
-            {/* Chores List */}
             <div className={tw('p-6')}>
               <h4 className={tw('text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2')}>
                 <span>📋</span>
@@ -937,17 +895,14 @@ const ChoreManagementTab = ({
   onSendMessage,
 }) => {
   const [activeManagementTab, setActiveManagementTab] = useState('manage-chores');
-  const [editingChore, setEditingChore]   = useState(null);
+  const [editingChore, setEditingChore] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateChoreModal, setShowCreateChoreModal] = useState(false);
-  const [showAddModal, setShowAddModal]   = useState(false);
-  const [showAiChat, setShowAiChat]       = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
+  const [showAddRecommendationModal, setShowAddRecommendationModal] = useState(false);
+  const [choreToAdd, setChoreToAdd] = useState(null);
 
-  const [selectedChild, setSelectedChild] = useState('');
-  const [selectedGoal, setSelectedGoal]   = useState('');
-
-  // Include 'assignedTo' field in newChore state
   const [newChore, setNewChore] = useState({
     title: '', 
     description: '', 
@@ -955,30 +910,38 @@ const ChoreManagementTab = ({
     difficulty: 'Easy', 
     reward: 5, 
     dueDate: '', 
-    assignedTo: ''  // Added field for child assignment
+    assignedTo: ''
   });
 
-  /* ——— handlers ——— */
   const handleCreateChore = () => setShowCreateChoreModal(true);
-  const handleEdit        = (c) => { setEditingChore(c); setShowEditModal(true); };
-  const handleAdd         = (c) => { setEditingChore(c); setShowAddModal(true); };
+  const handleEdit = (c) => { setEditingChore(c); setShowEditModal(true); };
 
-  /* create */
+  const handleAdd = (rec) => {
+    setChoreToAdd({
+      title: rec.title,
+      description: rec.description,
+      category: rec.category || 'Cleaning',
+      difficulty: rec.difficulty || 'Easy',
+      reward: rec.reward || 5,
+      dueDate: rec.dueDate || '',
+      assignedTo: ''
+    });
+    setShowAddRecommendationModal(true);
+  };
+
   const handleSaveNewChore = async () => {
     try {
-      const res  = await fetch('http://localhost:5500/api/chores', {
+      const res = await fetch('http://localhost:5500/api/chores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...tokenHeader() },
         body: JSON.stringify(newChore)
       });
       const data = await res.json();
       if (data.success) {
-        // Map kid_username to assignedTo for consistency in front-end state
         let createdChore = data.chore;
         createdChore.assignedTo = createdChore.kid_username ? createdChore.kid_username : 'Unassigned';
         onAddChore(createdChore);
         alert('Chore created successfully!');
-        // Reset the form fields
         setNewChore({ 
           title: '', description: '', category: 'Cleaning', difficulty: 'Easy', 
           reward: 5, dueDate: '', assignedTo: '' 
@@ -993,17 +956,15 @@ const ChoreManagementTab = ({
     }
   };
 
-  /* update (unchanged, except possibly if editing assignedTo through Edit modal, but not required now) */
   const handleSaveEdit = async () => {
     try {
-      const res  = await fetch(`http://localhost:5500/api/chores/${editingChore.id}`, {
+      const res = await fetch(`http://localhost:5500/api/chores/${editingChore.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...tokenHeader() },
         body: JSON.stringify(editingChore)
       });
       const data = await res.json();
       if (data.success) {
-        // Ensure we map kid_username to assignedTo on update as well
         const updatedChore = data.chore;
         updatedChore.assignedTo = updatedChore.kid_username ? updatedChore.kid_username : 'Unassigned';
         onUpdateChore(updatedChore);
@@ -1017,7 +978,6 @@ const ChoreManagementTab = ({
     }
   };
 
-  /* delete */
   const handleDelete = async (c) => {
     if (!window.confirm('Delete this chore?')) return;
     try {
@@ -1031,20 +991,33 @@ const ChoreManagementTab = ({
     }
   };
 
-  /* add to child – mock only for UI */
-  const handleSaveAdd = () => {
-    // In a real scenario, you would POST to /api/assign-chore here.
-    alert(`Assigned '${editingChore.title}' to ${selectedChild || 'child'}!`);
-    setShowAddModal(false);
-    setSelectedChild('');
-    setSelectedGoal('');
+  const handleSaveRecommendedChore = async () => {
+    try {
+      const res = await fetch('http://localhost:5500/api/chores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...tokenHeader() },
+        body: JSON.stringify(choreToAdd)
+      });
+      const data = await res.json();
+      if (data.success) {
+        let createdChore = data.chore;
+        createdChore.assignedTo = createdChore.kid_username ? createdChore.kid_username : 'Unassigned';
+        onAddChore(createdChore);
+        alert('Chore added to child successfully!');
+        setShowAddRecommendationModal(false);
+      } else {
+        alert('Failed to add chore. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error adding chore:', err);
+      alert('Error adding chore. Please try again.');
+    }
   };
 
-  /* regenerate AI recs (unchanged) */
   const handleRegenerateRecommendations = async () => {
     setIsGeneratingRecommendations(true);
     try {
-      const res  = await fetch('http://localhost:5500/api/chores/recommendations', { headers: tokenHeader() });
+      const res = await fetch('http://localhost:5500/api/chores/recommendations', { headers: tokenHeader() });
       const data = await res.json();
       if (data.success) {
         setChoreRecommendations(data.recommendations);
@@ -1056,7 +1029,6 @@ const ChoreManagementTab = ({
 
   return (
     <div className={tw('space-y-6')}>
-      {/* Header */}
       <div className={tw('bg-white rounded-3xl shadow-lg p-6 border border-gray-100')}>
         <div className={tw('flex items-center justify-between mb-4')}>
           <div>
@@ -1071,7 +1043,6 @@ const ChoreManagementTab = ({
           </button>
         </div>
         
-        {/* Sub Navigation */}
         <div className={tw('inline-flex items-center bg-gray-100 rounded-2xl p-1')}>
           <button
             onClick={() => setActiveManagementTab('manage-chores')}
@@ -1102,7 +1073,6 @@ const ChoreManagementTab = ({
         </div>
       </div>
 
-      {/* Content */}
       {activeManagementTab === 'manage-chores' && (
         <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
           <div className={tw('p-6 border-b border-gray-100')}>
@@ -1212,7 +1182,6 @@ const ChoreManagementTab = ({
 
       {activeManagementTab === 'ai-recommendations' && (
         <div className={tw('space-y-6')}>
-          {/* AI Chat Interface */}
           {showAiChat && (
             <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 p-6')}>
               <div className={tw('flex items-center justify-between mb-6')}>
@@ -1225,7 +1194,6 @@ const ChoreManagementTab = ({
                 </button>
               </div>
               
-              {/* Chat History */}
               {chatHistory.length > 0 && (
                 <div className={tw('mb-4 max-h-60 overflow-y-auto space-y-3')}>
                   {chatHistory.slice(-5).map((msg, index) => (
@@ -1258,7 +1226,6 @@ const ChoreManagementTab = ({
                 </div>
               )}
 
-              {/* Chat Input */}
               <div className={tw('flex gap-3 mb-4')}>
                 <input
                   type="text"
@@ -1285,7 +1252,6 @@ const ChoreManagementTab = ({
                 </button>
               </div>
 
-              {/* Quick suggestion buttons */}
               <div className={tw('flex flex-wrap gap-2')}>
                 {[
                   "What chores are good for a 7-year-old?",
@@ -1305,7 +1271,6 @@ const ChoreManagementTab = ({
             </div>
           )}
 
-          {/* Recommendations Section */}
           <div className={tw('bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden')}>
             <div className={tw('p-6 border-b border-gray-100')}>
               <div className={tw('flex items-center justify-between')}>
@@ -1382,16 +1347,10 @@ const ChoreManagementTab = ({
                         </div>
                       </div>
                       
-                      <div className={tw('flex gap-2 ml-4')}>
-                        <button 
-                          onClick={() => handleEdit(rec)}
-                          className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors')}
-                        >
-                          ✏️ Edit
-                        </button>
+                      <div className={tw('ml-4')}>
                         <button 
                           onClick={() => handleAdd(rec)}
-                          className={tw('px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg')}
+                          className={tw('px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl text-sm font-medium hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg')}
                         >
                           ➕ Add to Child
                         </button>
@@ -1405,7 +1364,6 @@ const ChoreManagementTab = ({
         </div>
       )}
 
- {/* Edit Chore Modal (unchanged structure, except mapping assignedTo if needed when saving) */}
       {showEditModal && editingChore && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
           <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
@@ -1422,7 +1380,6 @@ const ChoreManagementTab = ({
             </div>
             
             <div className={tw('p-6 space-y-4')}>
-              {/* Title, Description, etc. (unchanged) */}
               <div>
                 <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Title</label>
                 <input
@@ -1432,8 +1389,7 @@ const ChoreManagementTab = ({
                   className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 />
               </div>
-              {/* ... other fields like description, reward, difficulty ... */}
-
+              
               <div>
                 <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Description</label>
                 <textarea
@@ -1489,15 +1445,14 @@ const ChoreManagementTab = ({
         </div>
       )}
 
-      {/* Add to Child Modal */}
-      {showAddModal && editingChore && (
+      {showAddRecommendationModal && choreToAdd && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-          <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl')}>
+          <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
             <div className={tw('p-6 border-b border-gray-100')}>
               <div className={tw('flex items-center justify-between')}>
-                <h3 className={tw('text-xl font-bold text-gray-900')}>➕ Add Chore to Child</h3>
+                <h3 className={tw('text-xl font-bold text-gray-900')}>➕ Add Recommended Chore to Child</h3>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowAddRecommendationModal(false)}
                   className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
                 >
                   ✕
@@ -1505,24 +1460,92 @@ const ChoreManagementTab = ({
               </div>
             </div>
             
-            <div className={tw('p-6 space-y-6')}>
-              <div className={tw('bg-gray-50 rounded-2xl p-4')}>
-                <h4 className={tw('font-semibold text-gray-900 mb-2')}>{editingChore.title}</h4>
-                <p className={tw('text-gray-600 text-sm')}>{editingChore.description}</p>
-                <div className={tw('flex items-center gap-4 mt-2 text-sm text-gray-600')}>
-                  <span>💰 ${editingChore.reward}</span>
-                  <span>⭐ {editingChore.difficulty}</span>
-                </div>
+            <div className={tw('p-6 space-y-4')}>
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Title *</label>
+                <input
+                  type="text"
+                  value={choreToAdd.title}
+                  onChange={(e) => setChoreToAdd({...choreToAdd, title: e.target.value})}
+                  placeholder="e.g., Clean your room"
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                />
               </div>
               
               <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Select Child</label>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Description *</label>
+                <textarea
+                  value={choreToAdd.description}
+                  onChange={(e) => setChoreToAdd({...choreToAdd, description: e.target.value})}
+                  placeholder="Describe what needs to be done..."
+                  rows="3"
+                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                />
+              </div>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Category</label>
+                  <select
+                    value={choreToAdd.category}
+                    onChange={(e) => setChoreToAdd({...choreToAdd, category: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  >
+                    <option value="Cleaning">🧹 Cleaning</option>
+                    <option value="Kitchen">🍳 Kitchen</option>
+                    <option value="Outdoor">🌳 Outdoor</option>
+                    <option value="Organization">📦 Organization</option>
+                    <option value="Pet Care">🐕 Pet Care</option>
+                    <option value="Other">📝 Other</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Difficulty</label>
+                  <select
+                    value={choreToAdd.difficulty}
+                    onChange={(e) => setChoreToAdd({...choreToAdd, difficulty: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  >
+                    <option value="Easy">⭐ Easy</option>
+                    <option value="Medium">⭐⭐ Medium</option>
+                    <option value="Hard">⭐⭐⭐ Hard</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className={tw('grid grid-cols-2 gap-4')}>
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Reward ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={choreToAdd.reward}
+                    onChange={(e) => setChoreToAdd({...choreToAdd, reward: parseFloat(e.target.value) || 0})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  />
+                </div>
+                
+                <div>
+                  <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Due Date</label>
+                  <input
+                    type="date"
+                    value={choreToAdd.dueDate}
+                    onChange={(e) => setChoreToAdd({...choreToAdd, dueDate: e.target.value})}
+                    className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Assign to Child</label>
                 <select
-                  value={selectedChild}
-                  onChange={(e) => setSelectedChild(e.target.value)}
+                  value={choreToAdd.assignedTo}
+                  onChange={(e) => setChoreToAdd({...choreToAdd, assignedTo: e.target.value})}
                   className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 >
-                  <option value="">Choose a child...</option>
+                  <option value="">-- Unassigned --</option>
                   {children.map((child) => (
                     <option key={child.username} value={child.username}>
                       {child.avatar} {child.nickName || child.firstName}
@@ -1530,45 +1553,29 @@ const ChoreManagementTab = ({
                   ))}
                 </select>
               </div>
-              
-              <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Add to Goal (Optional)</label>
-                <select
-                  value={selectedGoal}
-                  onChange={(e) => setSelectedGoal(e.target.value)}
-                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
-                  disabled={!selectedChild}
-                >
-                  <option value="">No specific goal</option>
-                  <option value="goal1">Gaming Setup - $400</option>
-                  <option value="goal2">Bicycle - $150</option>
-                </select>
-              </div>
             </div>
             
             <div className={tw('p-6 border-t border-gray-100 flex gap-3')}>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => setShowAddRecommendationModal(false)}
                 className={tw('flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors')}
               >
                 Cancel
               </button>
               <button
-                onClick={handleSaveAdd}
-                disabled={!selectedChild}
-                className={tw(`flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg ${
-                  !selectedChild ? 'opacity-50 cursor-not-allowed' : ''
+                onClick={handleSaveRecommendedChore}
+                disabled={!choreToAdd.title || !choreToAdd.description}
+                className={tw(`flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg ${
+                  (!choreToAdd.title || !choreToAdd.description) ? 'opacity-50 cursor-not-allowed' : ''
                 }`)}
               >
-                Add Chore
+                Add Chore to Child
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Custom Chore Modal */}
-      {/* **Create Custom Chore Modal (updated)** */}
       {showCreateChoreModal && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
           <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
@@ -1662,7 +1669,6 @@ const ChoreManagementTab = ({
                 </div>
               </div>
 
-              {/* New field: Assign to Child */}
               <div>
                 <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Assign to Child</label>
                 <select
@@ -1703,7 +1709,5 @@ const ChoreManagementTab = ({
     </div>
   );
 };
-
-// NotificationsModal Component (unchanged for this task)
 
 export default ParentDashboard;
