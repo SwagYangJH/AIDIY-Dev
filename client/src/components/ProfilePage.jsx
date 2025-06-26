@@ -462,6 +462,34 @@ const handleChildEdit = (kid) => {
     setShowParentEditForm(true);
   };
 
+  /* ───────── saving chore categories on parent profile creation ───────── */
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  // clicking button to save chore categories
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (selectedCategories.length === 0) {
+      setFormError("Please select at least one chore category.");
+      return;
+    }
+
+    const res = await fetch("http://localhost:5500/api/users/profile", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
+      },
+      body: JSON.stringify({ choreCategories: selectedCategories }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      navigate("/dashboard"); //Change this if your next step is different
+    } else {
+      setFormError("Failed to save profile. Try again.");
+    }
+  };
+
+
   /* ───────── handle kid click ───────── */
   // Kids are now only clickable in manage mode for editing
 
@@ -845,10 +873,21 @@ const handleChildEdit = (kid) => {
                       <p className={tw('text-sm text-gray-600 mb-4')}>What type of chores would you like AIDIY to suggest?</p>
                       <div className={tw('grid grid-cols-2 md:grid-cols-3 gap-3')}>
                         {['Household Cleaning', 'Pet Care', 'Kitchen Help', 'Garden Work', 'Organizing Rooms', 'Laundry Help'].map((chore) => (
-                          <label key={chore} className={tw('flex items-center gap-2 cursor-pointer')}>
-                            <input type="checkbox" className={tw('w-5 h-5 text-primary-turquoise rounded focus:ring-primary-turquoise')} />
-                            <span className={tw('text-gray-700 text-sm')}>{chore}</span>
-                          </label>
+                           <label key={chore} className={tw('flex items-center gap-2 cursor-pointer')}>
+                             <input
+                               type="checkbox"
+                               checked={selectedCategories.includes(chore)}
+                               onChange={(e) => {
+                                 if (e.target.checked) {
+                                   setSelectedCategories(prev => [...prev, chore]);
+                                 } else {
+                                   setSelectedCategories(prev => prev.filter(c => c !== chore));
+                                 }
+                               }}
+                               className={tw('w-5 h-5 text-primary-turquoise rounded focus:ring-primary-turquoise')}
+                             />
+                             <span className={tw('text-gray-700 text-sm')}>{chore}</span>
+                           </label>
                         ))}
                       </div>
                     </div>
