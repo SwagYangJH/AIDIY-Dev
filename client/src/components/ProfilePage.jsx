@@ -483,7 +483,7 @@ const handleChildEdit = (kid) => {
 
     const data = await res.json();
     if (data.success) {
-      navigate("/dashboard"); //Change this if your next step is different
+      navigate("/parent-dashboard"); //Change this if your next step is different
     } else {
       setFormError("Failed to save profile. Try again.");
     }
@@ -782,7 +782,7 @@ const handleChildEdit = (kid) => {
                   </p>
 
                   {/* Form Step 2 */}
-                  <form onSubmit={handleSaveParentEdit}>
+                  <form onSubmit={handleSubmit}>
                     {/* Your Children */}
                     <div className={tw('bg-blue-50 rounded-xl p-6 mb-6')}>
                       <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>

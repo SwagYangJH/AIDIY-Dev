@@ -443,7 +443,7 @@ def update_profile():
     d = request.get_json() or {}
     
     # Allowed fields to update
-    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents"]
+    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents", "choreCategories"]
     update_data = {k: v for k, v in d.items() if k in allowed_fields and v is not None}
     
     # Special handling for parents array
@@ -795,10 +795,19 @@ def speech_to_text():
 @auth_required
 def generate_chore_recommendations():
     try:
+        # 1. Get the current user based on JWT-protected request
+        user = users_col.find_one({"email": request.user["email"]})
+        categories = user.get("choreCategories", [])
+
+        # 2. If user has no saved categories, return an empty list
+        if not categories:
+            return jsonify(success=True, recommendations=[])
+        
         prompt = (
-            "Generate a list of 5 helpful, age-appropriate chores for kids. "
-            "Format the response as a JSON array with objects like: "
-            "[{\"title\": \"Clean your room\", \"description\": \"Tidy up and organize toys and books\"}, ...]"
+            f"Generate 5 age-appropriate chores for kids in the following categories only: "
+            f"{', '.join(categories)}. "
+            f"Respond only with a JSON array of objects with a 'title' and 'description'. "
+            f"Do NOT include code blocks, markdown, or any explanation."
         )
 
         response = client.chat.completions.create(
@@ -819,7 +828,7 @@ def generate_chore_recommendations():
         )
 
         raw_output = response.choices[0].message.content
-        #print("[AI RAW RESPONSE]", raw_output)
+        print("[AI RAW RESPONSE]", raw_output)
         # Try to parse it into JSON
         import json
         chores = json.loads(raw_output)
