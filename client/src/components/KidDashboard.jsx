@@ -244,9 +244,9 @@ const KidDashboard = () => {
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
-            <span className={tw("text-3xl font-bold text-white")}>AI</span>
+            <span className={tw("text-3xl font-bold text-white")}>AiDIY</span>
             <span className={tw("text-3xl font-bold text-accent-purple")}>
-              DIY
+
             </span>
           </div>
           <div className={tw("flex items-center gap-3")}>
@@ -310,7 +310,7 @@ const KidDashboard = () => {
                 Welcome, {userProfile?.name || "Maya"}! 👋
               </h2>
               <p className={tw("text-gray-600")}>
-                Ready for today's adventure? Let's start your progress!
+                Journey unlocked! Let’s boost your money smarts!
               </p>
             </div>
             <div className={tw("text-center")}>

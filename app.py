@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient, errors,DESCENDING
+from pymongo import MongoClient, errors
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import bcrypt, jwt
@@ -12,7 +12,6 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import base64
 import tempfile
-import logging
 
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
@@ -51,11 +50,6 @@ otps_col = db["otps"]
 children_col = db["children"]
 goals_col = db["goals"]
 notifications_col = db["notifications"]
-chat_sessions_col = db["chat_sessions"]
-
-# Enforce indexing for faster queries
-chat_sessions_col.create_index("user_email")
-chat_sessions_col.create_index("created_at")
 
 # enforce kid-username uniqueness
 try:
@@ -444,7 +438,7 @@ def update_profile():
     d = request.get_json() or {}
     
     # Allowed fields to update
-    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents", "choreCategories"]
+    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents"]
     update_data = {k: v for k, v in d.items() if k in allowed_fields and v is not None}
     
     # Special handling for parents array
@@ -560,100 +554,6 @@ from openai import OpenAI
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/api/chat/sessions", methods=["POST"])
-@auth_required
-def create_chat_session():
-    user_email = request.user["email"]
-    title = request.json.get("title", "New Chat")
-    
-    session = {
-        "user_email": user_email,
-        "title": title,
-        "messages": [],
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-    }
-    
-    result = chat_sessions_col.insert_one(session)
-    return jsonify(
-        success=True,
-        session_id=str(result.inserted_id),
-        title=title
-    )
-
-@app.route("/api/chat/sessions", methods=["GET"])
-@auth_required
-def get_chat_sessions():
-    sessions = list(chat_sessions_col.find(
-        {"user_email": request.user["email"]},
-        {"messages": 0}  # Exclude messages for list view
-    ).sort("updated_at", -1).limit(20))
-    
-    for session in sessions:
-        session["_id"] = str(session["_id"])
-        session["created_at"] = session["created_at"].isoformat()
-        session["updated_at"] = session["updated_at"].isoformat()
-    
-    return jsonify(success=True, sessions=sessions)
-
-@app.route("/api/chat/sessions/<session_id>", methods=["GET"])
-@auth_required
-def get_chat_session(session_id):
-    try:
-        session = chat_sessions_col.find_one(
-            {"_id": ObjectId(session_id), "user_email": request.user["email"]}
-        )
-        if not session:
-            return jsonify(error="Session not found"), 404
-            
-        session["_id"] = str(session["_id"])
-        session["created_at"] = session["created_at"].isoformat()
-        session["updated_at"] = session["updated_at"].isoformat()
-        
-        # Convert message timestamps
-        for msg in session["messages"]:
-            msg["timestamp"] = msg["timestamp"].isoformat()
-        
-        return jsonify(success=True, session=session)
-    except Exception as e:
-        return jsonify(error="Invalid session ID"), 400
-
-@app.route("/api/chat/sessions/<session_id>", methods=["PUT"])
-@auth_required
-def update_chat_session(session_id):
-    try:
-        title = request.json.get("title")
-        if not title:
-            return jsonify(error="Title required"), 400
-            
-        result = chat_sessions_col.update_one(
-            {"_id": ObjectId(session_id), "user_email": request.user["email"]},
-            {"$set": {"title": title, "updated_at": datetime.utcnow()}}
-        )
-        
-        if result.matched_count == 0:
-            return jsonify(error="Session not found"), 404
-            
-        return jsonify(success=True)
-    except Exception as e:
-        return jsonify(error="Invalid session ID"), 400
-
-@app.route("/api/chat/sessions/<session_id>", methods=["DELETE"])
-@auth_required
-def delete_chat_session(session_id):
-    try:
-        result = chat_sessions_col.delete_one(
-            {"_id": ObjectId(session_id), "user_email": request.user["email"]}
-        )
-        if result.deleted_count == 0:
-            return jsonify(error="Session not found"), 404
-        return jsonify(success=True)
-    except Exception as e:
-        return jsonify(error="Invalid session ID"), 400
-
-from datetime import datetime
-from bson.objectid import ObjectId
-
 @app.route("/api/ai/chat", methods=["POST"])
 @auth_required
 def ai_chat():
@@ -661,7 +561,6 @@ def ai_chat():
         d = request.get_json() or {}
         message = d.get("message", "")
         image_base64 = d.get("image")
-        session_id = d.get("session_id")  # Get session_id from request
         
         if not message and not image_base64:
             return jsonify(error="Message or image required"), 400
@@ -688,51 +587,6 @@ def ai_chat():
         )
         
         ai_response = response.choices[0].message.content
-        
-        # Save to chat history if session_id exists
-        if session_id:
-            try:
-                # Check if this is the first message in the session
-                session = chat_sessions_col.find_one(
-                    {"_id": ObjectId(session_id)},
-                    projection={"messages": 1}
-                )
-                is_first_message = session and len(session.get('messages', [])) == 0
-
-                # Prepare update data
-                update_data = {
-                    "$push": {
-                        "messages": {
-                            "$each": [
-                                {
-                                    "role": "user",
-                                    "content": message,
-                                    "image": image_base64,
-                                    "timestamp": datetime.utcnow()
-                                },
-                                {
-                                    "role": "assistant",
-                                    "content": ai_response,
-                                    "timestamp": datetime.utcnow()
-                                }
-                            ]
-                        }
-                    },
-                    "$set": {"updated_at": datetime.utcnow()}
-                }
-                
-                # Set title if first message
-                if is_first_message:
-                    user_message = message[:30] + "..." if len(message) > 30 else message
-                    update_data["$set"]["title"] = f"Chat: {user_message}"
-                
-                # Update session
-                chat_sessions_col.update_one(
-                    {"_id": ObjectId(session_id)},
-                    update_data
-                )
-            except Exception as e:
-                print(f"[Chat History] Update failed: {str(e)}")
         
         return jsonify(success=True, response=ai_response)
         
@@ -796,19 +650,10 @@ def speech_to_text():
 @auth_required
 def generate_chore_recommendations():
     try:
-        # 1. Get the current user based on JWT-protected request
-        user = users_col.find_one({"email": request.user["email"]})
-        categories = user.get("choreCategories", [])
-
-        # 2. If user has no saved categories, return an empty list
-        if not categories:
-            return jsonify(success=True, recommendations=[])
-        
         prompt = (
-            f"Generate 5 age-appropriate chores for kids in the following categories only: "
-            f"{', '.join(categories)}. "
-            f"Respond only with a JSON array of objects with a 'title' and 'description'. "
-            f"Do NOT include code blocks, markdown, or any explanation."
+            "Generate a list of 5 helpful, age-appropriate chores for kids. "
+            "Format the response as a JSON array with objects like: "
+            "[{\"title\": \"Clean your room\", \"description\": \"Tidy up and organize toys and books\"}, ...]"
         )
 
         response = client.chat.completions.create(
@@ -1087,36 +932,21 @@ from bson import ObjectId
 @auth_required
 def get_chores():
     """
-    Return chores based on user type:
-    - For parents: all their created chores
-    - For kids: chores assigned to them
+    Return all chores that belong to the logged-in parent.
+    Optionally filter by child (?kid=username) or status (?status=pending).
     """
     try:
-        # Check if this is a kid user
-        if "@kids.aidiy" in request.user["email"]:
-            # Extract kid username from email
-            kid_username = request.user["email"].split("@")[0]
-            q = {"kid_username": kid_username}
-        else:
-            # Parent user - get all their chores
-            q = {"parent_email": request.user["email"]}
-            
-            # Optional filters for parents
-            kid = request.args.get("kid")
-            status = request.args.get("status")
-            if kid:
-                q["kid_username"] = kid
-            if status:
-                q["status"] = status
+        q = {"parent_email": request.user["email"]}
+        kid = request.args.get("kid")
+        status = request.args.get("status")
+        if kid:
+            q["kid_username"] = kid          # <= stored at create time
+        if status:
+            q["status"] = status
 
         chores = []
         for c in chores_col.find(q):
             c["id"] = str(c.pop("_id"))
-            # Convert datetime to ISO format
-            if "created_at" in c and hasattr(c["created_at"], "isoformat"):
-                c["created_at"] = c["created_at"].isoformat()
-            if "updated_at" in c and hasattr(c["updated_at"], "isoformat"):
-                c["updated_at"] = c["updated_at"].isoformat()
             chores.append(c)
 
         return jsonify(success=True, chores=chores), 200
@@ -1399,107 +1229,59 @@ def approve_progress(goal_id):
         print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
-
 @app.route("/api/notifications")
 @auth_required
 def get_notifications():
-    """
-    Return the 20 most-recent notifications for the logged-in user
-    (parent), plus a count of how many are unread.
-    """
-    user_email = request.user["email"]
-    try:
-        cursor = (
-            notifications_col
-            .find({"recipient_email": user_email})
-            .sort("created_at", DESCENDING)
-            .limit(20)
-        )
-        notifications = []
-        for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            # created_at → ISO 8601 string
-            if isinstance(doc.get("created_at"), datetime):
-                doc["created_at"] = doc["created_at"].isoformat()
-            else:
-                doc["created_at"] = str(doc.get("created_at"))
-            
-            # Fix: Use consistent field names
-            # Set read status (default to False if not present)
-            doc.setdefault("read", False)
-            # Set type
-            doc.setdefault("type", "notification")
-            
-            notifications.append(doc)
-        
-        # Fix: Count unread notifications consistently
-        unread_count = notifications_col.count_documents({
-            "recipient_email": user_email,
-            "read": {"$ne": True}  # Count notifications where read is not True
-        })
-        
-        return jsonify(
-            success=True,
-            notifications=notifications,
-            unread_count=unread_count
-        ), 200
-    except Exception as e:
-        print("[Notifications Error]", e)
-        return jsonify(
-            success=False,
-            error="Failed to fetch notifications, please try again later."
-        ), 500
+    all_notifications = []
+    
+    # Get goal approval notifications from notifications_col
+    goal_notifications = list(
+        notifications_col.find(
+            {"recipient_email": request.user["email"]},
+            {"_id": 0}
+        ).sort("created_at", -1)
+    )
+    
+    # Get progress submission notifications from db.notifications
+    progress_notifications = list(
+        db.notifications.find(
+            {"parent_email": request.user["email"]},
+            {"_id": 0}
+        ).sort("created_at", -1)
+    )
+    
+    # Combine and sort all notifications
+    all_notifications.extend(goal_notifications)
+    all_notifications.extend(progress_notifications)
+    
+    # Convert datetime to ISO format and sort by date
+    for notif in all_notifications:
+        if "created_at" in notif:
+            if hasattr(notif["created_at"], "isoformat"):
+                notif["created_at"] = notif["created_at"].isoformat()
+        # Ensure all notifications have required fields
+        notif.setdefault("status", "pending")
+        notif.setdefault("type", "unknown")
+    
+    # Sort by created_at date (most recent first)
+    all_notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Limit to 20 most recent
+    all_notifications = all_notifications[:20]
+    
+    # Count unread notifications
+    unread_count = len([n for n in all_notifications if n.get("status") == "pending"])
+    
+    return jsonify(success=True, notifications=all_notifications, unread_count=unread_count)
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
 def mark_notifications_read():
-    """Mark all notifications as read for the current user"""
-    try:
-        result = notifications_col.update_many(
-            {"recipient_email": request.user["email"]},
-            {"$set": {"read": True}}
-        )
-        return jsonify(
-            success=True,
-            message=f"Marked {result.modified_count} notifications as read"
-        ), 200
-    except Exception as e:
-        print("[Mark Read Error]", e)
-        return jsonify(
-            success=False,
-            error="Failed to mark notifications as read"
-        ), 500
-
-@app.route("/api/notifications/<notification_id>/mark-read", methods=["POST"])
-@auth_required
-def mark_single_notification_read(notification_id):
-    """Mark a single notification as read"""
-    try:
-        from bson import ObjectId
-        result = notifications_col.update_one(
-            {
-                "_id": ObjectId(notification_id),
-                "recipient_email": request.user["email"]
-            },
-            {"$set": {"read": True}}
-        )
-        
-        if result.matched_count == 0:
-            return jsonify(
-                success=False,
-                error="Notification not found"
-            ), 404
-            
-        return jsonify(
-            success=True,
-            message="Notification marked as read"
-        ), 200
-    except Exception as e:
-        print("[Mark Single Read Error]", e)
-        return jsonify(
-            success=False,
-            error="Failed to mark notification as read"
-        ), 500
+    notifications_col.update_many(
+        {"recipient_email": request.user["email"]},
+        {"$set": {"read": True}}
+    )
+    return jsonify(success=True)
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":

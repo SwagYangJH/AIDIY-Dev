@@ -437,8 +437,8 @@ const ParentDashboard = () => {
         <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
           <div className={tw('flex items-center justify-between h-20')}>
             <div className={tw('flex items-center space-x-2')}>
-              <span className={tw('text-3xl font-bold text-primary-turquoise')}>AI</span>
-              <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
+              <span className={tw('text-3xl font-bold text-primary-turquoise')}>AiDIY</span>
+              {/* <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span> */}
             </div>
             <div className={tw('flex items-center gap-4')}>
               <button 
@@ -574,7 +574,7 @@ const ParentDashboard = () => {
                     handleSendMessage();
                   }
                 }}
-                placeholder="Guide me AI DIY..."
+                placeholder="Guide me AiDIY..."
                 className={tw('w-full bg-transparent resize-none outline-none text-gray-700 placeholder-gray-400 min-h-[60px]')}
                 rows="2"
                 disabled={isLoading}

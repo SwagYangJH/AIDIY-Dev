@@ -345,8 +345,8 @@ const ParentDashboard = () => {
       <header className={tw('bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4')}>
         <div className={tw('max-w-7xl mx-auto flex items-center justify-between')}>
           <div className={tw('flex items-center space-x-2 cursor-pointer')} onClick={() => navigate('/')}>
-            <span className={tw('text-3xl font-bold text-white')}>AI</span>
-            <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span>
+            <span className={tw('text-3xl font-bold text-white')}>AiDIY</span>
+            {/* <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span> */}
           </div>
           <div className={tw('flex items-center gap-4')}>
             <button 
@@ -518,7 +518,7 @@ const ParentDashboard = () => {
                   handleSendMessage();
                 }
               }}
-              placeholder="Guide me AI DIY..."
+              placeholder="Guide me AiDIY..."
               className={tw('w-full bg-transparent resize-none outline-none text-gray-700 placeholder-gray-400 min-h-[60px]')}
               rows="2"
               disabled={isLoading}
@@ -638,7 +638,7 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
         <div className={tw('flex items-center justify-between')}>
           <div>
             <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Goal Requests</h2>
-            <p className={tw('text-gray-600')}>Review and approve your children's savings goals</p>
+            <p className={tw('text-gray-600')}>You’ve Got a Life Skills Champ in the Making.</p>
           </div>
           <div className={tw('flex items-center gap-4')}>
             <div className={tw('text-center')}>
@@ -745,7 +745,7 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
         <div className={tw('flex items-center justify-between mb-6')}>
           <div>
             <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Progress Tracking</h2>
-            <p className={tw('text-gray-600')}>Monitor your children's chore completion and earnings</p>
+            <p className={tw('text-gray-600')}>See how your kid is leveling up and earning along the way!</p>
           </div>
           <div className={tw('text-right')}>
             <div className={tw('text-3xl font-bold text-green-600')}>${overallStats.totalRewards.toFixed(2)}</div>
@@ -1033,7 +1033,7 @@ const ChoreManagementTab = ({
         <div className={tw('flex items-center justify-between mb-4')}>
           <div>
             <h2 className={tw('text-2xl font-bold text-gray-900 mb-1')}>Chore Management</h2>
-            <p className={tw('text-gray-600')}>Create, assign, and track household chores</p>
+            <p className={tw('text-gray-600')}>Where everyday tasks build lifelong Money smart skills</p>
           </div>
           <button 
             onClick={handleCreateChore}
@@ -1079,7 +1079,7 @@ const ChoreManagementTab = ({
             <div className={tw('flex items-center justify-between')}>
               <div>
                 <h3 className={tw('text-xl font-bold text-gray-900 mb-1')}>Active Chores</h3>
-                <p className={tw('text-gray-600')}>Track and manage all household chores</p>
+                <p className={tw('text-gray-600')}></p>
               </div>
               <div className={tw('text-right')}>
                 <div className={tw('text-2xl font-bold text-blue-600')}>{chores.length}</div>

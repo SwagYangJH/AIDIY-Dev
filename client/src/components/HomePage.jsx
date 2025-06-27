@@ -20,8 +20,8 @@ const HomePage = () => {
         <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
           <div className={tw('flex items-center justify-between h-20')}>
             <Link to="/" className={tw('flex items-center space-x-2')}>
-              <span className={tw('text-4xl font-bold text-primary-turquoise')}>AI</span>
-              <span className={tw('text-4xl font-bold text-accent-purple')}>DIY</span>
+              <span className={tw('text-4xl font-bold text-primary-turquoise')}>AiDIY</span>
+              {/* <span className={tw('text-4xl font-bold text-accent-purple')}>DIY</span> */}
             </Link>
             
             {/* <div className={tw(`md:flex items-center space-x-8 ${isMenuOpen ? 'flex' : 'hidden'}`)}>
@@ -219,7 +219,7 @@ const HomePage = () => {
         <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
           <div className={tw('grid grid-cols-1 md:grid-cols-4 gap-8 mb-8')}>
             <div>
-              <h4 className={tw('text-lg font-bold mb-4')}>AIDIY</h4>
+              <h4 className={tw('text-lg font-bold mb-4')}>AiDIY</h4>
               <p className={tw('text-gray-400')}>AI learning platform designed for children</p>
             </div>
             <div>
@@ -248,7 +248,7 @@ const HomePage = () => {
             </div>
           </div>
           <div className={tw('border-t border-gray-700 pt-8 text-center')}>
-            <p className={tw('text-gray-400')}>&copy; 2024 AIDIY. All rights reserved.</p>
+            <p className={tw('text-gray-400')}>&copy; 2024 AiDIY. All rights reserved.</p>
           </div>
         </div>
       </footer>
