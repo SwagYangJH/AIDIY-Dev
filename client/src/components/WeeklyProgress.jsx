@@ -1,3 +1,5 @@
+// WeeklyProgress.jsx - Updated version with edit functionality
+
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
@@ -53,6 +55,12 @@ const WeeklyProgress = () => {
     const allChoreNames = selectedChores.map(chore => chore.name);
     setCompletedChores(allChoreNames);
     setShowCelebration(true);
+  };
+
+  const handleEditMissionList = () => {
+    // Navigate back to ChoreQuest with the current goal
+    // The ChoreQuest component will re-fetch chores and show current selection
+    navigate("/chore-quest", { state: { goal } });
   };
 
   const handleSubmitProgress = async () => {
@@ -143,13 +151,13 @@ const WeeklyProgress = () => {
       {/* Header */}
       <div className={tw("max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
         <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY ADVENTURE PROGRESS</h2>
-        <p className={tw("text-sm text-gray-500 mb-2")}>Let’s start this amazing adventure ✨</p>
+        <p className={tw("text-sm text-gray-500 mb-2")}>Working on: {goal.title}</p>
         
         {/* Overall Goal Progress */}
         <div className={tw("mb-4")}>
           <div className={tw("flex justify-between text-xs text-gray-600 mb-1")}>
-            <span>Overall Goal: {goal.name}</span>
-            <span>${goal.currentAmount || 0} / ${goal.amount}</span>
+            <span>Overall Goal: {goal.name || goal.title}</span>
+            <span>${goal.saved || goal.currentAmount || 0} / ${goal.amount}</span>
           </div>
           <div className={tw("w-full bg-gray-200 h-2 rounded-full")}>
             <div
@@ -240,7 +248,7 @@ const WeeklyProgress = () => {
                 {/* Meta Info */}
                 <div className={tw("flex justify-between items-center text-sm mb-2")}>
                   <span className={tw("text-green-600 font-semibold")}>💰 ${chore.amount}</span>
-                  <span className={tw("text-blue-500")}>⏰ {chore.time}</span>
+                  {chore.time && <span className={tw("text-blue-500")}>⏰ {chore.time}</span>}
                 </div>
 
                 {/* Guide Me Button */}
@@ -314,7 +322,7 @@ const WeeklyProgress = () => {
       {/* Footer Buttons */}
       <div className={tw("mt-10 text-center flex flex-wrap justify-center gap-4")}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleEditMissionList}
           className={tw(
             "px-6 py-2 bg-gradient-to-r from-yellow-400 to-pink-300 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
           )}

@@ -1099,6 +1099,11 @@ def get_chores():
             # Extract kid username from email
             kid_username = request.user["email"].split("@")[0]
             q = {"kid_username": kid_username}
+            
+            # Optional: filter by goal
+            goal_id = request.args.get("goalId")
+            if goal_id:
+                q["assigned_goal_id"] = goal_id
         else:
             # Parent user - get all their chores
             q = {"parent_email": request.user["email"]}
@@ -1544,6 +1549,79 @@ def mark_single_notification_read(notification_id):
             success=False,
             error="Failed to mark notification as read"
         ), 500
+
+@app.route("/api/chores/assign-to-goal", methods=["POST"])
+@auth_required
+def assign_chores_to_goal():
+    """
+    Assign selected chores to a specific goal for a kid.
+    """
+    try:
+        data = request.get_json()
+        goal_id = data.get("goalId")
+        chore_ids = data.get("choreIds", [])
+        
+        if not goal_id or not chore_ids:
+            return jsonify(error="Missing goalId or choreIds"), 400
+        
+        # Verify the goal belongs to this kid
+        goal = goals_col.find_one({"_id": ObjectId(goal_id)})
+        if not goal:
+            return jsonify(error="Goal not found"), 404
+            
+        # Update each chore to be assigned to this goal
+        for chore_id in chore_ids:
+            chores_col.update_one(
+                {"_id": ObjectId(chore_id)},
+                {
+                    "$set": {
+                        "assigned_goal_id": goal_id,
+                        "status": "Assigned",
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+        
+        # Update the goal to track assigned chores
+        goals_col.update_one(
+            {"_id": ObjectId(goal_id)},
+            {
+                "$set": {
+                    "assigned_chore_ids": chore_ids,
+                    "has_launched_mission": True,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return jsonify(success=True, message="Chores assigned to goal"), 200
+        
+    except Exception as e:
+        print(f"[Assign Chores Error] {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/goals/<goal_id>/chores", methods=["GET"])
+@auth_required
+def get_goal_chores(goal_id):
+    """
+    Get chores assigned to a specific goal
+    """
+    try:
+        # Find chores assigned to this goal
+        chores = list(chores_col.find({"assigned_goal_id": goal_id}))
+        
+        for chore in chores:
+            chore["id"] = str(chore.pop("_id"))
+            if "created_at" in chore and hasattr(chore["created_at"], "isoformat"):
+                chore["created_at"] = chore["created_at"].isoformat()
+            if "updated_at" in chore and hasattr(chore["updated_at"], "isoformat"):
+                chore["updated_at"] = chore["updated_at"].isoformat()
+                
+        return jsonify(success=True, chores=chores), 200
+        
+    except Exception as e:
+        print(f"[Get Goal Chores Error] {e}")
+        return jsonify(error=str(e)), 500
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":
