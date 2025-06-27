@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient, errors
+from pymongo import MongoClient, errors,DESCENDING
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import bcrypt, jwt
@@ -12,6 +12,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import base64
 import tempfile
+import logging
 
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
@@ -1397,62 +1398,6 @@ def approve_progress(goal_id):
     except Exception as e:
         print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
-
-from flask import jsonify, request
-from pymongo import DESCENDING
-import logging
-
-# ─── put this near your other imports ─────────────────────────
-from datetime import datetime          # you already import it earlier
-# ──────────────────────────────────────────────────────────────
-
-# @app.route("/api/notifications")
-# @auth_required                        # <- keep your existing decorator
-# def get_notifications():
-#     """
-#     Return the 20 most-recent notifications for the logged-in user
-#     (parent), plus a count of how many are still 'pending'.
-#     """
-#     user_email = request.user["email"]
-
-#     try:
-#         cursor = (
-#             notifications_col
-#             .find({"recipient_email": user_email})
-#             .sort("created_at", DESCENDING)
-#             .limit(20)
-#         )
-
-#         notifications = []
-#         for doc in cursor:
-#             doc["_id"] = str(doc["_id"])          # make JSON-serialisable
-#             # created_at → ISO 8601 string
-#             if isinstance(doc.get("created_at"), datetime):
-#                 doc["created_at"] = doc["created_at"].isoformat()
-#             else:
-#                 doc["created_at"] = str(doc.get("created_at"))
-
-#             doc.setdefault("status", "pending")
-#             doc.setdefault("type",   "notification")
-#             notifications.append(doc)
-
-#         unread_count = notifications_col.count_documents({
-#             "recipient_email": user_email,
-#             "status": "pending"
-#         })
-
-#         return jsonify(
-#             success=True,
-#             notifications=notifications,
-#             unread_count=unread_count
-#         ), 200
-
-#     except Exception as e:
-#         print("[Notifications Error]", e)
-#         return jsonify(
-#             success=False,
-#             error="Failed to fetch notifications, please try again later."
-#         ), 500
 
 
 @app.route("/api/notifications")
