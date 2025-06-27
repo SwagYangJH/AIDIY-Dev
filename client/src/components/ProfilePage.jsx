@@ -29,6 +29,7 @@ const ProfilePage = () => {
   const [editingChild, setEditingChild] = useState(null);
   const [childEditData, setChildEditData] = useState(null);
   const [parentFormStep, setParentFormStep] = useState(1); // 1 or 2 for multi-step form
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
 
   /* parents data - will be populated based on user profile */
@@ -336,6 +337,12 @@ const handleChildEdit = (kid) => {
         role: p.role
       }));
       
+      //   // ✅ Add selected chore categories to the update
+      // const updatePayload = {
+      //   parents: parentsForBackend,
+      //   choreCategories: selectedCategories,
+      // };
+
       // If editing current user's profile, also update their personal info
       if (editingParentRole === userProfile?.parentRole) {
         const res = await api('/api/users/profile', {
@@ -346,7 +353,7 @@ const handleChildEdit = (kid) => {
             phoneNumber: parentEditData.phoneNumber,
             birthDate: parentEditData.birthDate,
             parentRole: parentEditData.parentRole,
-            parents: parentsForBackend
+            choreCategories: selectedCategories
           }),
         });
         
@@ -363,7 +370,8 @@ const handleChildEdit = (kid) => {
         const res = await api('/api/users/profile', {
           method: 'PUT',
           body: JSON.stringify({ 
-            parents: parentsForBackend 
+            parents: parentsForBackend ,
+            choreCategories: selectedCategories,
           }),
         });
         
@@ -372,7 +380,8 @@ const handleChildEdit = (kid) => {
         // Update local state
         setUserProfile({ 
           ...userProfile, 
-          parents: parentsForBackend
+          parents: parentsForBackend,
+          choreCategories: selectedCategories,
         });
       }
       
@@ -464,32 +473,32 @@ const handleChildEdit = (kid) => {
     setShowParentEditForm(true);
   };
 
-  /* ───────── saving chore categories on parent profile creation ───────── */
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  // clicking button to save chore categories
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (selectedCategories.length === 0) {
-      setFormError("Please select at least one chore category.");
-      return;
-    }
+  // /* ───────── saving chore categories on parent profile creation ───────── */
+  // // clicking button to save chore categories
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+    
+  //   if (selectedCategories.length === 0) {
+  //     setFormError("Please select at least one chore category.");
+  //     return;
+  //   }
 
-    const res = await fetch("http://localhost:5500/api/users/profile", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
-      },
-      body: JSON.stringify({ choreCategories: selectedCategories }),
-    });
+  //   const res = await fetch("http://localhost:5500/api/users/profile", {
+  //     method: "PUT",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //       Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
+  //     },
+  //     body: JSON.stringify({ choreCategories: selectedCategories }),
+  //   });
 
-    const data = await res.json();
-    if (data.success) {
-      navigate("/parent-dashboard"); //Change this if your next step is different
-    } else {
-      setFormError("Failed to save profile. Try again.");
-    }
-  };
+  //   const data = await res.json();
+  //   if (data.success) {
+  //     navigate("/parent-dashboard"); //Change this if your next step is different
+  //   } else {
+  //     setFormError("Failed to save profile. Try again.");
+  //   }
+  // };
 
 
   /* ───────── handle kid click ───────── */
@@ -784,7 +793,7 @@ const handleChildEdit = (kid) => {
                   </p>
 
                   {/* Form Step 2 */}
-                  <form onSubmit={handleSubmit}>
+                  <form onSubmit={handleSaveParentEdit}>
                     {/* Your Children */}
                     <div className={tw('bg-blue-50 rounded-xl p-6 mb-6')}>
                       <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
