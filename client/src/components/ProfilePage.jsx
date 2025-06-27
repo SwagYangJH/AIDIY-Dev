@@ -69,6 +69,8 @@ const ProfilePage = () => {
         const profileRes = await api('/api/users/profile');
         if (profileRes.success) {
           setUserProfile(profileRes.user);
+          setSelectedCategories(profileRes.user.choreCategories || []); 
+
           
           // Build parents list from user profile
           const parentsList = [];
