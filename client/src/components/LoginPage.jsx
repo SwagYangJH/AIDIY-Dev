@@ -29,6 +29,8 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState('');
 
+  const [showCode, setShowCode] = useState(false);
+
   /* ─────────────────────────── redux / nav helpers ─────────────────────── */
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -179,15 +181,22 @@ const LoginPage = () => {
 
   // 4-digit focus-jump
   const handleKidCodeChange = (idx, val) => {
-    if (val.length <= 1 && /^[0-9]*$/.test(val)) {
-      const copy = [...kidCode];
-      copy[idx]  = val;
-      setKidCode(copy);
+    if (!/^\d?$/.test(val)) return; // Allow only single digits
+    const next = [...kidCode];
+    next[idx] = val;
+    setKidCode(next);
 
-      if (val && idx < 3) {
-        document.getElementById(`code-${idx + 1}`)?.focus();
-      }
+    // Jump to next box when a digit is typed
+    if (val && idx < 3) document.getElementById(`code-${idx + 1}`).focus();
+  };
+
+  const handleKidCodeKeyDown = (idx, e) => {
+    if (e.key === 'Backspace' && !kidCode[idx] && idx > 0) {
+      // Go backwards if box is empty
+      document.getElementById(`code-${idx - 1}`).focus();
     }
+    if (e.key === 'ArrowLeft' && idx > 0) document.getElementById(`code-${idx - 1}`).focus();
+    if (e.key === 'ArrowRight' && idx < 3) document.getElementById(`code-${idx + 1}`).focus();
   };
 
   /* ─────────────────────────────── UI ─────────────────────────────────── */
@@ -358,23 +367,36 @@ const LoginPage = () => {
                     </div>
 
                     {/* 4-digit code */}
-                    <div className={tw('flex justify-center gap-4 mb-6')}>
-                      {kidCode.map((d, idx) => (
-                        <input
-                          key={idx}
-                          id={`code-${idx}`}
-                          type="text"
-                          maxLength={1}
-                          value={d}
-                          onChange={(e) => handleKidCodeChange(idx, e.target.value)}
-                          className={tw('w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary-turquoise transition-colors')}
-                        />
-                      ))}
+                    <div className={tw('flex flex-col items-center mb-6')}>
+                      <div className={tw('flex justify-center gap-4 mb-2')}>
+                        {kidCode.map((d, idx) => (
+                          <input
+                            key={idx}
+                            id={`code-${idx}`}
+                            type={showCode ? 'text' : 'password'}
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={d}
+                            onChange={(e) => handleKidCodeChange(idx, e.target.value)}
+                            onKeyDown={(e) => handleKidCodeKeyDown(idx, e)}
+                            className={tw(
+                              'w-12 h-12 text-center text-xl font-bold ' +
+                              'border-2 border-gray-200 rounded-lg ' +
+                              'focus:outline-none focus:border-primary-turquoise transition-colors'
+                            )}
+                          />
+                        ))}
+                      </div>
+                      
+                      {/* Text toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowCode(!showCode)}
+                        className={tw('text-sm text-primary-turquoise hover:underline')}
+                      >
+                        {showCode ? 'Hide Code' : 'Show Code'}
+                      </button>
                     </div>
-
-                    {errorMsg && (
-                      <p className={tw('text-sm text-red-600 text-center mb-4')}>{errorMsg}</p>
-                    )}
 
                     <label className={tw('flex items-center justify-center mb-6')}>
                       <input type="checkbox" className={tw('mr-2')} />
