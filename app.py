@@ -1159,11 +1159,62 @@ def create_chore():
 @auth_required
 def update_chore(chore_id):
     d = request.get_json() or {}
+    
+    # Check if this is a kid marking chore as completed
+    if "@kids.aidiy" in request.user["email"] and d.get("status") == "completed":
+        kid_username = request.user["email"].split("@")[0]
+        
+        # Verify the chore is assigned to this kid
+        chore = chores_col.find_one({
+            "_id": ObjectId(chore_id),
+            "kid_username": kid_username
+        })
+        
+        if not chore:
+            return jsonify(error="Chore not found or not assigned to you"), 404
+        
+        # Update chore status to pending approval
+        update_data = {
+            "status": "pending_approval",
+            "completed_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {"$set": update_data}
+        )
+        
+        # Create notification for parent
+        notification = {
+            "recipient_email": chore["parent_email"],
+            "type": "chore_completion",
+            "title": f"{kid_username} completed a chore!",
+            "message": f"'{chore['title']}' is ready for your approval",
+            "chore_id": chore_id,
+            "kid_username": kid_username,
+            "reward_amount": chore["reward"],
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(notification)
+        
+        return jsonify(success=True, message="Chore marked as completed and sent for approval"), 200
+    
+    # Parent updating chore
     allowed = {
         "title", "description", "category", "difficulty",
-        "reward", "dueDate", "status", "assignedTo"
+        "reward", "dueDate", "status", "assignedTo", "kid_username"
     }
     update_data = {k: d[k] for k in allowed if k in d}
+    
+    # Handle assignedTo -> kid_username mapping
+    if "assignedTo" in update_data:
+        update_data["kid_username"] = update_data.pop("assignedTo")
+        if update_data["kid_username"]:
+            update_data["status"] = "Assigned"
+        else:
+            update_data["status"] = "Pending"
 
     if not update_data:
         return jsonify(error="No valid fields to update"), 400
@@ -1178,9 +1229,93 @@ def update_chore(chore_id):
         return jsonify(error="Chore not found"), 404
 
     updated = chores_col.find_one({"_id": ObjectId(chore_id)})
-    updated["id"] = chore_id
-    updated.pop("_id", None)
+    updated["id"] = str(updated.pop("_id"))
+    if "created_at" in updated and hasattr(updated["created_at"], "isoformat"):
+        updated["created_at"] = updated["created_at"].isoformat()
+    if "updated_at" in updated and hasattr(updated["updated_at"], "isoformat"):
+        updated["updated_at"] = updated["updated_at"].isoformat()
+    
     return jsonify(success=True, chore=updated)
+
+# New endpoint for parent to approve completed chore
+@app.route("/api/chores/<chore_id>/approve", methods=["POST"])
+@auth_required
+def approve_chore(chore_id):
+    try:
+        # Find the chore
+        chore = chores_col.find_one({
+            "_id": ObjectId(chore_id),
+            "parent_email": request.user["email"],
+            "status": "pending_approval"
+        })
+        
+        if not chore:
+            return jsonify(error="Chore not found or not pending approval"), 404
+        
+        # Find the kid's active goal
+        kid_goals = list(goals_col.find({
+            "kid_username": chore["kid_username"],
+            "status": "approved"
+        }).sort("created_at", -1))
+        
+        if not kid_goals:
+            return jsonify(error="No active goal found for this child"), 404
+        
+        # Use the most recent approved goal
+        active_goal = kid_goals[0]
+        
+        # Update goal progress
+        current_saved = active_goal.get("saved", 0)
+        new_saved = current_saved + chore["reward"]
+        goal_amount = active_goal.get("amount", 1)
+        new_progress = min((new_saved / goal_amount) * 100, 100)
+        
+        goals_col.update_one(
+            {"_id": active_goal["_id"]},
+            {
+                "$inc": {"saved": chore["reward"]},
+                "$set": {
+                    "progress": new_progress,
+                    "status": "completed" if new_progress >= 100 else "approved"
+                },
+                "$push": {
+                    "completed_chores": {
+                        "chore_id": chore_id,
+                        "title": chore["title"],
+                        "reward": chore["reward"],
+                        "completed_at": chore.get("completed_at", datetime.utcnow()),
+                        "approved_at": datetime.utcnow()
+                    }
+                }
+            }
+        )
+        
+        # Update child's total earnings
+        children_col.update_one(
+            {"username": chore["kid_username"]},
+            {"$inc": {"total_earnings": chore["reward"]}}
+        )
+        
+        # Remove the chore from database (it's completed)
+        chores_col.delete_one({"_id": ObjectId(chore_id)})
+        
+        # Mark notification as read
+        notifications_col.update_many(
+            {"chore_id": chore_id},
+            {"$set": {"read": True, "status": "approved"}}
+        )
+        
+        return jsonify(
+            success=True,
+            message="Chore approved and reward added to goal",
+            reward_added=chore["reward"],
+            new_saved=new_saved,
+            progress=new_progress
+        ), 200
+        
+    except Exception as e:
+        print(f"[Approve Chore Error] {e}")
+        return jsonify(error=str(e)), 500
 @app.route("/api/chores/<chore_id>", methods=["DELETE"])
 @auth_required
 def delete_chore(chore_id):
@@ -1449,6 +1584,119 @@ def get_notifications():
             success=False,
             error="Failed to fetch notifications, please try again later."
         ), 500
+    
+@app.route("/api/kids/earnings", methods=["GET"])
+@auth_required
+def get_kid_earnings():
+    try:
+        if "@kids.aidiy" not in request.user["email"]:
+            return jsonify(error="Only kids can access this endpoint"), 403
+        
+        kid_username = request.user["email"].split("@")[0]
+        
+        # Get child record
+        child = children_col.find_one({"username": kid_username})
+        if not child:
+            return jsonify(error="Child not found"), 404
+        
+        # Calculate total earnings from all goals
+        goals = list(goals_col.find({"kid_username": kid_username}))
+        total_earnings = sum(goal.get("saved", 0) for goal in goals)
+        
+        # Get active goals savings
+        active_goals = [g for g in goals if g.get("status") == "approved"]
+        active_savings = sum(g.get("saved", 0) for g in active_goals)
+        
+        # Calculate investments (can be enhanced later)
+        investments = 0
+        
+        return jsonify(
+            success=True,
+            total_earnings=total_earnings,
+            total_savings=active_savings,
+            investments=investments
+        ), 200
+        
+    except Exception as e:
+        print(f"[Get Earnings Error] {e}")
+        return jsonify(error=str(e)), 500
+
+# Scheduled task to check for deadline notifications (run daily)
+def check_chore_deadlines():
+    """Check for chores nearing deadline or past due"""
+    try:
+        from datetime import timedelta
+        
+        # Get all assigned chores
+        all_chores = list(chores_col.find({"status": "Assigned"}))
+        
+        for chore in all_chores:
+            due_date = datetime.strptime(chore["dueDate"], "%Y-%m-%d")
+            days_until_due = (due_date - datetime.utcnow()).days
+            
+            # If due in 2 days or less, notify kid
+            if 0 <= days_until_due <= 2:
+                # Check if we already sent this notification
+                existing = notifications_col.find_one({
+                    "type": "chore_deadline_warning",
+                    "chore_id": str(chore["_id"]),
+                    "kid_username": chore["kid_username"]
+                })
+                
+                if not existing:
+                    # Find kid's email
+                    child = children_col.find_one({"username": chore["kid_username"]})
+                    if child:
+                        notification = {
+                            "recipient_email": f"{chore['kid_username']}@kids.aidiy",
+                            "type": "chore_deadline_warning",
+                            "title": f"⏰ Chore deadline approaching!",
+                            "message": f"'{chore['title']}' is due in {days_until_due} days",
+                            "chore_id": str(chore["_id"]),
+                            "kid_username": chore["kid_username"],
+                            "read": False,
+                            "created_at": datetime.utcnow()
+                        }
+                        notifications_col.insert_one(notification)
+            
+            # If overdue, notify parent and remove chore
+            elif days_until_due < 0:
+                # Notify parent
+                notification = {
+                    "recipient_email": chore["parent_email"],
+                    "type": "chore_overdue",
+                    "title": f"❌ Chore overdue",
+                    "message": f"'{chore['title']}' assigned to {chore['kid_username']} is {abs(days_until_due)} days overdue",
+                    "chore_id": str(chore["_id"]),
+                    "kid_username": chore["kid_username"],
+                    "read": False,
+                    "created_at": datetime.utcnow()
+                }
+                notifications_col.insert_one(notification)
+                
+                # Remove the overdue chore
+                chores_col.delete_one({"_id": chore["_id"]})
+                
+    except Exception as e:
+        print(f"[Deadline Check Error] {e}")
+
+# Add this to your scheduler or run it as a cron job
+# Example with APScheduler:
+# from apscheduler.schedulers.background import BackgroundScheduler
+# scheduler = BackgroundScheduler()
+# scheduler.add_job(check_chore_deadlines, 'cron', hour=9)  # Run daily at 9 AM
+# scheduler.start()
+
+# Endpoint to manually trigger deadline check (for testing)
+@app.route("/api/admin/check-deadlines", methods=["POST"])
+@auth_required
+def manual_deadline_check():
+    # Only allow admins or during development
+    if request.user["email"] not in ["admin@aidiy.com"]:  # Add your admin emails
+        return jsonify(error="Unauthorized"), 403
+    
+    check_chore_deadlines()
+    return jsonify(success=True, message="Deadline check completed"), 200
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
@@ -1500,6 +1748,36 @@ def mark_single_notification_read(notification_id):
             success=False,
             error="Failed to mark notification as read"
         ), 500
+
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+
+# Schedule the deadline check to run daily at 9 AM
+scheduler.add_job(
+    func= check_chore_deadlines,
+    trigger="cron",
+    hour=9,
+    minute=0,
+    id='chore_deadline_check',
+    name='Check chore deadlines',
+    replace_existing=True
+)
+
+# Start the scheduler
+scheduler.start()
+
+# Shut down the scheduler when exiting the app
+atexit.register(lambda: scheduler.shutdown())
+
+# For development/testing, you can also add an endpoint to manually trigger the check:
+@app.route("/api/test/check-deadlines", methods=["GET"])
+def test_deadline_check():
+    """Test endpoint to manually trigger deadline check"""
+    check_chore_deadlines()
+    return jsonify(success=True, message="Deadline check completed"), 200
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":

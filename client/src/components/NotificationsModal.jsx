@@ -1,25 +1,30 @@
 import React from 'react';
 import { tw } from '@twind/core';
 
-const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecline }) => {
+const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecline, onApproveChore }) => {
   if (!isOpen) return null;
 
-  const handleMarkAllRead = async () => {
+  const handleApproveChore = async (notification) => {
     try {
       const token = sessionStorage.getItem('app_token');
-      const response = await fetch('http://localhost:5500/api/notifications/mark-read', {
+      const response = await fetch(`http://localhost:5500/api/chores/${notification.chore_id}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (response.ok) {
-        // Refresh notifications after marking as read
-        window.location.reload(); // Simple refresh - you might want to call a callback instead
+      const data = await response.json();
+      if (data.success) {
+        alert(`Chore approved! ${data.reward_added.toFixed(2)} added to ${notification.kid_username}'s goal.`);
+        // Refresh notifications
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to approve chore');
       }
     } catch (error) {
-      console.error('Error marking notifications as read:', error);
+      console.error('Error approving chore:', error);
+      alert('Failed to approve chore. Please try again.');
     }
   };
 
@@ -87,115 +92,118 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
 
   return (
     <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-      <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col')}>
-        {/* Header */}
-        <div className={tw('p-6 border-b border-gray-100 flex items-center justify-between')}>
-          <div>
-            <h2 className={tw('text-2xl font-bold text-gray-900')}>🔔 Notifications</h2>
-            <p className={tw('text-gray-600 text-sm')}>Stay updated with your family's progress</p>
-          </div>
-          <div className={tw('flex items-center gap-3')}>
-            {notifications.some(n => !n.read) && (
-              <button
-                onClick={handleMarkAllRead}
-                className={tw('px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-200 transition-colors')}
-              >
-                Mark all read
-              </button>
-            )}
+      <div className={tw('bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden')}>
+        <div className={tw('bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-6 text-white')}>
+          <div className={tw('flex items-center justify-between')}>
+            <div>
+              <h2 className={tw('text-2xl font-bold')}>Notifications</h2>
+              <p className={tw('text-white/80')}>Stay updated with your family's activities</p>
+            </div>
             <button
               onClick={onClose}
-              className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
+              className={tw('w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors')}
             >
-              <svg className={tw('w-6 h-6')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              ✕
             </button>
           </div>
         </div>
 
-        {/* Notifications List */}
-        <div className={tw('flex-1 overflow-y-auto')}>
+        <div className={tw('overflow-y-auto max-h-[60vh]')}>
           {notifications.length === 0 ? (
-            <div className={tw('text-center py-16')}>
-              <div className={tw('w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center')}>
-                <span className={tw('text-4xl')}>🔔</span>
+            <div className={tw('p-8 text-center')}>
+              <div className={tw('w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center')}>
+                <span className={tw('text-3xl')}>🔔</span>
               </div>
               <h3 className={tw('text-lg font-semibold text-gray-800 mb-2')}>All caught up!</h3>
-              <p className={tw('text-gray-600')}>No notifications at the moment</p>
+              <p className={tw('text-gray-600')}>No new notifications at the moment</p>
             </div>
           ) : (
             <div className={tw('divide-y divide-gray-100')}>
               {notifications.map((notification) => (
-                <div 
-                  key={notification._id} 
-                  className={tw(`p-6 hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50/50' : ''}`)}
-                >
+                <div key={notification._id} className={tw('p-6 hover:bg-gray-50 transition-colors')}>
                   <div className={tw('flex items-start gap-4')}>
-                    {/* Notification Icon */}
-                    <div className={tw(`w-12 h-12 rounded-2xl flex items-center justify-center ${!notification.read ? 'bg-blue-100' : 'bg-gray-100'}`)}>
-                      <span className={tw('text-2xl')}>
-                        {getNotificationIcon(notification.type, notification.message)}
+                    <div className={tw('w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg')}>
+                      <span className={tw('text-xl')}>
+                        {notification.type === 'goal_approval_request' ? '🎯' :
+                         notification.type === 'chore_completion' ? '✅' :
+                         notification.type === 'chore_deadline_warning' ? '⏰' :
+                         notification.type === 'chore_overdue' ? '❌' :
+                         notification.type === 'progress_submission' ? '📊' : '🔔'}
                       </span>
                     </div>
-
-                    {/* Notification Content */}
-                    <div className={tw('flex-1 min-w-0')}>
+                    
+                    <div className={tw('flex-1')}>
                       <div className={tw('flex items-start justify-between mb-2')}>
-                        <div className={tw('flex-1')}>
-                          <p className={tw(`text-gray-900 ${!notification.read ? 'font-semibold' : 'font-medium'}`)}>
-                            {notification.message || 'New notification'}
-                          </p>
-                          <p className={tw('text-sm text-gray-500 mt-1')}>
-                            {formatTime(notification.created_at)}
-                          </p>
+                        <div>
+                          <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
+                          <p className={tw('text-gray-600 text-sm mt-1')}>{notification.message}</p>
+                          {notification.kid_avatar && (
+                            <p className={tw('text-xs text-gray-500 mt-2')}>
+                              From: <span className={tw('font-medium')}>{notification.kid_avatar} {notification.kid_username}</span>
+                            </p>
+                          )}
                         </div>
-                        
-                        {/* Unread indicator */}
                         {!notification.read && (
-                          <div className={tw('w-3 h-3 bg-blue-500 rounded-full ml-2 mt-1')}></div>
+                          <span className={tw('w-2 h-2 bg-blue-500 rounded-full animate-pulse')} />
                         )}
                       </div>
-
-                      {/* Action Buttons for Goal Requests */}
-                      {notification.type === 'goal_request' && notification.goal_id && (
-                        <div className={tw('flex gap-2 mt-3')}>
-                          <button
-                            onClick={() => {
-                              onApprove(notification.goal_id);
-                              handleMarkSingleRead(notification._id);
-                            }}
-                            className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
-                          >
-                            ✅ Approve
-                          </button>
-                          <button
-                            onClick={() => {
-                              onDecline(notification.goal_id);
-                              handleMarkSingleRead(notification._id);
-                            }}
-                            className={tw('px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors')}
-                          >
-                            ❌ Decline
-                          </button>
-                          <button
-                            onClick={() => handleMarkSingleRead(notification._id)}
-                            className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors')}
-                          >
-                            Mark as read
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Mark as read button for other notifications */}
-                      {notification.type !== 'goal_request' && !notification.read && (
-                        <button
-                          onClick={() => handleMarkSingleRead(notification._id)}
-                          className={tw('px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors mt-2')}
-                        >
-                          Mark as read
-                        </button>
-                      )}
+                      
+                      <div className={tw('flex items-center gap-3 mt-3')}>
+                        {notification.type === 'goal_approval_request' && notification.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => onApprove(notification.goal_id)}
+                              className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
+                            >
+                              Approve Goal
+                            </button>
+                            <button
+                              onClick={() => onDecline(notification.goal_id)}
+                              className={tw('px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors')}
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+                        
+                        {notification.type === 'chore_completion' && (
+                          <>
+                            <span className={tw('text-sm font-medium text-green-600')}>
+                              Reward: ${notification.reward_amount?.toFixed(2)}
+                            </span>
+                            <button
+                              onClick={() => handleApproveChore(notification)}
+                              className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
+                            >
+                              Approve & Add Reward
+                            </button>
+                          </>
+                        )}
+                        
+                        {notification.type === 'chore_overdue' && (
+                          <span className={tw('text-sm font-medium text-red-600')}>
+                            Action Required
+                          </span>
+                        )}
+                        
+                        {notification.type === 'progress_submission' && (
+                          <>
+                            <span className={tw('text-sm font-medium text-green-600')}>
+                              Earned: ${notification.earned_amount?.toFixed(2)}
+                            </span>
+                            <button
+                              onClick={() => onApprove(notification.goal_id)}
+                              className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
+                            >
+                              Approve Progress
+                            </button>
+                          </>
+                        )}
+                        
+                        <span className={tw('text-xs text-gray-500')}>
+                          {new Date(notification.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

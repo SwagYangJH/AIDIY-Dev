@@ -18,15 +18,17 @@ const KidDashboard = () => {
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-
   const [activeGoals, setActiveGoals] = useState([]);
+  const [assignedChores, setAssignedChores] = useState([]);
+  const [earnings, setEarnings] = useState({
+    total: 0,
+    savings: 0,
+    investments: 0
+  });
 
-  // Calculate real values from goals and user profile
-  const totalSavings = userProfile?.financial_info?.total_savings || activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
-  const totalEarnings = totalSavings; // For now, earnings = savings
-  const investments = 0; // Can be calculated later
-  const level = Math.floor(totalSavings / 50) + 1; // Level up every $50
-  const progress = Math.min((level - 1) * 10 + 1, 100); // Progress based on level
+  // Calculate values
+  const level = Math.floor(earnings.total / 50) + 1;
+  const progress = Math.min((level - 1) * 10 + 1, 100);
 
   const choreCategories = [
     {
@@ -75,24 +77,28 @@ const KidDashboard = () => {
   useEffect(() => {
     fetchUserData();
     fetchGoals();
+    fetchChores();
+    fetchEarnings();
   }, []);
 
-  // Check for refresh flag when component becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && sessionStorage.getItem('refreshKidDashboard') === 'true') {
         console.log('🔄 Refreshing KidDashboard data...');
         fetchGoals();
+        fetchChores();
+        fetchEarnings();
         sessionStorage.removeItem('refreshKidDashboard');
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Also check immediately when component mounts
     if (sessionStorage.getItem('refreshKidDashboard') === 'true') {
       console.log('🔄 Refreshing KidDashboard data on mount...');
       fetchGoals();
+      fetchChores();
+      fetchEarnings();
       sessionStorage.removeItem('refreshKidDashboard');
     }
 
@@ -115,6 +121,85 @@ const KidDashboard = () => {
       console.error("Failed to fetch user data:", error);
     }
   };
+
+  const fetchGoals = async () => {
+    try {
+      console.log("📡 fetchGoals() running…");
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch("http://localhost:5500/api/goals", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      console.log("🔍 fetched goals payload:", data);
+      if (data.success) {
+        setActiveGoals(data.goals);
+      } else {
+        console.error("Failed to fetch goals:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+    }
+  };
+
+  const fetchChores = async () => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch("http://localhost:5500/api/chores", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAssignedChores(data.chores);
+      }
+    } catch (error) {
+      console.error("Error fetching chores:", error);
+    }
+  };
+
+  const fetchEarnings = async () => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch("http://localhost:5500/api/kids/earnings", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setEarnings({
+          total: data.total_earnings || 0,
+          savings: data.total_savings || 0,
+          investments: data.investments || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching earnings:", error);
+    }
+  };
+
+  const handleMarkChoreComplete = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(`http://localhost:5500/api/chores/${choreId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "completed" }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert("🎉 Great job! Your chore has been sent to your parents for approval!");
+        fetchChores();
+      } else {
+        alert(data.error || "Failed to mark chore as complete");
+      }
+    } catch (error) {
+      console.error("Error marking chore complete:", error);
+      alert("Failed to mark chore as complete. Please try again.");
+    }
+  };
+
   const handleCreateGoal = async (e) => {
     e.preventDefault();
 
@@ -134,8 +219,6 @@ const KidDashboard = () => {
       if (data.success) {
         console.log("Goal created successfully:", data.goal);
         alert("Your goal has been sent to your parents for approval!");
-
-        // Close the modal and reset form
         setShowGoalModal(false);
         setGoalForm({
           title: "",
@@ -144,8 +227,6 @@ const KidDashboard = () => {
           duration: "",
           description: "",
         });
-
-        // 🔥 Now actually re‑fetch
         fetchGoals();
       } else {
         console.error("Failed to create goal:", data.error);
@@ -158,28 +239,6 @@ const KidDashboard = () => {
   const handleLogout = () => {
     sessionStorage.removeItem("app_token");
     navigate("/");
-  };
-
-  const fetchGoals = async () => {
-    try {
-      console.log("📡 fetchGoals() running…"); // ← add this
-
-      const token = sessionStorage.getItem("app_token");
-      const response = await fetch("http://localhost:5500/api/goals", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-
-      console.log("🔍 fetched goals payload:", data); // ← and this
-
-      if (data.success) {
-        setActiveGoals(data.goals);
-      } else {
-        console.error("Failed to fetch goals:", data.error);
-      }
-    } catch (error) {
-      console.error("Error fetching goals:", error);
-    }
   };
 
   const handleSendMessage = async () => {
@@ -226,69 +285,39 @@ const KidDashboard = () => {
   };
 
   return (
-    <div
-      className={tw(
-        "min-h-screen bg-gradient-to-r from-purple-100 to-blue-100'"
-      )}
-    >
+    <div className={tw("min-h-screen bg-gradient-to-r from-purple-100 to-blue-100")}>
       {/* Header */}
-      <header
-        className={tw(
-          "bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4"
-        )}
-      >
-        <div
-          className={tw("max-w-7xl mx-auto flex items-center justify-between")}
-        >
+      <header className={tw("bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4")}>
+        <div className={tw("max-w-7xl mx-auto flex items-center justify-between")}>
           <div
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
             <span className={tw("text-3xl font-bold text-white")}>AI</span>
-            <span className={tw("text-3xl font-bold text-accent-purple")}>
-              DIY
-            </span>
+            <span className={tw("text-3xl font-bold text-accent-purple")}>DIY</span>
           </div>
           <div className={tw("flex items-center gap-3")}>
             <button
               onClick={() => navigate("/chat")}
-              className={tw(
-                "top-4  p-2 bg-white rounded-full shadow"
-              )}
+              className={tw("p-2 bg-white rounded-full shadow")}
               title="Open AI Chatbot"
             >
               🤖
             </button>
-            <button
-              className={tw(
-                "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white"
-              )}
-            >
+            <button className={tw("p-2 rounded-full bg-white/20 hover:bg-white/30 text-white")}>
               <BellIcon size={24} />
             </button>
-            <div
-              className={tw(
-                "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
-              )}
-            >
-              <div
-                className={tw(
-                  "w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center"
-                )}
-              >
-                <span className={tw("text-lg")}>
-                  {userProfile?.avatar || "👧"}
-                </span>
+            <div className={tw("flex items-center gap-2 bg-white/20 rounded-full px-3 py-1")}>
+              <div className={tw("w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center")}>
+                <span className={tw("text-lg")}>{userProfile?.avatar || "👧"}</span>
               </div>
               <span className={tw("text-white font-medium")}>
-                {userProfile?.name || "Maya"}
+                {userProfile?.nickName || userProfile?.firstName || "Maya"}
               </span>
             </div>
             <button
               onClick={handleLogout}
-              className={tw(
-                "px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
-              )}
+              className={tw("px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors")}
             >
               Sign Out
             </button>
@@ -298,16 +327,14 @@ const KidDashboard = () => {
 
       {/* Main Content */}
       <div className={tw("max-w-7xl mx-auto px-4 py-6")}>
-        <h1 className={tw("text-2xl font-bold text-gray-800 mb-6")}>
-          Kid dashboard
-        </h1>
+        <h1 className={tw("text-2xl font-bold text-gray-800 mb-6")}>Kid Dashboard</h1>
 
         {/* Welcome Card */}
         <div className={tw("bg-white rounded-2xl shadow-lg p-6 mb-6")}>
           <div className={tw("flex items-center justify-between mb-4")}>
             <div>
               <h2 className={tw("text-xl font-bold text-gray-800")}>
-                Welcome, {userProfile?.name || "Maya"}! 👋
+                Welcome, {userProfile?.nickName || userProfile?.firstName || "Maya"}! 👋
               </h2>
               <p className={tw("text-gray-600")}>
                 Ready for today's adventure? Let's start your progress!
@@ -316,35 +343,15 @@ const KidDashboard = () => {
             <div className={tw("text-center")}>
               <div className={tw("relative w-24 h-24")}>
                 <svg className={tw("w-24 h-24 transform -rotate-90")}>
+                  <circle cx="48" cy="48" r="36" stroke="#e5e7eb" strokeWidth="8" fill="none" />
                   <circle
-                    cx="48"
-                    cy="48"
-                    r="36"
-                    stroke="#e5e7eb"
-                    strokeWidth="8"
-                    fill="none"
-                  />
-                  <circle
-                    cx="48"
-                    cy="48"
-                    r="36"
-                    stroke="#40e0d0"
-                    strokeWidth="8"
-                    fill="none"
+                    cx="48" cy="48" r="36" stroke="#40e0d0" strokeWidth="8" fill="none"
                     strokeDasharray={`${2 * Math.PI * 36}`}
-                    strokeDashoffset={`${
-                      2 * Math.PI * 36 * (1 - progress / 100)
-                    }`}
+                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - progress / 100)}`}
                   />
                 </svg>
-                <div
-                  className={tw(
-                    "absolute inset-0 flex flex-col items-center justify-center"
-                  )}
-                >
-                  <span className={tw("text-sm text-gray-600")}>
-                    Level - {level}
-                  </span>
+                <div className={tw("absolute inset-0 flex flex-col items-center justify-center")}>
+                  <span className={tw("text-sm text-gray-600")}>Level - {level}</span>
                   <span className={tw("text-xl font-bold")}>{progress}%</span>
                 </div>
               </div>
@@ -354,55 +361,37 @@ const KidDashboard = () => {
           {/* Earnings Summary */}
           <div className={tw("grid grid-cols-3 gap-4")}>
             <div className={tw("bg-orange-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>💰</span>
-                <span className={tw("text-sm text-gray-600")}>
-                  Total Earnings
-                </span>
+                <span className={tw("text-sm text-gray-600")}>Total Earnings</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
-                ${totalEarnings.toFixed(2)}
-              </p>
+              <p className={tw("text-2xl font-bold")}>${earnings.total.toFixed(2)}</p>
             </div>
             <div className={tw("bg-green-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>🏦</span>
                 <span className={tw("text-sm text-gray-600")}>Savings</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
-                ${totalSavings.toFixed(2)}
-              </p>
+              <p className={tw("text-2xl font-bold")}>${earnings.savings.toFixed(2)}</p>
             </div>
             <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>📈</span>
                 <span className={tw("text-sm text-gray-600")}>Investments</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
-                ${investments.toFixed(2)}
-              </p>
+              <p className={tw("text-2xl font-bold")}>${earnings.investments.toFixed(2)}</p>
             </div>
           </div>
 
           {/* Level Progress */}
           <div className={tw("mt-4")}>
             <div className={tw("flex items-center justify-between mb-2")}>
-              <span className={tw("text-sm text-gray-600")}>
-                Level Progress
-              </span>
+              <span className={tw("text-sm text-gray-600")}>Level Progress</span>
               <span className={tw("text-sm text-gray-600")}>Learn 100 XP</span>
             </div>
             <div className={tw("w-full bg-gray-200 rounded-full h-3")}>
               <div
-                className={tw(
-                  "bg-gradient-to-r from-primary-turquoise to-accent-purple h-3 rounded-full"
-                )}
+                className={tw("bg-gradient-to-r from-primary-turquoise to-accent-purple h-3 rounded-full")}
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -439,6 +428,84 @@ const KidDashboard = () => {
               />
             </svg>
           </button>
+        </div>
+
+        {/* My Assigned Chores Section */}
+        <div className={tw("mb-6")}>
+          <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>My Assigned Chores</h3>
+          {assignedChores.length === 0 ? (
+            <div className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}>
+              <div className={tw("text-4xl mb-4")}>📋</div>
+              <p className={tw("text-gray-600")}>No chores assigned yet! Check back later.</p>
+            </div>
+          ) : (
+            <div className={tw("grid grid-cols-1 md:grid-cols-2 gap-4")}>
+              {assignedChores.map((chore) => {
+                const dueDate = new Date(chore.dueDate);
+                const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
+                const isPending = chore.status === "pending_approval";
+                const isCompleted = chore.status === "completed" || isPending;
+
+                return (
+                  <div
+                    key={chore.id}
+                    className={tw(`bg-white rounded-xl p-6 shadow-lg border-2 ${
+                      isPending ? "border-yellow-400 bg-yellow-50" :
+                      isCompleted ? "border-green-400 bg-green-50" :
+                      daysUntilDue <= 2 ? "border-red-400" : "border-gray-200"
+                    }`)}
+                  >
+                    <div className={tw("flex items-start justify-between mb-4")}>
+                      <div className={tw("flex-1")}>
+                        <h4 className={tw("text-lg font-bold text-gray-800 mb-2")}>{chore.title}</h4>
+                        <p className={tw("text-sm text-gray-600 mb-3")}>{chore.description}</p>
+                        
+                        <div className={tw("flex items-center gap-4 text-sm text-gray-600 mb-3")}>
+                          <span className={tw("flex items-center gap-1")}>
+                            <span>📂</span> {chore.category}
+                          </span>
+                          <span className={tw("flex items-center gap-1")}>
+                            <span>⏰</span> {daysUntilDue > 0 ? `${daysUntilDue} days left` : "Overdue!"}
+                          </span>
+                        </div>
+
+                        <div className={tw("flex items-center justify-between")}>
+                          <div className={tw("text-2xl font-bold text-green-600")}>
+                            💰 ${chore.reward.toFixed(2)}
+                          </div>
+                          {isPending ? (
+                            <span className={tw("px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium")}>
+                              ⏳ Waiting for approval
+                            </span>
+                          ) : isCompleted ? (
+                            <span className={tw("px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium")}>
+                              ✅ Completed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleMarkChoreComplete(chore.id)}
+                              className={tw("px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transform hover:scale-105 transition-all")}
+                            >
+                              Mark Complete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className={tw(`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                        isPending ? "bg-yellow-100" :
+                        isCompleted ? "bg-green-100" :
+                        "bg-gray-100"
+                      }`)}>
+                        {chore.difficulty === "Easy" ? "⭐" :
+                         chore.difficulty === "Medium" ? "⭐⭐" :
+                         "⭐⭐⭐"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Active Goals */}

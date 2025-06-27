@@ -158,6 +158,31 @@ const ParentDashboard = () => {
     }
   };
 
+  const handleApproveChore = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/chores/${choreId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert(`Chore approved! $${data.reward_added.toFixed(2)} added to child's goal.`);
+        fetchNotifications();
+        fetchChildrenProgress();
+        fetchChildrenChores();
+      } else {
+        alert(data.error || 'Failed to approve chore');
+      }
+    } catch (error) {
+      console.error('Error approving chore:', error);
+      alert('Failed to approve chore. Please try again.');
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const token = sessionStorage.getItem('app_token');
@@ -623,6 +648,7 @@ const ParentDashboard = () => {
           notifications={notifications}
           onApprove={handleApproveGoal}
           onDecline={handleDeclineGoal}
+          onApproveChore={handleApproveChore}
         />
       )}
     </div>
@@ -1363,6 +1389,8 @@ const ChoreManagementTab = ({
           </div>
         </div>
       )}
+
+
 
       {showEditModal && editingChore && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
