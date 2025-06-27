@@ -162,6 +162,8 @@ const LoginPage = () => {
 
       if (data.success) {
         sessionStorage.setItem('app_token', data.appToken);
+        sessionStorage.setItem("kid_nickname", data.user.nickName);
+        sessionStorage.setItem("kid_avatar", data.user.avatar);
         dispatch(loginSuccess({ user: data.user, token: data.appToken }));
         navigate('/kid-dashboard');
       } else {

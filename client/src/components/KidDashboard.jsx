@@ -5,6 +5,8 @@ import BellIcon from "./BellIcon";
 
 const KidDashboard = () => {
   const navigate = useNavigate();
+  const kidNickname = sessionStorage.getItem("kid_nickname") || "";
+  const kidAvatar = sessionStorage.getItem("kid_avatar") || "👧";
   const [userProfile, setUserProfile] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -323,11 +325,11 @@ const KidDashboard = () => {
                 )}
               >
                 <span className={tw("text-lg")}>
-                  {userProfile?.avatar || "👧"}
+                  {kidAvatar}
                 </span>
               </div>
               <span className={tw("text-white font-medium")}>
-                {userProfile?.name || "Maya"}
+                {kidNickname}
               </span>
             </div>
             <button
@@ -353,7 +355,7 @@ const KidDashboard = () => {
           <div className={tw("flex items-center justify-between mb-4")}>
             <div>
               <h2 className={tw("text-xl font-bold text-gray-800")}>
-                Welcome, {userProfile?.name || "Maya"}! 👋
+                Welcome, {kidNickname}! 👋
               </h2>
               <p className={tw("text-gray-600")}>
                 Ready for today's adventure? Let's start your progress!

@@ -392,6 +392,9 @@ def kid_login():
         user={
             "username": username,
             "name": child.get("nickName") or child["firstName"],
+            "nickName": child.get("nickName", ""),          # Add nickname
+            "firstName": child["firstName"],
+            "avatar": child.get("avatar", "👧")  
         },
         appToken=tok,
     )
