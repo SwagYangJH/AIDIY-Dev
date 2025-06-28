@@ -5,6 +5,7 @@ import BellIcon from "./BellIcon";
 import NotificationsModal from './NotificationsModal';
 import avatarDaughter from '../images/avatar-daughter.png';
 import avatarSon from '../images/avatar-son.png';
+import aidiyLogo from '../images/aidiy_logo.png';
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -361,10 +362,11 @@ const KidDashboard = () => {
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
-            <span className={tw("text-3xl font-bold text-white")}>AiDIY</span>
-            <span className={tw("text-3xl font-bold text-accent-purple")}>
-
-            </span>
+            <img 
+              src={aidiyLogo} 
+              alt="AiDIY" 
+              className="h-16 w-auto"
+            />
           </div>
           <div className={tw("flex items-center gap-3")}>
             <button

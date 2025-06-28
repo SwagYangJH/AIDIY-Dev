@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { tw } from "@twind/core";
 // import KidCashImage from '../images/your-image.png'; // adjust the path if needed
-// import KidCash from "../images/kidcash.png"; // adjust the path as needed
+import KidCash from '../images/kidcash.png'; // adjust the path as needed
+import aidiyLogo from '../images/aidiy_logo.png';
+
+
 
 const HomePage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,18 +17,15 @@ const HomePage = () => {
   return (
     <div className={tw("min-h-screen")}>
       {/* Navigation */}
-      <nav
-        className={tw(
-          "fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 z-50"
-        )}
-      >
-        <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
-          <div className={tw("flex items-center justify-between h-20")}>
-            <Link to="/" className={tw("flex items-center space-x-2")}>
-              <span className={tw("text-4xl font-bold text-primary-turquoise")}>
-                AiDIY
-              </span>
-              {/* <span className={tw('text-4xl font-bold text-accent-purple')}>DIY</span> */}
+      <nav className={tw('fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 z-50')}>
+        <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
+          <div className={tw('flex items-center justify-between h-20')}>
+            <Link to="/" className={tw('flex items-center space-x-2')}>
+              <img 
+                src={aidiyLogo} 
+                alt="AiDIY" 
+                className="h-20 w-auto"
+              />
             </Link>
 
             {/* <div className={tw(`md:flex items-center space-x-8 ${isMenuOpen ? 'flex' : 'hidden'}`)}>
