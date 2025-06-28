@@ -1,10 +1,11 @@
 # backend/app.py
 import os, random, string
 from datetime import datetime, timedelta
+from bson import ObjectId
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient, errors,DESCENDING
+from pymongo import MongoClient, errors, DESCENDING
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import bcrypt, jwt
@@ -52,6 +53,7 @@ children_col = db["children"]
 goals_col = db["goals"]
 notifications_col = db["notifications"]
 chat_sessions_col = db["chat_sessions"]
+chores_col = db["chores"]  # Moved to top level for consistency
 
 # Enforce indexing for faster queries
 chat_sessions_col.create_index("user_email")
@@ -390,6 +392,9 @@ def kid_login():
         user={
             "username": username,
             "name": child.get("nickName") or child["firstName"],
+            "nickName": child.get("nickName", ""),          # Add nickname
+            "firstName": child["firstName"],
+            "avatar": child.get("avatar", "👧")  
         },
         appToken=tok,
     )
@@ -1078,10 +1083,7 @@ def get_children_progress():
         return jsonify(error=str(e)), 500
 
 # ---------- Chores API ---------- #
-chores_col = db["chores"]
 chores_col.create_index([("parent_email", 1)])
-from bson import ObjectId
-# …
 
 @app.route("/api/chores", methods=["GET"])
 @auth_required
@@ -1097,6 +1099,11 @@ def get_chores():
             # Extract kid username from email
             kid_username = request.user["email"].split("@")[0]
             q = {"kid_username": kid_username}
+            
+            # Optional: filter by goal
+            goal_id = request.args.get("goalId")
+            if goal_id:
+                q["assigned_goal_id"] = goal_id
         else:
             # Parent user - get all their chores
             q = {"parent_email": request.user["email"]}
@@ -1123,6 +1130,7 @@ def get_chores():
     except Exception as e:
         print("[Chores GET error]", e)
         return jsonify(error=str(e)), 500
+
 @app.route("/api/chores", methods=["POST"])
 @auth_required
 def create_chore():
@@ -1155,6 +1163,7 @@ def create_chore():
     chore["id"] = str(result.inserted_id)
     chore.pop("_id", None)
     return jsonify(success=True, chore=chore), 201
+
 @app.route("/api/chores/<chore_id>", methods=["PUT"])
 @auth_required
 def update_chore(chore_id):
@@ -1181,6 +1190,7 @@ def update_chore(chore_id):
     updated["id"] = chore_id
     updated.pop("_id", None)
     return jsonify(success=True, chore=updated)
+
 @app.route("/api/chores/<chore_id>", methods=["DELETE"])
 @auth_required
 def delete_chore(chore_id):
@@ -1271,7 +1281,7 @@ def get_children_chores():
         print("[Children Chores Error]", e)
         return jsonify(error=str(e)), 500
 
-
+# ---------- Progress Submission Workflow ---------- #
 @app.route("/api/goals/submit-progress", methods=["POST"])
 @auth_required
 def submit_progress():
@@ -1279,36 +1289,29 @@ def submit_progress():
     try:
         data = request.get_json()
         goal_id = data.get("goalId")
-        completed_chores = data.get("completedChores", [])
+        completed_chore_ids = data.get("completedChoreIds", [])  # Now using IDs instead of full objects
         total_earned = data.get("totalEarned", 0)
         submission_date = data.get("submissionDate")
 
-        if not goal_id or not completed_chores:
+        if not goal_id or not completed_chore_ids:
             return jsonify(error="Missing required data"), 400
 
-        # Get current goal to calculate progress
+        # Get current goal
         current_goal = goals_col.find_one({"_id": ObjectId(goal_id)})
         if not current_goal:
             return jsonify(error="Goal not found"), 404
         
-        # Calculate new progress (temporarily, will be updated when parent approves)
-        current_saved = current_goal.get("saved", 0)
-        goal_amount = current_goal.get("amount", 1)
-        
-        # Update the goal progress and earnings (pending approval)
-        goals_col.update_one(
-            {"_id": ObjectId(goal_id)},
-            {
-                "$push": {
-                    "progress_submissions": {
-                        "date": submission_date,
-                        "completed_chores": completed_chores,
-                        "earned": total_earned,
-                        "status": "pending_parent_approval"
-                    }
-                }
-            }
-        )
+        # Get chore details from IDs
+        completed_chores = []
+        for chore_id in completed_chore_ids:
+            chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+            if chore:
+                # Add minimal chore info to prevent data duplication
+                completed_chores.append({
+                    "id": str(chore["_id"]),
+                    "title": chore.get("title", ""),
+                    "reward": chore.get("reward", 0)
+                })
 
         # Create notification for parents
         user = users_col.find_one({"email": request.user["email"]})
@@ -1321,85 +1324,131 @@ def submit_progress():
                 "kid_avatar": user.get('avatar', '👧'),
                 "goal_id": goal_id,
                 "earned_amount": total_earned,
-                "completed_chores": completed_chores,
+                "completed_chore_ids": completed_chore_ids,  # Store chore IDs
+                "completed_chores": completed_chores,  # Minimal chore info for display
                 "status": "pending",
-                "created_at": datetime.now().isoformat(),
+                "created_at": datetime.utcnow(),
                 "parent_email": user["parent_email"]
             }
 
-            # Add to notifications collection (you might want to create this)
-            db.notifications.insert_one(notification)
+            # Add to notifications collection
+            notifications_col.insert_one(notification)
 
-        return jsonify(success=True, message="Progress submitted successfully!"), 200
+        # Temporarily mark chores as "pending_approval"
+        for chore_id in completed_chore_ids:
+            chores_col.update_one(
+                {"_id": ObjectId(chore_id)},
+                {"$set": {"status": "pending_approval"}}
+            )
+
+        # Add progress submission to goal
+        goals_col.update_one(
+            {"_id": ObjectId(goal_id)},
+            {
+                "$push": {
+                    "progress_submissions": {
+                        "date": submission_date,
+                        "completed_chore_ids": completed_chore_ids,
+                        "earned": total_earned,
+                        "status": "pending_parent_approval"
+                    }
+                }
+            }
+        )
+
+        return jsonify(
+            success=True, 
+            message="Progress submitted to parents for approval!"
+        ), 200
 
     except Exception as e:
         print(f"[Submit Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
-@app.route("/api/goals/<goal_id>/approve-progress", methods=["POST"])
+@app.route("/api/progress/<submission_id>/approve", methods=["POST"])
 @auth_required
-def approve_progress(goal_id):
-    """Handle parent's approval of child's progress submission"""
+def approve_progress_submission(submission_id):
+    """Approve child's progress submission and update savings"""
     try:
-        data = request.get_json()
-        earned_amount = data.get("earnedAmount", 0)
-        
-        # Get current goal to calculate new progress
-        current_goal = goals_col.find_one({"_id": ObjectId(goal_id)})
-        if not current_goal:
+        # Find the progress submission notification
+        submission = notifications_col.find_one(
+            {"_id": ObjectId(submission_id), "type": "progress_submission"}
+        )
+        if not submission:
+            return jsonify(error="Submission not found"), 404
+
+        # Get the associated goal
+        goal = goals_col.find_one({"_id": ObjectId(submission["goal_id"])})
+        if not goal:
             return jsonify(error="Goal not found"), 404
         
-        new_saved_amount = (current_goal.get("saved", 0) + earned_amount)
-        goal_amount = current_goal.get("amount", 1)
-        new_progress = min((new_saved_amount / goal_amount) * 100, 100)
+        # Update the goal with the earned amount
+        new_saved = goal.get("saved", 0) + submission["earned_amount"]
+        new_progress = min((new_saved / goal["amount"]) * 100, 100)
         
-        # Update goal to reflect approved progress
         update_data = {
-            "$inc": {"saved": earned_amount},
-            "$set": {
-                "progress": new_progress,
-                "last_approved_progress": {
-                    "amount": earned_amount,
-                    "approved_by": request.user["email"],
-                    "approved_at": datetime.now().isoformat()
-                }
-            },
+            "$set": {"saved": new_saved, "progress": new_progress},
             "$push": {
                 "progress_history": {
-                    "earned": earned_amount,
-                    "approved_by": request.user["email"],
-                    "approved_at": datetime.now().isoformat(),
-                    "status": "approved"
+                    "date": datetime.utcnow(),
+                    "amount": submission["earned_amount"],
+                    "approved_by": request.user["email"]
                 }
             }
         }
         
-        # If goal is completed, update status
-        if new_progress >= 100:
+        # Mark goal as completed if target is reached
+        if new_saved >= goal["amount"]:
             update_data["$set"]["status"] = "completed"
-            update_data["$set"]["completed_at"] = datetime.now().isoformat()
+            update_data["$set"]["completed_at"] = datetime.utcnow()
         
-        result = goals_col.update_one(
-            {"_id": ObjectId(goal_id)},
+        goals_col.update_one(
+            {"_id": ObjectId(submission["goal_id"])},
             update_data
         )
         
-        if result.modified_count == 0:
-            return jsonify(error="Goal not found or no changes made"), 404
+        # Mark chores as completed
+        for chore_id in submission["completed_chore_ids"]:
+            chores_col.update_one(
+                {"_id": ObjectId(chore_id)},
+                {"$set": {"status": "completed"}}
+            )
         
-        # Update notification status to approved
-        db.notifications.update_many(
-            {"goal_id": goal_id, "parent_email": request.user["email"], "type": "progress_submission", "status": "pending"},
-            {"$set": {"status": "approved", "approved_at": datetime.now().isoformat()}}
-        )
+        # Remove the notification
+        notifications_col.delete_one({"_id": ObjectId(submission_id)})
         
-        return jsonify(success=True, message="Progress approved successfully!"), 200
+        return jsonify(success=True, message="Progress approved"), 200
         
     except Exception as e:
-        print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
+@app.route("/api/progress/<submission_id>/decline", methods=["POST"])
+@auth_required
+def decline_progress_submission(submission_id):
+    """Decline child's progress submission"""
+    try:
+        # Find the progress submission notification
+        submission = notifications_col.find_one(
+            {"_id": ObjectId(submission_id), "type": "progress_submission"}
+        )
+        if not submission:
+            return jsonify(error="Submission not found"), 404
 
+        # Reset chore status to "assigned"
+        for chore_id in submission["completed_chore_ids"]:
+            chores_col.update_one(
+                {"_id": ObjectId(chore_id)},
+                {"$set": {"status": "assigned"}}
+            )
+        
+        # Remove the notification
+        notifications_col.delete_one({"_id": ObjectId(submission_id)})
+        
+        return jsonify(success=True, message="Progress declined"), 200
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
+# ---------- Notifications ---------- #
 @app.route("/api/notifications")
 @auth_required
 def get_notifications():
@@ -1500,6 +1549,79 @@ def mark_single_notification_read(notification_id):
             success=False,
             error="Failed to mark notification as read"
         ), 500
+
+@app.route("/api/chores/assign-to-goal", methods=["POST"])
+@auth_required
+def assign_chores_to_goal():
+    """
+    Assign selected chores to a specific goal for a kid.
+    """
+    try:
+        data = request.get_json()
+        goal_id = data.get("goalId")
+        chore_ids = data.get("choreIds", [])
+        
+        if not goal_id or not chore_ids:
+            return jsonify(error="Missing goalId or choreIds"), 400
+        
+        # Verify the goal belongs to this kid
+        goal = goals_col.find_one({"_id": ObjectId(goal_id)})
+        if not goal:
+            return jsonify(error="Goal not found"), 404
+            
+        # Update each chore to be assigned to this goal
+        for chore_id in chore_ids:
+            chores_col.update_one(
+                {"_id": ObjectId(chore_id)},
+                {
+                    "$set": {
+                        "assigned_goal_id": goal_id,
+                        "status": "Assigned",
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+        
+        # Update the goal to track assigned chores
+        goals_col.update_one(
+            {"_id": ObjectId(goal_id)},
+            {
+                "$set": {
+                    "assigned_chore_ids": chore_ids,
+                    "has_launched_mission": True,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return jsonify(success=True, message="Chores assigned to goal"), 200
+        
+    except Exception as e:
+        print(f"[Assign Chores Error] {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/goals/<goal_id>/chores", methods=["GET"])
+@auth_required
+def get_goal_chores(goal_id):
+    """
+    Get chores assigned to a specific goal
+    """
+    try:
+        # Find chores assigned to this goal
+        chores = list(chores_col.find({"assigned_goal_id": goal_id}))
+        
+        for chore in chores:
+            chore["id"] = str(chore.pop("_id"))
+            if "created_at" in chore and hasattr(chore["created_at"], "isoformat"):
+                chore["created_at"] = chore["created_at"].isoformat()
+            if "updated_at" in chore and hasattr(chore["updated_at"], "isoformat"):
+                chore["updated_at"] = chore["updated_at"].isoformat()
+                
+        return jsonify(success=True, chores=chores), 200
+        
+    except Exception as e:
+        print(f"[Get Goal Chores Error] {e}")
+        return jsonify(error=str(e)), 500
 
 # ────────────── Run ────────────────────────────────
 if __name__ == "__main__":

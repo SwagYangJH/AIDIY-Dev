@@ -1,7 +1,15 @@
 import React from 'react';
 import { tw } from '@twind/core';
 
-const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecline }) => {
+const NotificationsModal = ({
+  isOpen,
+  onClose,
+  notifications,
+  onApprove,
+  onDecline,
+  onApproveProgress,
+  onDeclineProgress,
+}) => {
   if (!isOpen) return null;
 
   const handleMarkAllRead = async () => {
@@ -13,10 +21,9 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
-        // Refresh notifications after marking as read
-        window.location.reload(); // Simple refresh - you might want to call a callback instead
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error marking notifications as read:', error);
@@ -32,10 +39,9 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
-        // Refresh notifications after marking as read
-        window.location.reload(); // Simple refresh - you might want to call a callback instead
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -47,31 +53,13 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
       const date = new Date(dateString);
       const now = new Date();
       const diff = now - date;
-      
-      // Less than 1 minute
+
       if (diff < 60000) return 'Just now';
-      
-      // Less than 1 hour
-      if (diff < 3600000) {
-        const minutes = Math.floor(diff / 60000);
-        return `${minutes}m ago`;
-      }
-      
-      // Less than 1 day
-      if (diff < 86400000) {
-        const hours = Math.floor(diff / 3600000);
-        return `${hours}h ago`;
-      }
-      
-      // Less than 1 week
-      if (diff < 604800000) {
-        const days = Math.floor(diff / 86400000);
-        return `${days}d ago`;
-      }
-      
-      // More than 1 week, show date
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+      if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
       return date.toLocaleDateString();
-    } catch (error) {
+    } catch {
       return 'Unknown time';
     }
   };
@@ -81,7 +69,7 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
     if (message?.includes('chore')) return '✅';
     if (message?.includes('reward')) return '💰';
     if (type === 'goal_request') return '🎯';
-    if (type === 'chore_completed') return '✅';
+    if (type === 'progress_submission') return '💪';
     return '🔔';
   };
 
@@ -98,14 +86,14 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
             {notifications.some(n => !n.read) && (
               <button
                 onClick={handleMarkAllRead}
-                className={tw('px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-200 transition-colors')}
+                className={tw('px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-200')}
               >
                 Mark all read
               </button>
             )}
             <button
               onClick={onClose}
-              className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
+              className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg')}
             >
               <svg className={tw('w-6 h-6')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -127,72 +115,68 @@ const NotificationsModal = ({ isOpen, onClose, notifications, onApprove, onDecli
           ) : (
             <div className={tw('divide-y divide-gray-100')}>
               {notifications.map((notification) => (
-                <div 
-                  key={notification._id} 
-                  className={tw(`p-6 hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50/50' : ''}`)}
-                >
+                <div key={notification._id} className={tw(`p-6 hover:bg-gray-50 ${!notification.read ? 'bg-blue-50/50' : ''}`)}>
                   <div className={tw('flex items-start gap-4')}>
-                    {/* Notification Icon */}
                     <div className={tw(`w-12 h-12 rounded-2xl flex items-center justify-center ${!notification.read ? 'bg-blue-100' : 'bg-gray-100'}`)}>
                       <span className={tw('text-2xl')}>
                         {getNotificationIcon(notification.type, notification.message)}
                       </span>
                     </div>
 
-                    {/* Notification Content */}
                     <div className={tw('flex-1 min-w-0')}>
                       <div className={tw('flex items-start justify-between mb-2')}>
                         <div className={tw('flex-1')}>
                           <p className={tw(`text-gray-900 ${!notification.read ? 'font-semibold' : 'font-medium'}`)}>
-                            {notification.message || 'New notification'}
+                            {notification.message || notification.title}
                           </p>
                           <p className={tw('text-sm text-gray-500 mt-1')}>
                             {formatTime(notification.created_at)}
                           </p>
                         </div>
-                        
-                        {/* Unread indicator */}
-                        {!notification.read && (
-                          <div className={tw('w-3 h-3 bg-blue-500 rounded-full ml-2 mt-1')}></div>
-                        )}
+                        {!notification.read && <div className={tw('w-3 h-3 bg-blue-500 rounded-full ml-2 mt-1')}></div>}
                       </div>
 
-                      {/* Action Buttons for Goal Requests */}
+                      {/* Goal Approval */}
                       {notification.type === 'goal_request' && notification.goal_id && (
-                        <div className={tw('flex gap-2 mt-3')}>
-                          <button
-                            onClick={() => {
-                              onApprove(notification.goal_id);
-                              handleMarkSingleRead(notification._id);
-                            }}
-                            className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
-                          >
+                        <div className={tw('flex gap-2 mt-3 flex-wrap')}>
+                          <button onClick={() => { onApprove(notification.goal_id); handleMarkSingleRead(notification._id); }} className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600')}>
                             ✅ Approve
                           </button>
-                          <button
-                            onClick={() => {
-                              onDecline(notification.goal_id);
-                              handleMarkSingleRead(notification._id);
-                            }}
-                            className={tw('px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors')}
-                          >
+                          <button onClick={() => { onDecline(notification.goal_id); handleMarkSingleRead(notification._id); }} className={tw('px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600')}>
                             ❌ Decline
                           </button>
-                          <button
-                            onClick={() => handleMarkSingleRead(notification._id)}
-                            className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors')}
-                          >
+                          <button onClick={() => handleMarkSingleRead(notification._id)} className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200')}>
                             Mark as read
                           </button>
                         </div>
                       )}
 
-                      {/* Mark as read button for other notifications */}
-                      {notification.type !== 'goal_request' && !notification.read && (
-                        <button
-                          onClick={() => handleMarkSingleRead(notification._id)}
-                          className={tw('px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors mt-2')}
-                        >
+                      {/* Progress Submission */}
+                      {notification.type === 'progress_submission' && (
+                        <div className={tw('mt-3')}>
+                          <p>Earned: <strong>${notification.earned_amount}</strong></p>
+                          <ul className={tw('list-disc pl-5 mt-2')}>
+                            {notification.completed_chores?.map((chore, index) => (
+                              <li key={index}>{chore.title} - ${chore.reward}</li>
+                            ))}
+                          </ul>
+                          <div className={tw('flex gap-2 mt-3 flex-wrap')}>
+                            <button onClick={() => { onApproveProgress(notification._id); handleMarkSingleRead(notification._id); }} className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600')}>
+                              ✅ Approve
+                            </button>
+                            <button onClick={() => { onDeclineProgress(notification._id); handleMarkSingleRead(notification._id); }} className={tw('px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600')}>
+                              ❌ Decline
+                            </button>
+                            <button onClick={() => handleMarkSingleRead(notification._id)} className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200')}>
+                              Mark as read
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Other types */}
+                      {notification.type !== 'goal_request' && notification.type !== 'progress_submission' && !notification.read && (
+                        <button onClick={() => handleMarkSingleRead(notification._id)} className={tw('px-3 py-1 mt-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200')}>
                           Mark as read
                         </button>
                       )}
