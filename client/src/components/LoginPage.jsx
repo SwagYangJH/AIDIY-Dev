@@ -159,6 +159,8 @@ const LoginPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: kidUsername.trim(), code }),
+         username: kidUsername.trim(),
+         code: kidCode.join(''),
       });
       const data = await res.json();
 
@@ -396,6 +398,9 @@ const LoginPage = () => {
                       >
                         {showCode ? 'Hide Code' : 'Show Code'}
                       </button>
+                      {errorMsg && (
+                        <p className={tw('text-sm text-red-600 text-center mt-2')}>{errorMsg}</p>
+                      )}
                     </div>
 
                     <label className={tw('flex items-center justify-center mb-6')}>
