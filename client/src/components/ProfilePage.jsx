@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logout } from "../store/authSlice";
 import { tw } from "@twind/core";
-import avatarDad from "../images/avatar-dad.png";
+import avatarDad from "../images/avatar-parents.png";
 import avatarMom from "../images/avatar-parents.png";
 import avatarSon from "../images/avatar-son.png";
 import avatarDaughter from "../images/avatar-daughter.png";

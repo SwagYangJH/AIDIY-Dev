@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { tw } from "@twind/core";
 // import KidCashImage from '../images/your-image.png'; // adjust the path if needed
-import KidCash from "../images/kidcash.png"; // adjust the path as needed
+// import KidCash from "../images/kidcash.png"; // adjust the path as needed
 
 const HomePage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -55,17 +55,23 @@ const HomePage = () => {
       </nav>
       Hero Section
       <section
-        className={tw(
-          "pt-32 pb-20 bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark overflow-hidden"
-        )}
+        className={tw("pt-32 pb-20 overflow-hidden")}
+        style={{
+          // background: "linear-gradient(to bottom right,rgb(145, 84, 152), #008080)", // turquoise shades gradient
+          background: "linear-gradient(to bottom right,rgb(183, 115, 190),rgb(30, 234, 234))"
+        }}
       >
         <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
           {/* Text and Button + Image Side-by-Side */}
           <div className={tw("text-white text-center lg:text-left")}>
             <h1
               className={tw(
-                "text-[42px] sm:text-[48px] lg:text-[58px] font-bold text-[#0a2150] font-inter mr-6 mb-6"
+                "text-[42px] sm:text-[48px] lg:text-[58px] font-extrabold mr-6 mb-6"
               )}
+              style={{
+                fontFamily: "Nunito, sans-serif",
+                color: "#4f3727",
+              }}
             >
               AiDIY – Your Life Skills Buddy
             </h1>
@@ -79,19 +85,21 @@ const HomePage = () => {
               <div className={tw("lg:w-1/2 text-center lg:text-left")}>
                 <p
                   className={tw(
-                    "text-base sm:text-lg lg:text-xl opacity-90 mb-8 leading-relaxed text-[#0a2150]"
+                    "text-base sm:text-lg lg:text-xl opacity-90 mb-8 leading-relaxed text-[#4f3727] text-justify"
                   )}
                 >
-                  Meet AiDIY, your friendly AI buddy that makes learning about
-                  money fun, kids learn by doing concept Make Money smart
-                  choices, AiDIY guides kids through real-world challenges with
-                  a voice they trust and a vibe they love and parents can trust.
-                  Designed for curious minds aged 8–16, Aidie grows with your
-                  child—adapting to their pace, cheering them on, and
-                  celebrating every milestone. Let’s build a generation that’s
-                  financially wise, independent, and ready for life—with a
-                  little help from their favorite coach - AiDIY.
+                  Meet AiDIY — Your friendly AI buddy that makes learning about
+                  money more fun. Kids learn by doing; this DIY concept helps
+                  kids make smart money choices. AiDIY guides kids through
+                  real-world challenges with a voice they trust and a vibe they
+                  love — and that parents can trust. Designed for curious minds
+                  aged 8–16, AiDIY grows with your child—adapting to their pace,
+                  cheering them on, and celebrating every milestone. Let’s build
+                  a generation that’s financially wise, independent, and ready
+                  for life — with a little help from their favorite money coach
+                  — AiDIY.
                 </p>
+
                 <div
                   className={tw(
                     "flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
@@ -135,10 +143,11 @@ const HomePage = () => {
             <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
               <h2
                 className={tw(
-                  "text-4xl font-bold text-center text-[#0a2150] mb-12"
+                  "text-4xl font-bold text-center text-[#4f3727] mb-12"
                 )}
               >
-                Set Goals. Hit Milestones. Build Confidence.
+                Set Goals. Hit Milestones. Build Money Smart Skills with
+                Confidence
               </h2>
 
               {/* Kid Block Group */}
