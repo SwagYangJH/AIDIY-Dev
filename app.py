@@ -1042,6 +1042,38 @@ def get_parent_goals():
     except Exception as e:
         print(f"[Parent Goals Error] {e}")
         return jsonify(error=str(e)), 500
+    
+# Add this new endpoint
+@app.route("/api/goals/<goal_id>/check-deadline", methods=["POST"])
+@auth_required
+def check_goal_deadline(goal_id):
+    try:
+        goal = goals_col.find_one({"_id": ObjectId(goal_id)})
+        if not goal:
+            return jsonify(error="Goal not found"), 404
+        
+        created_date = goal["created_at"]
+        deadline = created_date + timedelta(weeks=goal["duration"])
+        
+        if datetime.utcnow() > deadline and goal["status"] == "approved":
+            # Create deadline notification
+            notification = {
+                "type": "goal_deadline",
+                "title": "Goal Deadline Passed",
+                "message": f"The deadline for '{goal['title']}' has passed",
+                "kid_username": goal["kid_username"],
+                "parent_email": goal["parent_email"],
+                "goal_id": goal_id,
+                "created_at": datetime.utcnow(),
+                "read": False
+            }
+            notifications_col.insert_one(notification)
+            
+            return jsonify(success=True, message="Deadline checked"), 200
+        
+        return jsonify(success=True, message="Deadline not reached"), 200
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.route("/api/parent/children-progress", methods=["GET"])
 @auth_required
@@ -1393,6 +1425,28 @@ def approve_progress_submission(submission_id):
         if new_saved >= goal["amount"]:
             update_data["$set"]["status"] = "completed"
             update_data["$set"]["completed_at"] = datetime.utcnow()
+            
+            # Create goal completed notifications
+            kid_notification = {
+                "type": "goal_completed",
+                "title": "Goal Achieved!",
+                "message": f"Congratulations! You've completed your goal: {goal['title']}",
+                "kid_username": goal["kid_username"],
+                "parent_email": request.user["email"],
+                "goal_id": str(goal["_id"]),
+                "created_at": datetime.utcnow(),
+                "read": False
+            }
+            parent_notification = {
+                "type": "goal_completed",
+                "title": "Goal Achieved!",
+                "message": f"Your child {goal['kid_name']} has completed the goal: {goal['title']}",
+                "recipient_email": goal["parent_email"],
+                "goal_id": str(goal["_id"]),
+                "created_at": datetime.utcnow(),
+                "read": False
+            }
+            notifications_col.insert_many([kid_notification, parent_notification])
         
         goals_col.update_one(
             {"_id": ObjectId(submission["goal_id"])},
@@ -1440,36 +1494,30 @@ def decline_progress_submission(submission_id):
     except Exception as e:
         return jsonify(error=str(e)), 500
 
+# Add this to mark_chore_complete endpoint
 @app.route("/api/chores/<chore_id>/complete", methods=["POST"])
 @auth_required
 def mark_chore_complete(chore_id):
     try:
         chore = chores_col.find_one({"_id": ObjectId(chore_id)})
-        if not chore:
-            return jsonify(error="Chore not found"), 404
-        
-        # Update chore status to pending_approval
+        # Update status to pending_approval
         chores_col.update_one(
             {"_id": ObjectId(chore_id)},
             {"$set": {"status": "pending_approval"}}
         )
-        
         # Create notification for parent
         notification = {
             "type": "chore_completed",
             "title": "Chore Completed!",
-            "message": f"{chore['kid_name']} completed: {chore['title']}",
+            "message": f"{chore['kid_username']} completed: {chore['title']}",
             "parent_email": chore["parent_email"],
             "chore_id": chore_id,
-            "reward": chore["reward"],
             "created_at": datetime.utcnow(),
             "read": False
         }
         notifications_col.insert_one(notification)
-        
         return jsonify(success=True, message="Chore submitted for approval"), 200
     except Exception as e:
-        print(f"[Mark Chore Complete Error] {e}")
         return jsonify(error=str(e)), 500
 
 @app.route("/api/chores/<chore_id>/approve", methods=["POST"])

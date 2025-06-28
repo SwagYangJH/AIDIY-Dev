@@ -6,7 +6,7 @@ import CelebrationEffect from "./CelebrationEffect";
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const labelColors = ["#696EFF", "#FF85B8"];
 
-const WeeklyProgress = () => {
+const WeeklyProgress = ({ activeGoals, setActiveGoals }) => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const selectedChores = state?.selectedChores || [];
@@ -17,8 +17,8 @@ const WeeklyProgress = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [deadlineWarning, setDeadlineWarning] = useState(false);
   const [deadlinePassed, setDeadlinePassed] = useState(false);
-  const [goalCompleted, setGoalCompleted] = useState(false); // Added state variable
-  
+  const [goalCompleted, setGoalCompleted] = useState(false);
+
   // Calculate deadline status and check if goal is completed
   useEffect(() => {
     if (goal?.amount && goal.saved >= goal.amount) {
@@ -80,14 +80,14 @@ const WeeklyProgress = () => {
         .filter(chore => completedChores.includes(chore.name))
         .map(chore => chore.id || chore._id);
       
-      const totalEarned = selectedChores
+      const totalEarnedValue = selectedChores
         .filter(chore => completedChores.includes(chore.name))
         .reduce((sum, chore) => sum + chore.amount, 0);
 
       const submissionData = {
         goalId: goal._id || goal.id,
         completedChoreIds,
-        totalEarned,
+        totalEarned: totalEarnedValue,
         submissionDate: new Date().toISOString()
       };
 
@@ -103,6 +103,29 @@ const WeeklyProgress = () => {
       const data = await response.json();
       
       if (data.success) {
+        // Update activeGoals state only after successful API response
+        if (Array.isArray(activeGoals)) {
+          const updatedGoals = [...activeGoals];
+          const goalIndex = updatedGoals.findIndex(
+            g => g._id === goal._id || g.id === goal._id
+          );
+          
+          if (goalIndex !== -1) {
+            updatedGoals[goalIndex] = {
+              ...updatedGoals[goalIndex],
+              progress_submissions: [
+                ...(updatedGoals[goalIndex].progress_submissions || []),
+                {
+                  date: new Date().toISOString(),
+                  earned: totalEarnedValue,
+                  status: "pending_approval"
+                }
+              ]
+            };
+            setActiveGoals(updatedGoals);
+          }
+        }
+
         setHasSubmitted(true);
         alert('🎉 Great job! Your progress has been submitted to your parents for approval!');
         
@@ -119,10 +142,13 @@ const WeeklyProgress = () => {
     }
   };
 
-  const totalEarned = selectedChores
+  // Calculate total earned for display (as number)
+  const totalEarnedValue = selectedChores
     .filter(chore => completedChores.includes(chore.name))
-    .reduce((sum, chore) => sum + chore.amount, 0)
-    .toFixed(2);
+    .reduce((sum, chore) => sum + chore.amount, 0);
+  
+  // Format for display
+  const totalEarned = totalEarnedValue.toFixed(2);
 
   const overallProgress = goal.amount 
     ? Math.min(100, Math.floor((goal.currentAmount / goal.amount) * 100))

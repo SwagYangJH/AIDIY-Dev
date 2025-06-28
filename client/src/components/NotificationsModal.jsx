@@ -9,6 +9,9 @@ const NotificationsModal = ({
   onDecline,
   onApproveProgress,
   onDeclineProgress,
+  onApproveChore,
+  onDeclineChore
+  
 }) => {
   if (!isOpen) return null;
 
@@ -168,6 +171,18 @@ const NotificationsModal = ({
                           </button>
                           <button onClick={() => handleMarkSingleRead(notification._id)} className={tw('px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200')}>
                             Mark as read
+                          </button>
+                        </div>
+                      )}
+
+                      // In NotificationsModal component
+                      {notification.type === "chore_completed" && (
+                        <div className="mt-3">
+                          <button onClick={() => onApproveChore(notification.chore_id)}>
+                            ✅ Approve
+                          </button>
+                          <button onClick={() => onDeclineChore(notification.chore_id)}>
+                            ❌ Decline
                           </button>
                         </div>
                       )}

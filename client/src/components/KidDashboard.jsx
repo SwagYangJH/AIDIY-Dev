@@ -123,8 +123,6 @@ const KidDashboard = () => {
     }
   };
 
-
-
   const fetchChores = async () => {
     try {
       const token = sessionStorage.getItem("app_token");
@@ -140,32 +138,32 @@ const KidDashboard = () => {
     }
   };
 
-  // Add this method to handle chore completion
-const handleMarkChoreComplete = async (choreId) => {
-  try {
-    const token = sessionStorage.getItem("app_token");
-    const response = await fetch(
-      `http://localhost:5500/api/chores/${choreId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+  // Handle chore completion
+  const handleMarkChoreComplete = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(
+        `http://localhost:5500/api/chores/${choreId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    const data = await response.json();
-    if (data.success) {
-      alert("🎉 Chore submitted to parents for approval!");
-      fetchChores();
-    } else {
-      alert(data.error || "Failed to mark chore as complete");
+      const data = await response.json();
+      if (data.success) {
+        alert("🎉 Chore submitted to parents for approval!");
+        fetchChores();
+      } else {
+        alert(data.error || "Failed to mark chore as complete");
+      }
+    } catch (error) {
+      console.error("Error marking chore complete:", error);
+      alert("Failed to mark chore as complete. Please try again.");
     }
-  } catch (error) {
-    console.error("Error marking chore complete:", error);
-    alert("Failed to mark chore as complete. Please try again.");
-  }
-};
+  };
 
   const handleCreateGoal = async (e) => {
     e.preventDefault();
@@ -580,25 +578,25 @@ const handleMarkChoreComplete = async (choreId) => {
                           </div>
 
                           <div className={tw("flex justify-between items-center")}>
-        <div className={tw("text-lg font-bold text-green-600")}>
-          💰 ${chore.reward.toFixed(2)}
-        </div>
-        
-        {isPending ? (
-          <span className={tw("px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg")}>
-            ⏳ Pending Approval
-          </span>
-        ) : isCompleted ? (
-          <span className={tw("px-4 py-2 bg-green-100 text-green-700 rounded-lg")}>
-            ✅ Completed
-          </span>
-        ) : (
-          <button
-            onClick={() => handleMarkChoreComplete(chore.id)}
-            className={tw("px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg")}
-          >
-            Mark Complete
-          </button>
+                            <div className={tw("text-lg font-bold text-green-600")}>
+                              💰 ${chore.reward.toFixed(2)}
+                            </div>
+                            
+                            {isPending ? (
+                              <span className={tw("px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg")}>
+                                ⏳ Pending Approval
+                              </span>
+                            ) : isCompleted ? (
+                              <span className={tw("px-4 py-2 bg-green-100 text-green-700 rounded-lg")}>
+                                ✅ Completed
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleMarkChoreComplete(chore.id)}
+                                className={tw("px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity")}
+                              >
+                                Mark Complete
+                              </button>
                             )}
                           </div>
                         </div>
