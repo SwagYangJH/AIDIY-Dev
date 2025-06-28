@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../store/authSlice';
 import { tw } from '@twind/core';
+import aidiyLogo from '../images/aidiy_logo.png';
 
 const OTPVerification = () => {
   /* ---------------- router state ---------------- */
@@ -147,7 +148,13 @@ const OTPVerification = () => {
     <div className={tw('min-h-screen bg-gradient-to-br from-sky-100 to-teal-100 flex items-center justify-center p-4')}>
       <div className={tw('w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden')}>
         <div className={tw('bg-gradient-to-r from-sky-100 to-teal-100 p-6')}>
-          <h1 className={tw('text-4xl font-bold text-sky-400 text-center')}>AIDIY</h1>
+          <div className="flex justify-center">
+            <img 
+              src={aidiyLogo} 
+              alt="AiDIY" 
+              className="h-20 w-auto"
+            />
+          </div>
         </div>
 
         <div className={tw('p-8 md:p-12')}>

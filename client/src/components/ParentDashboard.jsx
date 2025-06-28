@@ -10,6 +10,7 @@ import choresIcon from "../images/chore-manage.png";
 import parentAvatar from "../images/avatar-parents.png"; // adjust path as needed
 import avatarDaughter from "../images/avatar-daughter.png";
 import avatarSon from "../images/avatar-son.png";
+import aidiyLogo from "../images/aidiy_logo.png";
 
 const tokenHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
@@ -432,8 +433,11 @@ const ParentDashboard = () => {
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
-            <span className={tw("text-3xl font-bold text-white")}>AiDIY</span>
-            {/* <span className={tw('text-3xl font-bold text-accent-purple')}>DIY</span> */}
+            <img 
+              src={aidiyLogo} 
+              alt="AiDIY" 
+              className="h-16 w-auto"
+            />
           </div>
           <div className={tw("flex items-center gap-4")}>
             <button
