@@ -182,6 +182,37 @@ const ParentDashboard = () => {
         alert("Goal approved successfully!");
         fetchNotifications();
         fetchGoals();
+
+        // Find the goal to get its duration for scheduling
+        const goal = goals.find(g => g._id === goalId);
+        if (goal) {
+          // Schedule deadline check
+          setTimeout(() => {
+            checkGoalDeadline(goalId);
+          }, goal.duration * 7 * 24 * 60 * 60 * 1000); // duration in weeks to ms
+        }
+      }
+    } catch (error) {
+      console.error("Failed to approve goal:", error);
+    }
+  };
+
+  // Add deadline checking function
+  const checkGoalDeadline = async (goalId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(
+        `http://localhost:5500/api/goals/${goalId}/approve`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        alert("Goal approved successfully!");
+        fetchNotifications();
+        fetchGoals();
       }
     } catch (error) {
       console.error("Failed to approve goal:", error);
@@ -190,37 +221,74 @@ const ParentDashboard = () => {
 
   const handleDeclineGoal = async (goalId) => {
     try {
-      const token = sessionStorage.getItem("app_token");
-      const response = await fetch(
-        `http://localhost:5500/api/goals/${goalId}/decline`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/decline`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       if (data.success) {
-        alert("Goal declined.");
+        alert('Goal declined.');
         fetchNotifications();
         fetchGoals();
       }
     } catch (error) {
-      console.error("Failed to decline goal:", error);
+      console.error('Failed to decline goal:', error);
     }
   };
 
-  const handleLogout = async () => {
+  // Add progress approval handler
+ const handleApproveProgress = async (submissionId) => {
     try {
-      const token = sessionStorage.getItem("app_token");
-      await fetch("http://localhost:5500/api/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/progress/${submissionId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert('Progress approved! Earnings added to child\'s goal.');
+        fetchNotifications();
+        fetchGoals();
+        fetchChildrenProgress();
+      }
+    } catch (error) {
+      console.error('Failed to approve progress:', error);
+    }
+  };
+
+  // Add progress decline handler
+ const handleDeclineProgress = async (submissionId) => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/progress/${submissionId}/decline`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert('Progress declined.');
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Failed to decline progress:', error);
+    }
+  };
+
+const handleLogout = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      await fetch('http://localhost:5500/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error('Logout error:', error);
     } finally {
-      sessionStorage.removeItem("app_token");
-      navigate("/login");
+      sessionStorage.removeItem('app_token');
+      navigate('/login');
     }
   };
 
@@ -831,8 +899,10 @@ const ParentDashboard = () => {
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
           notifications={notifications}
-          onApprove={handleApproveGoal}
-          onDecline={handleDeclineGoal}
+          onApproveGoal={handleApproveGoal}
+          onDeclineGoal={handleDeclineGoal}
+          onApproveProgress={handleApproveProgress} // Add this
+          onDeclineProgress={handleDeclineProgress} // Add this
         />
       )}
     </div>

@@ -1,3 +1,5 @@
+// ChoreQuest.jsx - Updated version with goal assignment functionality
+
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
@@ -56,6 +58,7 @@ const ChoreQuest = () => {
   const [allChores, setAllChores] = useState(defaultChoresList);
   const [selectedChores, setSelectedChores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // If goal is not approved, prevent access
   useEffect(() => {
@@ -85,9 +88,9 @@ const ChoreQuest = () => {
           console.log("Fetched chores:", data);
           
           if (data.success && data.chores) {
-            // Filter out completed chores and only show assigned ones
+            // Filter out completed chores and only show assigned ones that aren't already assigned to a goal
             const assignedChores = data.chores.filter(
-              chore => chore.status === 'Assigned' || chore.status === 'pending'
+              chore => (chore.status === 'Assigned' || chore.status === 'pending') && !chore.assigned_goal_id
             );
             
             // Convert each assigned chore to match the format of defaultChoresList
@@ -165,6 +168,55 @@ const ChoreQuest = () => {
     });
   };
 
+  const handleLaunchMission = async () => {
+    if (selectedChores.length === 0) {
+      alert("Please select at least one chore!");
+      return;
+    }
+
+    setIsAssigning(true);
+    
+    try {
+      const token = sessionStorage.getItem('app_token');
+      
+      // Get the IDs of selected chores
+      const choreIds = selectedChores
+        .filter(chore => chore.id) // Only chores that have IDs (from database)
+        .map(chore => chore.id);
+      
+      if (choreIds.length > 0) {
+        // Assign these chores to the goal
+        const response = await fetch('http://localhost:5500/api/chores/assign-to-goal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            goalId: goal._id || goal.id,
+            choreIds: choreIds
+          })
+        });
+
+        const data = await response.json();
+        
+        if (!data.success) {
+          console.error("Failed to assign chores to goal:", data.error);
+        }
+      }
+      
+      // Navigate to weekly progress with selected chores
+      navigate("/weekly-progress", { state: { selectedChores, goal } });
+      
+    } catch (error) {
+      console.error("Error assigning chores to goal:", error);
+      // Still navigate even if assignment fails
+      navigate("/weekly-progress", { state: { selectedChores, goal } });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   // Styles for difficulty badges
   const easyStyle = { backgroundColor: "#DCFCE7", color: "#22C55E", borderColor: "#187235" };
   const mediumStyle = { backgroundColor: "#FCEDDC", color: "#C57E22", borderColor: "#C57E22" };
@@ -185,7 +237,7 @@ const ChoreQuest = () => {
           Chore Quest
         </h1>
         <p className={tw("text-sm text-center text-gray-500 mb-10")}>
-          Pick your missions to earn ${weeklyTarget}/week
+          Pick your missions to earn ${weeklyTarget}/week for "{goal?.title}"
         </p>
 
         {/* Weekly Target Progress Bar */}
@@ -278,17 +330,17 @@ const ChoreQuest = () => {
             {/* Launch Mission Button */}
             <div className={tw("text-center")}>
               <button
-                onClick={() => navigate("/weekly-progress", { state: { selectedChores, goal } })}
-                disabled={selectedChores.length === 0}
+                onClick={handleLaunchMission}
+                disabled={selectedChores.length === 0 || isAssigning}
                 className={tw(
                   `px-20 py-3 rounded text-white font-semibold text-lg transition-all ${
-                    selectedChores.length === 0
+                    selectedChores.length === 0 || isAssigning
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-gradient-to-r from-teal-400 to-purple-500 hover:opacity-90"
                   }`
                 )}
               >
-                🎯 Launch My Mission
+                {isAssigning ? "🚀 Launching..." : "🎯 Launch My Mission"}
               </button>
             </div>
           </>

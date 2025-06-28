@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+// WeeklyProgress.jsx - Updated version with edit functionality
+
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import CelebrationEffect from "./CelebrationEffect";
@@ -15,6 +17,26 @@ const WeeklyProgress = () => {
   const [showCelebration, setShowCelebration] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [deadlineWarning, setDeadlineWarning] = useState(false);
+  const [deadlinePassed, setDeadlinePassed] = useState(false);
+  
+  // Calculate deadline status
+  useEffect(() => {
+    if (goal?.duration) {
+      const createdDate = new Date(goal.created_at || goal.createdAt);
+      const deadline = new Date(createdDate);
+      deadline.setDate(deadline.getDate() + goal.duration * 7);
+      
+      const today = new Date();
+      const daysRemaining = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysRemaining <= 3 && daysRemaining > 0) {
+        setDeadlineWarning(true);
+      } else if (daysRemaining <= 0) {
+        setDeadlinePassed(true);
+      }
+    }
+  }, [goal]);
 
   const toggleComplete = (name) => {
     const wasCompleted = completedChores.includes(name);
@@ -29,6 +51,18 @@ const WeeklyProgress = () => {
     }
   };
 
+  const markAllComplete = () => {
+    const allChoreNames = selectedChores.map(chore => chore.name);
+    setCompletedChores(allChoreNames);
+    setShowCelebration(true);
+  };
+
+  const handleEditMissionList = () => {
+    // Navigate back to ChoreQuest with the current goal
+    // The ChoreQuest component will re-fetch chores and show current selection
+    navigate("/chore-quest", { state: { goal } });
+  };
+
   const handleSubmitProgress = async () => {
     if (completedChores.length === 0) {
       alert('Please complete at least one chore before submitting!');
@@ -39,14 +73,20 @@ const WeeklyProgress = () => {
     
     try {
       const token = sessionStorage.getItem('app_token');
-      const completedChoreDetails = selectedChores.filter(chore => 
-        completedChores.includes(chore.name)
-      );
       
+      // Get chore IDs instead of names
+      const completedChoreIds = selectedChores
+        .filter(chore => completedChores.includes(chore.name))
+        .map(chore => chore.id || chore._id);
+      
+      const totalEarned = selectedChores
+        .filter(chore => completedChores.includes(chore.name))
+        .reduce((sum, chore) => sum + chore.amount, 0);
+
       const submissionData = {
         goalId: goal._id || goal.id,
-        completedChores: completedChoreDetails,
-        totalEarned: completedChoreDetails.reduce((sum, chore) => sum + chore.amount, 0),
+        completedChoreIds,
+        totalEarned,
         submissionDate: new Date().toISOString()
       };
 
@@ -78,12 +118,58 @@ const WeeklyProgress = () => {
     }
   };
 
+  const totalEarned = selectedChores
+    .filter(chore => completedChores.includes(chore.name))
+    .reduce((sum, chore) => sum + chore.amount, 0)
+    .toFixed(2);
+
+  const overallProgress = goal.amount 
+    ? Math.min(100, Math.floor((goal.currentAmount / goal.amount) * 100))
+    : 0;
+
   return (
     <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 px-4 py-6")}>
+      {/* Deadline warnings */}
+      {deadlineWarning && (
+        <div className={tw("max-w-4xl mx-auto mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-lg")}>
+          <p className={tw("flex items-center")}>
+            <span className={tw("text-xl mr-2")}>⏰</span>
+            Deadline approaching! Only 3 days left to complete your chores!
+          </p>
+        </div>
+      )}
+      
+      {deadlinePassed && (
+        <div className={tw("max-w-4xl mx-auto mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg")}>
+          <p className={tw("flex items-center")}>
+            <span className={tw("text-xl mr-2")}>❌</span>
+            Deadline has passed! Please talk to your parents about your goal.
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className={tw("max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
         <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY GOAL PROGRESS</h2>
         {/* <p className={tw("text-sm text-gray-500 mb-2")}>Let’s start this amazing adventure ✨</p> */}
+        <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY ADVENTURE PROGRESS</h2>
+        <p className={tw("text-sm text-gray-500 mb-2")}>Working on: {goal.title}</p>
+        
+        {/* Overall Goal Progress */}
+        <div className={tw("mb-4")}>
+          <div className={tw("flex justify-between text-xs text-gray-600 mb-1")}>
+            <span>Overall Goal: {goal.name || goal.title}</span>
+            <span>${goal.saved || goal.currentAmount || 0} / ${goal.amount}</span>
+          </div>
+          <div className={tw("w-full bg-gray-200 h-2 rounded-full")}>
+            <div
+              className={tw("bg-purple-600 h-2 rounded-full")}
+              style={{ width: `${overallProgress}%` }}
+            />
+          </div>
+        </div>
+        
+        {/* Weekly Progress */}
         <div className={tw("w-full bg-gray-200 h-3 rounded-full mb-2")}>
           <div
             className={tw("bg-blue-400 h-3 rounded-full")}
@@ -93,6 +179,24 @@ const WeeklyProgress = () => {
         <p className={tw("text-sm font-semibold")}>
           ⭐ {completedChores.length} of {selectedChores.length} Missions Completed
         </p>
+      </div>
+
+      {/* Controls */}
+      <div className={tw("max-w-4xl mx-auto mb-6 flex gap-4")}>
+        <button
+          onClick={markAllComplete}
+          disabled={completedChores.length === selectedChores.length}
+          className={tw("px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors disabled:opacity-50")}
+        >
+          ✅ Mark All Complete
+        </button>
+        <button
+          onClick={() => setCompletedChores([])}
+          disabled={completedChores.length === 0}
+          className={tw("px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors disabled:opacity-50")}
+        >
+          🔄 Reset Progress
+        </button>
       </div>
 
       {/* Chore Cards */}
@@ -127,7 +231,7 @@ const WeeklyProgress = () => {
                     type="checkbox"
                     checked={isCompleted}
                     onChange={() => toggleComplete(chore.name)}
-                    className={tw("mr-2 w-4 h-4")}
+                    className={tw("mr-2 w-4 h-4 accent-green-500")}
                   />
                   <h3
                     className={tw(
@@ -146,7 +250,7 @@ const WeeklyProgress = () => {
                 {/* Meta Info */}
                 <div className={tw("flex justify-between items-center text-sm mb-2")}>
                   <span className={tw("text-green-600 font-semibold")}>💰 ${chore.amount}</span>
-                  <span className={tw("text-blue-500")}>⏰ {chore.time}</span>
+                  {chore.time && <span className={tw("text-blue-500")}>⏰ {chore.time}</span>}
                 </div>
 
                 {/* Guide Me Button */}
@@ -171,13 +275,13 @@ const WeeklyProgress = () => {
             <div className={tw("text-4xl mb-4")}>🎯</div>
             <h3 className={tw("text-xl font-bold text-gray-800 mb-2")}>Ready to submit your progress?</h3>
             <p className={tw("text-gray-600 mb-4")}>
-              You've completed {completedChores.length} task{completedChores.length > 1 ? 's' : ''} and earned ${selectedChores.filter(c => completedChores.includes(c.name)).reduce((sum, c) => sum + c.amount, 0).toFixed(2)}!
+              You've completed {completedChores.length} task{completedChores.length > 1 ? 's' : ''} and earned ${totalEarned}!
             </p>
             <button
               onClick={handleSubmitProgress}
-              disabled={isSubmitting}
+              disabled={isSubmitting || deadlinePassed}
               className={tw(`px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold text-lg rounded-2xl hover:shadow-xl transform hover:scale-105 transition-all ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed transform-none' : ''
+                isSubmitting || deadlinePassed ? 'opacity-70 cursor-not-allowed' : ''
               }`)}
             >
               {isSubmitting ? (
@@ -185,10 +289,10 @@ const WeeklyProgress = () => {
                   <span className={tw("animate-spin mr-2")}>⏳</span>
                   Submitting...
                 </>
+              ) : deadlinePassed ? (
+                "⛔ Deadline Passed"
               ) : (
-                <>
-                  🚀 Submit My Progress to Parents
-                </>
+                "🚀 Submit My Progress to Parents"
               )}
             </button>
           </div>
@@ -204,7 +308,7 @@ const WeeklyProgress = () => {
             Your parents will review your completed tasks and update your savings!
           </p>
           <div className={tw("text-xl font-bold mb-6")}>
-            💰 You earned ${selectedChores.filter(c => completedChores.includes(c.name)).reduce((sum, c) => sum + c.amount, 0).toFixed(2)} this week!
+            💰 You earned ${totalEarned} this week!
           </div>
           <button
             onClick={() => navigate("/kid-dashboard")}
@@ -220,7 +324,7 @@ const WeeklyProgress = () => {
       {/* Footer Buttons */}
       <div className={tw("mt-10 text-center flex flex-wrap justify-center gap-4")}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleEditMissionList}
           className={tw(
             "px-6 py-2 bg-gradient-to-r from-yellow-400 to-pink-300 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
           )}

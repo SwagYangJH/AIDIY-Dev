@@ -5,6 +5,8 @@ import BellIcon from "./BellIcon";
 
 const KidDashboard = () => {
   const navigate = useNavigate();
+  const kidNickname = sessionStorage.getItem("kid_nickname") || "";
+  const kidAvatar = sessionStorage.getItem("kid_avatar") || "👧";
   const [userProfile, setUserProfile] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -18,12 +20,14 @@ const KidDashboard = () => {
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-
   const [activeGoals, setActiveGoals] = useState([]);
+  const [assignedChores, setAssignedChores] = useState([]);
 
+  // Calculate total earnings from active goals
+  const totalEarnings = activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
+  
   // Calculate real values from goals and user profile
-  const totalSavings = userProfile?.financial_info?.total_savings || activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
-  const totalEarnings = totalSavings; // For now, earnings = savings
+  const totalSavings = userProfile?.financial_info?.total_savings || totalEarnings;
   const investments = 0; // Can be calculated later
   const level = Math.floor(totalSavings / 50) + 1; // Level up every $50
   const progress = Math.min((level - 1) * 10 + 1, 100); // Progress based on level
@@ -75,6 +79,7 @@ const KidDashboard = () => {
   useEffect(() => {
     fetchUserData();
     fetchGoals();
+    fetchChores();
   }, []);
 
   // Check for refresh flag when component becomes visible
@@ -83,6 +88,7 @@ const KidDashboard = () => {
       if (!document.hidden && sessionStorage.getItem('refreshKidDashboard') === 'true') {
         console.log('🔄 Refreshing KidDashboard data...');
         fetchGoals();
+        fetchChores();
         sessionStorage.removeItem('refreshKidDashboard');
       }
     };
@@ -93,6 +99,7 @@ const KidDashboard = () => {
     if (sessionStorage.getItem('refreshKidDashboard') === 'true') {
       console.log('🔄 Refreshing KidDashboard data on mount...');
       fetchGoals();
+      fetchChores();
       sessionStorage.removeItem('refreshKidDashboard');
     }
 
@@ -115,6 +122,47 @@ const KidDashboard = () => {
       console.error("Failed to fetch user data:", error);
     }
   };
+
+  const fetchChores = async () => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch("http://localhost:5500/api/chores", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAssignedChores(data.chores);
+      }
+    } catch (error) {
+      console.error("Error fetching chores:", error);
+    }
+  };
+
+  const handleMarkChoreComplete = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(`http://localhost:5500/api/chores/${choreId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "completed" }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert("🎉 Great job! Your chore has been sent to your parents for approval!");
+        fetchChores();
+      } else {
+        alert(data.error || "Failed to mark chore as complete");
+      }
+    } catch (error) {
+      console.error("Error marking chore complete:", error);
+      alert("Failed to mark chore as complete. Please try again.");
+    }
+  };
+
   const handleCreateGoal = async (e) => {
     e.preventDefault();
 
@@ -145,7 +193,7 @@ const KidDashboard = () => {
           description: "",
         });
 
-        // 🔥 Now actually re‑fetch
+        // Now actually re-fetch
         fetchGoals();
       } else {
         console.error("Failed to create goal:", data.error);
@@ -162,7 +210,7 @@ const KidDashboard = () => {
 
   const fetchGoals = async () => {
     try {
-      console.log("📡 fetchGoals() running…"); // ← add this
+      console.log("📡 fetchGoals() running…");
 
       const token = sessionStorage.getItem("app_token");
       const response = await fetch("http://localhost:5500/api/goals", {
@@ -170,7 +218,7 @@ const KidDashboard = () => {
       });
       const data = await response.json();
 
-      console.log("🔍 fetched goals payload:", data); // ← and this
+      console.log("🔍 fetched goals payload:", data);
 
       if (data.success) {
         setActiveGoals(data.goals);
@@ -225,10 +273,55 @@ const KidDashboard = () => {
     }
   };
 
+  const handleStartGoal = async (goal) => {
+    // Check if this goal already has chores assigned (mission launched)
+    if (goal.has_launched_mission || goal.assigned_chore_ids?.length > 0) {
+      // Fetch the assigned chores for this goal
+      try {
+        const token = sessionStorage.getItem("app_token");
+        const response = await fetch(`http://localhost:5500/api/goals/${goal._id || goal.id}/chores`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        
+        if (data.success && data.chores.length > 0) {
+          // Convert chores to the format expected by WeeklyProgress
+          const formattedChores = data.chores.map(chore => ({
+            id: chore.id,
+            name: chore.title,
+            description: chore.description,
+            amount: chore.reward,
+            difficulty: chore.difficulty,
+            category: chore.category,
+            dueDate: chore.dueDate
+          }));
+          
+          // Go directly to WeeklyProgress with the assigned chores
+          navigate("/weekly-progress", { 
+            state: { 
+              selectedChores: formattedChores, 
+              goal: goal 
+            } 
+          });
+        } else {
+          // If no chores found, go to ChoreQuest
+          navigate("/chore-quest", { state: { goal } });
+        }
+      } catch (error) {
+        console.error("Error fetching goal chores:", error);
+        // On error, default to ChoreQuest
+        navigate("/chore-quest", { state: { goal } });
+      }
+    } else {
+      // First time - go to ChoreQuest
+      navigate("/chore-quest", { state: { goal } });
+    }
+  };
+
   return (
     <div
       className={tw(
-        "min-h-screen bg-gradient-to-r from-purple-100 to-blue-100'"
+        "min-h-screen bg-gradient-to-r from-purple-100 to-blue-100"
       )}
     >
       {/* Header */}
@@ -277,11 +370,11 @@ const KidDashboard = () => {
                 )}
               >
                 <span className={tw("text-lg")}>
-                  {userProfile?.avatar || "👧"}
+                  {kidAvatar}
                 </span>
               </div>
               <span className={tw("text-white font-medium")}>
-                {userProfile?.name || "Maya"}
+                {kidNickname}
               </span>
             </div>
             <button
@@ -307,7 +400,7 @@ const KidDashboard = () => {
           <div className={tw("flex items-center justify-between mb-4")}>
             <div>
               <h2 className={tw("text-xl font-bold text-gray-800")}>
-                Welcome, {userProfile?.name || "Maya"}! 👋
+                Welcome, {kidNickname}! 👋
               </h2>
               <p className={tw("text-gray-600")}>
                 Journey unlocked! Let’s boost your money smarts!
@@ -441,6 +534,86 @@ const KidDashboard = () => {
           </button>
         </div>
 
+        {/* My Assigned Chores Section */}
+        <div className={tw("mb-6")}>
+          <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>My Assigned Chores</h3>
+          {assignedChores.filter(chore => !chore.assigned_goal_id).length === 0 ? (
+            <div className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}>
+              <div className={tw("text-4xl mb-4")}>📋</div>
+              <p className={tw("text-gray-600")}>No standalone chores assigned! Check your goals for chores.</p>
+            </div>
+          ) : (
+            <div className={tw("grid grid-cols-1 md:grid-cols-2 gap-4")}>
+              {assignedChores
+                .filter(chore => !chore.assigned_goal_id) // Only show chores not assigned to goals
+                .map((chore) => {
+                  const dueDate = new Date(chore.dueDate);
+                  const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
+                  const isPending = chore.status === "pending_approval";
+                  const isCompleted = chore.status === "completed" || isPending;
+
+                  return (
+                    <div
+                      key={chore.id}
+                      className={tw(`bg-white rounded-xl p-6 shadow-lg border-2 ${
+                        isPending ? "border-yellow-400 bg-yellow-50" :
+                        isCompleted ? "border-green-400 bg-green-50" :
+                        daysUntilDue <= 2 ? "border-red-400" : "border-gray-200"
+                      }`)}
+                    >
+                      <div className={tw("flex items-start justify-between mb-4")}>
+                        <div className={tw("flex-1")}>
+                          <h4 className={tw("text-lg font-bold text-gray-800 mb-2")}>{chore.title}</h4>
+                          <p className={tw("text-sm text-gray-600 mb-3")}>{chore.description}</p>
+                          
+                          <div className={tw("flex items-center gap-4 text-sm text-gray-600 mb-3")}>
+                            <span className={tw("flex items-center gap-1")}>
+                              <span>📂</span> {chore.category}
+                            </span>
+                            <span className={tw("flex items-center gap-1")}>
+                              <span>⏰</span> {daysUntilDue > 0 ? `${daysUntilDue} days left` : "Overdue!"}
+                            </span>
+                          </div>
+
+                          <div className={tw("flex items-center justify-between")}>
+                            <div className={tw("text-2xl font-bold text-green-600")}>
+                              💰 ${chore.reward.toFixed(2)}
+                            </div>
+                            {isPending ? (
+                              <span className={tw("px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium")}>
+                                ⏳ Waiting for approval
+                              </span>
+                            ) : isCompleted ? (
+                              <span className={tw("px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium")}>
+                                ✅ Completed
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleMarkChoreComplete(chore.id)}
+                                className={tw("px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transform hover:scale-105 transition-all")}
+                              >
+                                Mark Complete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className={tw(`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                          isPending ? "bg-yellow-100" :
+                          isCompleted ? "bg-green-100" :
+                          "bg-gray-100"
+                        }`)}>
+                          {chore.difficulty === "Easy" ? "⭐" :
+                           chore.difficulty === "Medium" ? "⭐⭐" :
+                           "⭐⭐⭐"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+
         {/* Active Goals */}
         <div className={tw("mb-6")}>
           <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>
@@ -455,6 +628,7 @@ const KidDashboard = () => {
               .map((goal) => {
                 const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
                 const isCompleted = progressPercent >= 100;
+                const hasLaunchedMission = goal.has_launched_mission || goal.assigned_chore_ids?.length > 0;
                 
                 return (
                   <div
@@ -521,6 +695,12 @@ const KidDashboard = () => {
                       <span>💰 Saved: ${(goal.saved || 0).toFixed(2)}</span>
                     </div>
 
+                    {hasLaunchedMission && (
+                      <div className={tw("text-xs text-purple-600 mb-2 flex items-center gap-1")}>
+                        <span>🚀</span> Mission Launched
+                      </div>
+                    )}
+
                     <div className={tw("mb-2")}>
                       <div
                         className={tw(
@@ -546,18 +726,20 @@ const KidDashboard = () => {
 
                     <button
                       disabled={goal.status !== "approved" || isCompleted}
-                      onClick={() => navigate("/chore-quest", { state: { goal } })}
+                      onClick={() => handleStartGoal(goal)}
                       className={tw(
                         `w-full py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                           isCompleted
                             ? "bg-green-100 text-green-700 cursor-not-allowed"
                             : goal.status === "approved"
-                            ? "bg-primary-turquoise text-white hover:bg-primary-turquoise-dark"
+                            ? hasLaunchedMission
+                              ? "bg-purple-500 text-white hover:bg-purple-600"
+                              : "bg-primary-turquoise text-white hover:bg-primary-turquoise-dark"
                             : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
                         }`
                       )}
                     >
-                      {isCompleted ? "Goal Achieved! 🎉" : "Start"}
+                      {isCompleted ? "Goal Achieved! 🎉" : hasLaunchedMission ? "Continue Mission" : "Start"}
                     </button>
                   </div>
                 );
