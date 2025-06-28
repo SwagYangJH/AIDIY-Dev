@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import BellIcon from "./BellIcon";
+import NotificationsModal from './NotificationsModal';
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +23,10 @@ const KidDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeGoals, setActiveGoals] = useState([]);
   const [assignedChores, setAssignedChores] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
 
   // Calculate total earnings from active goals
   const totalEarnings = activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
@@ -80,6 +85,7 @@ const KidDashboard = () => {
     fetchUserData();
     fetchGoals();
     fetchChores();
+    fetchNotifications();
   }, []);
 
   // Check for refresh flag when component becomes visible
@@ -273,6 +279,22 @@ const KidDashboard = () => {
     }
   };
 
+      const fetchNotifications = async () => {
+      try {
+        const token = sessionStorage.getItem("app_token");
+        const res = await fetch("http://localhost:5500/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setNotifications(data.notifications);
+          setUnreadCount(data.unread_count);
+        }
+      } catch (e) {
+        console.error("Error fetching notifications:", e);
+      }
+    };
+
   const handleStartGoal = async (goal) => {
     // Check if this goal already has chores assigned (mission launched)
     if (goal.has_launched_mission || goal.assigned_chore_ids?.length > 0) {
@@ -352,13 +374,23 @@ const KidDashboard = () => {
             >
               🤖
             </button>
+
             <button
+              onClick={() => setShowNotifications(true)}
               className={tw(
                 "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white"
               )}
             >
+                {unreadCount > 0 && (
+                  <span className={tw(
+                    "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1"
+                  )}>
+                    {unreadCount}
+                  </span>
+                )}
               <BellIcon size={24} />
             </button>
+
             <div
               className={tw(
                 "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
@@ -1214,6 +1246,15 @@ const KidDashboard = () => {
           </div>
         </div>
       )}
+
+      {showNotifications && (
+        <NotificationsModal
+           isOpen={showNotifications}
+           onClose={() => setShowNotifications(false)}
+           notifications={notifications}
+        />
+      )}
+
     </div>
   );
 };
