@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BellIcon from './BellIcon';
+import avatarDaughter from '../images/avatar-daughter.png';
+import avatarSon from '../images/avatar-son.png';
 
 const KidSelectionPage = () => {
   const navigate = useNavigate();
@@ -46,6 +48,13 @@ const KidSelectionPage = () => {
   }, []);
 
   const handleKidSelect = (kid) => {
+    // Fix avatar display: use proper image if avatar is invalid or emoji
+    const validAvatar = kid.avatar && (
+      kid.avatar.includes('/static/') || 
+      kid.avatar === avatarDaughter || 
+      kid.avatar === avatarSon
+    ) ? kid.avatar : avatarDaughter;
+
     // If user has completed assessment before, go directly to dashboard
     if (hasCompletedAssessment) {
       navigate('/parent-dashboard', { 
@@ -54,7 +63,7 @@ const KidSelectionPage = () => {
           child: {
             id: kid.id,
             name: kid.nickName || kid.firstName,
-            avatar: kid.avatar || '👧',
+            avatar: validAvatar,
             age: kid.age || calculateAge(kid.birthDate)
           }
         } 
@@ -67,7 +76,7 @@ const KidSelectionPage = () => {
           child: {
             id: kid.id,
             name: kid.nickName || kid.firstName,
-            avatar: kid.avatar || '👧',
+            avatar: validAvatar,
             age: kid.age || calculateAge(kid.birthDate)
           }
         } 
@@ -142,7 +151,21 @@ const KidSelectionPage = () => {
                   >
                     <div className="flex justify-center mb-4">
                       <div className="w-24 h-24 bg-accent-pink rounded-full flex items-center justify-center">
-                        <span className="text-5xl">{kid.avatar || '👧'}</span>
+                        {(() => {
+                          const validAvatar = kid.avatar && (
+                            kid.avatar.includes('/static/') || 
+                            kid.avatar === avatarDaughter || 
+                            kid.avatar === avatarSon
+                          ) ? kid.avatar : avatarDaughter;
+                          
+                          return (
+                            <img
+                              src={validAvatar}
+                              alt={`${kid.nickName || kid.firstName} avatar`}
+                              className="w-16 h-16 object-cover rounded-full"
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
                     

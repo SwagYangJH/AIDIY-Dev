@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import BellIcon from "./BellIcon";
 import NotificationsModal from './NotificationsModal';
+import avatarDaughter from '../images/avatar-daughter.png';
+import avatarSon from '../images/avatar-son.png';
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -401,9 +403,21 @@ const KidDashboard = () => {
                   "w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center"
                 )}
               >
-                <span className={tw("text-lg")}>
-                  {kidAvatar}
-                </span>
+                {(() => {
+                  const validAvatar = userProfile?.avatar && (
+                    userProfile.avatar.includes('/static/') || 
+                    userProfile.avatar === avatarDaughter || 
+                    userProfile.avatar === avatarSon
+                  ) ? userProfile.avatar : avatarDaughter;
+                  
+                  return (
+                    <img
+                      src={validAvatar}
+                      alt="User avatar"
+                      className="w-6 h-6 object-cover rounded-full"
+                    />
+                  );
+                })()}
               </div>
               <span className={tw("text-white font-medium")}>
                 {kidNickname}

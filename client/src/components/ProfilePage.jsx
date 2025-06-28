@@ -153,10 +153,21 @@ const ProfilePage = () => {
         const res = await api("/api/users/children");
         if (res.success)
           setKids(
-            res.children.map((c) => ({
-              ...c,
-              avatar: c.avatar || avatarDaughter,
-            }))
+            res.children.map((c) => {
+              // Fix avatar display: check if avatar is a valid image path
+              const isValidImagePath = c.avatar && (
+                c.avatar.includes('/static/') || 
+                c.avatar === avatarDaughter || 
+                c.avatar === avatarSon ||
+                c.avatar === avatarMom ||
+                c.avatar === avatarDad
+              );
+              
+              return {
+                ...c,
+                avatar: isValidImagePath ? c.avatar : avatarDaughter,
+              };
+            })
           );
       } catch (e) {
         console.error("Could not load data", e);
@@ -210,8 +221,14 @@ const ProfilePage = () => {
       });
       if (!res.success) throw new Error(res.error || "Unknown error");
 
-      /* push into UI list */
-      setKids((prev) => [...prev, { ...res.child, avatar: childData.avatar }]);
+      /* push into UI list - ensure avatar is valid */
+      const validAvatar = childData.avatar && (
+        childData.avatar.includes('/static/') || 
+        childData.avatar === avatarDaughter || 
+        childData.avatar === avatarSon
+      ) ? childData.avatar : avatarDaughter;
+      
+      setKids((prev) => [...prev, { ...res.child, avatar: validAvatar }]);
 
       /* reset + close */
       setChildData({
@@ -259,11 +276,17 @@ const ProfilePage = () => {
       });
       if (!res.success) throw new Error(res.error || "Update failed");
 
-      // update child in local state
+      // update child in local state - ensure avatar is valid
+      const validAvatar = childEditData.avatar && (
+        childEditData.avatar.includes('/static/') || 
+        childEditData.avatar === avatarDaughter || 
+        childEditData.avatar === avatarSon
+      ) ? childEditData.avatar : avatarDaughter;
+      
       setKids((prev) =>
         prev.map((kid) =>
           kid.id === editingChild.id
-            ? { ...res.child, avatar: childEditData.avatar }
+            ? { ...res.child, avatar: validAvatar }
             : kid
         )
       );
@@ -278,12 +301,22 @@ const ProfilePage = () => {
   const handleChildEdit = (kid) => {
     setEditingChild(kid);
     const [year, month, day] = (kid.birthDate || "2015-01-01").split("-");
+    
+    // Ensure avatar is valid for editing
+    const validAvatar = kid.avatar && (
+      kid.avatar.includes('/static/') || 
+      kid.avatar === avatarDaughter || 
+      kid.avatar === avatarSon ||
+      kid.avatar === avatarMom ||
+      kid.avatar === avatarDad
+    ) ? kid.avatar : avatarDaughter;
+    
     setChildEditData({
       firstName: kid.firstName || "",
       lastName: kid.lastName || "",
       nickName: kid.nickName || "",
       username: kid.username || "",
-      avatar: kid.avatar || avatarDaughter,
+      avatar: validAvatar,
       birthDate: { day, month, year },
       loginCode: kid.loginCode ? kid.loginCode.split("") : ["", "", "", ""],
       confirmLoginCode: kid.loginCode
