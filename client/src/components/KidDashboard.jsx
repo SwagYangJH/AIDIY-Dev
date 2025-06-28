@@ -302,7 +302,9 @@ const KidDashboard = () => {
           navigate("/weekly-progress", { 
             state: { 
               selectedChores: formattedChores, 
-              goal: goal 
+              goal: goal,
+              activeGoals: activeGoals,         // ADD THIS
+              setActiveGoals: setActiveGoals
             } 
           });
         } else {
