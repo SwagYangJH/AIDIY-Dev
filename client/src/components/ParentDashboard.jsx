@@ -8,10 +8,21 @@ import progressIcon from "../images/progress-tracking.png";
 import caughtUpIcon from "../images/caught-up.png";
 import choresIcon from "../images/chore-manage.png";
 import parentAvatar from "../images/avatar-parents.png"; // adjust path as needed
+import avatarDaughter from "../images/avatar-daughter.png";
+import avatarSon from "../images/avatar-son.png";
 
 const tokenHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
 });
+
+// Helper function to get valid avatar for children
+const getValidChildAvatar = (avatar) => {
+  return avatar && (
+    avatar.includes('/static/') || 
+    avatar === avatarDaughter || 
+    avatar === avatarSon
+  ) ? avatar : avatarDaughter;
+};
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -976,10 +987,14 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
                 <div className={tw("flex items-start gap-4")}>
                   <div
                     className={tw(
-                      "w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg"
+                      "w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg overflow-hidden"
                     )}
                   >
-                    <span className={tw("text-2xl")}>{goal.kid_avatar}</span>
+                    <img
+                      src={getValidChildAvatar(goal.kid_avatar)}
+                      alt={`${goal.kid_name} avatar`}
+                      className="w-10 h-10 object-cover rounded-full"
+                    />
                   </div>
 
                   <div className={tw("flex-1 min-w-0")}>
@@ -1172,10 +1187,14 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
                 <div className={tw("flex items-center gap-4")}>
                   <div
                     className={tw(
-                      "w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg"
+                      "w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg overflow-hidden"
                     )}
                   >
-                    <span className={tw("text-3xl")}>{child.avatar}</span>
+                    <img
+                      src={getValidChildAvatar(child.avatar)}
+                      alt={`${child.nickName || child.firstName} avatar`}
+                      className="w-12 h-12 object-cover rounded-full"
+                    />
                   </div>
                   <div>
                     <h3 className={tw("text-xl font-bold text-gray-900")}>
@@ -2336,7 +2355,7 @@ const ChoreManagementTab = ({
                   <option value="">-- Unassigned --</option>
                   {children.map((child) => (
                     <option key={child.username} value={child.username}>
-                      {child.avatar} {child.nickName || child.firstName}
+                      👶 {child.nickName || child.firstName}
                     </option>
                   ))}
                 </select>
@@ -2552,7 +2571,7 @@ const ChoreManagementTab = ({
                   <option value="">-- Unassigned --</option>
                   {children.map((child) => (
                     <option key={child.username} value={child.username}>
-                      {child.avatar} {child.nickName || child.firstName}
+                      👶 {child.nickName || child.firstName}
                     </option>
                   ))}
                 </select>
