@@ -169,6 +169,51 @@ const ParentDashboard = () => {
     }
   };
 
+  const handleApproveChore = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(
+        `http://localhost:5500/api/chores/${choreId}/approve`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      const data = await response.json();
+      if (data.success) {
+        alert("Chore approved!");
+        fetchNotifications();
+        fetchChores();
+        fetchGoals();
+      }
+    } catch (error) {
+      console.error("Failed to approve chore:", error);
+    }
+  };
+
+  const handleDeclineChore = async (choreId) => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const response = await fetch(
+        `http://localhost:5500/api/chores/${choreId}/decline`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      const data = await response.json();
+      if (data.success) {
+        alert("Chore declined.");
+        fetchNotifications();
+        fetchChores();
+      }
+    } catch (error) {
+      console.error("Failed to decline chore:", error);
+    }
+  };
+
   const handleDeclineGoal = async (goalId) => {
     try {
       const token = sessionStorage.getItem('app_token');
@@ -224,6 +269,26 @@ const ParentDashboard = () => {
       }
     } catch (error) {
       console.error('Failed to decline progress:', error);
+    }
+  };
+
+  const handleMarkSingleRead = async (notificationId) => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const response = await fetch(`http://localhost:5500/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Update the notifications state to mark this one as read
+        setNotifications(prev => prev.map(n => 
+          n._id === notificationId ? { ...n, read: true } : n
+        ));
+        setUnreadCount(prev => prev - 1);
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -692,8 +757,11 @@ const ParentDashboard = () => {
           notifications={notifications}
           onApproveGoal={handleApproveGoal}
           onDeclineGoal={handleDeclineGoal}
-          onApproveProgress={handleApproveProgress} // Add this
-          onDeclineProgress={handleDeclineProgress} // Add this
+          onApproveProgress={handleApproveProgress}
+          onDeclineProgress={handleDeclineProgress}
+          onApproveChore={handleApproveChore}
+          onDeclineChore={handleDeclineChore}
+          onMarkSingleRead={handleMarkSingleRead}
         />
       )}
     </div>

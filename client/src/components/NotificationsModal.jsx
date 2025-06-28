@@ -64,13 +64,22 @@ const NotificationsModal = ({
     }
   };
 
-  const getNotificationIcon = (type, message) => {
-    if (message?.includes('goal')) return '🎯';
-    if (message?.includes('chore')) return '✅';
-    if (message?.includes('reward')) return '💰';
-    if (type === 'goal_request') return '🎯';
-    if (type === 'progress_submission') return '💪';
-    return '🔔';
+  const getNotificationIcon = (type) => {
+    switch(type) {
+      case 'goal_approved': return '🎯';
+      case 'goal_declined': return '⚠️';
+      case 'chore_completed': return '✅';
+      case 'chore_approved': return '💰';
+      case 'chore_declined': return '🔄';
+      case 'goal_completed': return '🏆';
+      default: return '🔔';
+    }
+  };
+
+  const getMessageColor = (type) => {
+    if (type === 'goal_approved' || type === 'chore_approved') return 'text-green-600';
+    if (type === 'goal_declined' || type === 'chore_declined') return 'text-yellow-600';
+    return 'text-gray-900';
   };
 
   return (
@@ -119,22 +128,34 @@ const NotificationsModal = ({
                   <div className={tw('flex items-start gap-4')}>
                     <div className={tw(`w-12 h-12 rounded-2xl flex items-center justify-center ${!notification.read ? 'bg-blue-100' : 'bg-gray-100'}`)}>
                       <span className={tw('text-2xl')}>
-                        {getNotificationIcon(notification.type, notification.message)}
+                        {getNotificationIcon(notification.type)}
                       </span>
                     </div>
 
                     <div className={tw('flex-1 min-w-0')}>
                       <div className={tw('flex items-start justify-between mb-2')}>
                         <div className={tw('flex-1')}>
-                          <p className={tw(`text-gray-900 ${!notification.read ? 'font-semibold' : 'font-medium'}`)}>
-                            {notification.message || notification.title}
-                          </p>
+                          {notification.type !== 'goal_completed' && (
+                            <p className={tw(`${getMessageColor(notification.type)} ${!notification.read ? 'font-semibold' : 'font-medium'}`)}>
+                              {notification.message || notification.title}
+                            </p>
+                          )}
                           <p className={tw('text-sm text-gray-500 mt-1')}>
                             {formatTime(notification.created_at)}
                           </p>
                         </div>
                         {!notification.read && <div className={tw('w-3 h-3 bg-blue-500 rounded-full ml-2 mt-1')}></div>}
                       </div>
+
+                      {/* Goal Completed - Special Styling */}
+                      {notification.type === 'goal_completed' && (
+                        <div className={tw("bg-gradient-to-r from-green-100 to-blue-100 p-3 rounded-lg mb-2")}>
+                          <p className={tw("text-lg font-bold text-green-700")}>
+                            🎉 Goal Achieved!
+                          </p>
+                          <p>{notification.message}</p>
+                        </div>
+                      )}
 
                       {/* Goal Approval */}
                       {notification.type === 'goal_request' && notification.goal_id && (
@@ -175,7 +196,10 @@ const NotificationsModal = ({
                       )}
 
                       {/* Other types */}
-                      {notification.type !== 'goal_request' && notification.type !== 'progress_submission' && !notification.read && (
+                      {notification.type !== 'goal_request' && 
+                       notification.type !== 'progress_submission' && 
+                       notification.type !== 'goal_completed' && 
+                       !notification.read && (
                         <button onClick={() => handleMarkSingleRead(notification._id)} className={tw('px-3 py-1 mt-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200')}>
                           Mark as read
                         </button>

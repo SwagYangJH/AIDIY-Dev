@@ -1,5 +1,3 @@
-// WeeklyProgress.jsx - Updated version with edit functionality
-
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
@@ -19,9 +17,14 @@ const WeeklyProgress = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [deadlineWarning, setDeadlineWarning] = useState(false);
   const [deadlinePassed, setDeadlinePassed] = useState(false);
+  const [goalCompleted, setGoalCompleted] = useState(false); // Added state variable
   
-  // Calculate deadline status
+  // Calculate deadline status and check if goal is completed
   useEffect(() => {
+    if (goal?.amount && goal.saved >= goal.amount) {
+      setGoalCompleted(true);
+    }
+    
     if (goal?.duration) {
       const createdDate = new Date(goal.created_at || goal.createdAt);
       const deadline = new Date(createdDate);
@@ -58,8 +61,6 @@ const WeeklyProgress = () => {
   };
 
   const handleEditMissionList = () => {
-    // Navigate back to ChoreQuest with the current goal
-    // The ChoreQuest component will re-fetch chores and show current selection
     navigate("/chore-quest", { state: { goal } });
   };
 
@@ -129,6 +130,28 @@ const WeeklyProgress = () => {
 
   return (
     <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 px-4 py-6")}>
+      {/* Goal Completion Celebration Modal */}
+      {goalCompleted && (
+        <div className={tw("fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4")}>
+          <div className={tw("bg-white rounded-3xl p-8 max-w-md text-center")}>
+            <div className={tw("text-6xl mb-4")}>🎉</div>
+            <h2 className={tw("text-2xl font-bold mb-2")}>Goal Achieved!</h2>
+            <p className={tw("mb-6")}>
+              Congratulations! You've reached your goal: {goal.title}
+            </p>
+            <button
+              onClick={() => {
+                setGoalCompleted(false);
+                navigate("/kid-dashboard");
+              }}
+              className={tw("px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl")}
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Deadline warnings */}
       {deadlineWarning && (
         <div className={tw("max-w-4xl mx-auto mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-lg")}>

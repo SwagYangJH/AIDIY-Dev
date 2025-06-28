@@ -954,79 +954,71 @@ def create_goal():
     
     return jsonify(error="Only kids can create goals"), 403
 
+# ====== GOAL APPROVAL ENDPOINTS ======
 @app.route("/api/goals/<goal_id>/approve", methods=["POST"])
 @auth_required
 def approve_goal(goal_id):
-    from bson import ObjectId
-    
     try:
         goal = goals_col.find_one({"_id": ObjectId(goal_id)})
         if not goal:
             return jsonify(error="Goal not found"), 404
         
-        # Check if the user is the parent of the kid
-        if goal["parent_email"] != request.user["email"]:
-            return jsonify(error="Unauthorized"), 403
-        
-        # Update goal status
+        # Update goal status to approved
         goals_col.update_one(
             {"_id": ObjectId(goal_id)},
-            {
-                "$set": {
-                    "status": "approved",
-                    "approved_at": datetime.utcnow(),
-                    "approved_by": request.user["email"]
-                }
-            }
+            {"$set": {"status": "approved", "approved_at": datetime.utcnow()}}
         )
         
-        # Update notification status instead of marking as read
-        notifications_col.update_many(
-            {"goal_id": goal_id},
-            {"$set": {"status": "approved"}}
-        )
+        # Create notification for kid
+        notification = {
+            "type": "goal_approved",
+            "title": "Goal Approved!",
+            "message": f"Your goal '{goal['title']}' has been approved!",
+            "kid_username": goal["kid_username"],
+            "parent_email": request.user["email"],
+            "goal_id": goal_id,
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications_col.insert_one(notification)
         
-        return jsonify(success=True, message="Goal approved")
-        
+        return jsonify(success=True, message="Goal approved"), 200
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        print(f"[Approve Goal Error] {e}")
+        return jsonify(error=str(e)), 500
 
 @app.route("/api/goals/<goal_id>/decline", methods=["POST"])
 @auth_required
 def decline_goal(goal_id):
-    from bson import ObjectId
-    
     try:
         goal = goals_col.find_one({"_id": ObjectId(goal_id)})
         if not goal:
             return jsonify(error="Goal not found"), 404
         
-        # Check if the user is the parent of the kid
-        if goal["parent_email"] != request.user["email"]:
-            return jsonify(error="Unauthorized"), 403
-        
-        # Update goal status
+        # Update goal status to declined
         goals_col.update_one(
             {"_id": ObjectId(goal_id)},
-            {
-                "$set": {
-                    "status": "declined",
-                    "declined_at": datetime.utcnow(),
-                    "declined_by": request.user["email"]
-                }
-            }
+            {"$set": {"status": "declined", "declined_at": datetime.utcnow()}}
         )
         
-        # Update notification status instead of marking as read
-        notifications_col.update_many(
-            {"goal_id": goal_id},
-            {"$set": {"status": "declined"}}
-        )
+        # Create notification for kid
+        notification = {
+            "type": "goal_declined",
+            "title": "Goal Declined",
+            "message": f"Your goal '{goal['title']}' was declined by your parent.",
+            "kid_username": goal["kid_username"],
+            "parent_email": request.user["email"],
+            "goal_id": goal_id,
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications_col.insert_one(notification)
         
-        return jsonify(success=True, message="Goal declined")
-        
+        return jsonify(success=True, message="Goal declined"), 200
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        print(f"[Decline Goal Error] {e}")
+        return jsonify(error=str(e)), 500
+
 
 # ---------- Parent Goals API ---------- #
 @app.route("/api/parent/goals", methods=["GET"])
@@ -1448,43 +1440,181 @@ def decline_progress_submission(submission_id):
     except Exception as e:
         return jsonify(error=str(e)), 500
 
+@app.route("/api/chores/<chore_id>/complete", methods=["POST"])
+@auth_required
+def mark_chore_complete(chore_id):
+    try:
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Update chore status to pending_approval
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {"$set": {"status": "pending_approval"}}
+        )
+        
+        # Create notification for parent
+        notification = {
+            "type": "chore_completed",
+            "title": "Chore Completed!",
+            "message": f"{chore['kid_name']} completed: {chore['title']}",
+            "parent_email": chore["parent_email"],
+            "chore_id": chore_id,
+            "reward": chore["reward"],
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications_col.insert_one(notification)
+        
+        return jsonify(success=True, message="Chore submitted for approval"), 200
+    except Exception as e:
+        print(f"[Mark Chore Complete Error] {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/chores/<chore_id>/approve", methods=["POST"])
+@auth_required
+def approve_chore(chore_id):
+    try:
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Update chore status to completed
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {"$set": {"status": "completed", "completed_at": datetime.utcnow()}}
+        )
+        
+        # Add reward to goal if assigned
+        if chore.get("assigned_goal_id"):
+            goal = goals_col.find_one({"_id": ObjectId(chore["assigned_goal_id"])})
+            if goal:
+                new_saved = goal.get("saved", 0) + chore["reward"]
+                new_progress = min((new_saved / goal["amount"]) * 100, 100)
+                
+                update_data = {
+                    "$set": {"saved": new_saved, "progress": new_progress},
+                    "$push": {
+                        "progress_history": {
+                            "date": datetime.utcnow(),
+                            "amount": chore["reward"],
+                            "approved_by": request.user["email"]
+                        }
+                    }
+                }
+                
+                # Check if goal is completed
+                if new_saved >= goal["amount"]:
+                    update_data["$set"]["status"] = "completed"
+                    update_data["$set"]["completed_at"] = datetime.utcnow()
+                    
+                    # Create goal completed notifications
+                    kid_notification = {
+                        "type": "goal_completed",
+                        "title": "Goal Achieved!",
+                        "message": f"Congratulations! You've completed your goal: {goal['title']}",
+                        "kid_username": goal["kid_username"],
+                        "parent_email": request.user["email"],
+                        "goal_id": str(goal["_id"]),
+                        "created_at": datetime.utcnow(),
+                        "read": False
+                    }
+                    parent_notification = {
+                        "type": "goal_completed",
+                        "title": "Goal Achieved!",
+                        "message": f"Your child {goal['kid_name']} has completed the goal: {goal['title']}",
+                        "recipient_email": request.user["email"],
+                        "goal_id": str(goal["_id"]),
+                        "created_at": datetime.utcnow(),
+                        "read": False
+                    }
+                    notifications_col.insert_many([kid_notification, parent_notification])
+                
+                goals_col.update_one(
+                    {"_id": ObjectId(chore["assigned_goal_id"])},
+                    update_data
+                )
+        
+        # Create notification for kid
+        kid_notification = {
+            "type": "chore_approved",
+            "title": "Chore Approved!",
+            "message": f"Your chore '{chore['title']}' was approved! You earned ${chore['reward']}",
+            "kid_username": chore["kid_username"],
+            "parent_email": request.user["email"],
+            "chore_id": chore_id,
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications_col.insert_one(kid_notification)
+        
+        return jsonify(success=True, message="Chore approved"), 200
+    except Exception as e:
+        print(f"[Approve Chore Error] {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/chores/<chore_id>/decline", methods=["POST"])
+@auth_required
+def decline_chore(chore_id):
+    try:
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Reset chore status to assigned
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {"$set": {"status": "assigned"}}
+        )
+        
+        # Create notification for kid
+        notification = {
+            "type": "chore_declined",
+            "title": "Chore Needs Revision",
+            "message": f"Your chore '{chore['title']}' was declined. Please check with your parent.",
+            "kid_username": chore["kid_username"],
+            "parent_email": request.user["email"],
+            "chore_id": chore_id,
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications_col.insert_one(notification)
+        
+        return jsonify(success=True, message="Chore declined"), 200
+    except Exception as e:
+        print(f"[Decline Chore Error] {e}")
+        return jsonify(error=str(e)), 500
+
 # ---------- Notifications ---------- #
 @app.route("/api/notifications")
 @auth_required
 def get_notifications():
-    """
-    Return the 20 most-recent notifications for the logged-in user
-    (parent), plus a count of how many are unread.
-    """
     user_email = request.user["email"]
     try:
-        cursor = (
-            notifications_col
-            .find({"recipient_email": user_email})
-            .sort("created_at", DESCENDING)
-            .limit(20)
-        )
+        # Check if user is parent or kid
+        if "@kids.aidiy" in user_email:
+            # Kid notifications
+            kid_username = user_email.split("@")[0]
+            query = {"kid_username": kid_username}
+        else:
+            # Parent notifications
+            query = {"$or": [
+                {"recipient_email": user_email},
+                {"parent_email": user_email}
+            ]}
+        
+        cursor = notifications_col.find(query).sort("created_at", -1).limit(20)
+        
         notifications = []
         for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            # created_at → ISO 8601 string
-            if isinstance(doc.get("created_at"), datetime):
-                doc["created_at"] = doc["created_at"].isoformat()
-            else:
-                doc["created_at"] = str(doc.get("created_at"))
-            
-            # Fix: Use consistent field names
-            # Set read status (default to False if not present)
-            doc.setdefault("read", False)
-            # Set type
-            doc.setdefault("type", "notification")
-            
+            doc["id"] = str(doc["_id"])
+            doc["created_at"] = doc["created_at"].isoformat()
             notifications.append(doc)
         
-        # Fix: Count unread notifications consistently
         unread_count = notifications_col.count_documents({
-            "recipient_email": user_email,
-            "read": {"$ne": True}  # Count notifications where read is not True
+            **query,
+            "read": {"$ne": True}
         })
         
         return jsonify(
@@ -1492,12 +1622,10 @@ def get_notifications():
             notifications=notifications,
             unread_count=unread_count
         ), 200
+        
     except Exception as e:
         print("[Notifications Error]", e)
-        return jsonify(
-            success=False,
-            error="Failed to fetch notifications, please try again later."
-        ), 500
+        return jsonify(error=str(e)), 500
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
