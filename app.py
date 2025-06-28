@@ -865,30 +865,35 @@ def get_user_username_from_token():
 @app.route("/api/goals", methods=["GET"])
 @auth_required
 def get_goals():
-    # 1. Extract kid_username directly from their JWT “email” claim
     email = request.user.get("email", "")
     kid_username = email.split("@")[0]
 
-    # 2. (Optional) verify that child exists
-    child = children_col.find_one({ "username": kid_username })
+    child = children_col.find_one({"username": kid_username})
     if not child:
-        return jsonify({ "success": False, "error": "Child not found" }), 404
+        return jsonify({"success": False, "error": "Child not found"}), 404
 
-    # 3. Query by kid_username, not user_id
     try:
-        raw_goals = goals_col.find({ "kid_username": kid_username })
+        raw_goals = goals_col.find({"kid_username": kid_username})
         goals = []
         for g in raw_goals:
             g["_id"] = str(g["_id"])
-            # ensure frontend fields exist
+            # Ensure all fields exist with defaults
             g.setdefault("saved", 0)
             g.setdefault("progress", 0)
+            g.setdefault("status", "pending_approval")
+            g.setdefault("has_launched_mission", False)
+            g.setdefault("assigned_chore_ids", [])
+            
+            # Recalculate progress to ensure consistency
+            if g.get("amount", 0) > 0:
+                g["progress"] = min((g["saved"] / g["amount"]) * 100, 100)
+            
             goals.append(g)
 
-        return jsonify({ "success": True, "goals": goals }), 200
+        return jsonify({"success": True, "goals": goals}), 200
 
     except Exception as e:
-        return jsonify({ "success": False, "error": str(e) }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ---------- Mark assessment complete ---------- #
@@ -1280,6 +1285,232 @@ def get_children_chores():
     except Exception as e:
         print("[Children Chores Error]", e)
         return jsonify(error=str(e)), 500
+    
+    
+@app.route("/api/chores/<chore_id>/approve", methods=["POST"])
+@auth_required
+def approve_chore(chore_id):
+    """Approve an individual chore completion"""
+    try:
+        from bson import ObjectId
+        
+        # Get the chore
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Verify the user is the parent
+        if chore["parent_email"] != request.user["email"]:
+            return jsonify(error="Unauthorized"), 403
+        
+        # Update chore status to completed
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {
+                "$set": {
+                    "status": "completed",
+                    "completed_at": datetime.utcnow(),
+                    "approved_by": request.user["email"],
+                    "approved_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        # If chore is assigned to a goal, update the goal's progress
+        if chore.get("assigned_goal_id"):
+            goal = goals_col.find_one({"_id": ObjectId(chore["assigned_goal_id"])})
+            if goal:
+                new_saved = goal.get("saved", 0) + chore["reward"]
+                new_progress = min((new_saved / goal["amount"]) * 100, 100)
+                
+                update_data = {
+                    "$set": {
+                        "saved": new_saved,
+                        "progress": new_progress
+                    },
+                    "$push": {
+                        "progress_history": {
+                            "date": datetime.utcnow(),
+                            "amount": chore["reward"],
+                            "chore_title": chore["title"],
+                            "approved_by": request.user["email"]
+                        }
+                    }
+                }
+                
+                # Check if goal is completed
+                if new_saved >= goal["amount"]:
+                    update_data["$set"]["status"] = "completed"
+                    update_data["$set"]["completed_at"] = datetime.utcnow()
+                    
+                    # Send completion notification
+                    completion_notification = {
+                        "recipient_email": f"{goal['kid_username']}@kids.aidiy",
+                        "type": "goal_completed",
+                        "title": f"🎉 Goal Completed: {goal['title']}!",
+                        "message": f"You've saved ${goal['amount']:.2f} for your {goal['title']}!",
+                        "goal_id": str(goal["_id"]),
+                        "read": False,
+                        "created_at": datetime.utcnow()
+                    }
+                    notifications_col.insert_one(completion_notification)
+                
+                goals_col.update_one(
+                    {"_id": ObjectId(chore["assigned_goal_id"])},
+                    update_data
+                )
+        
+        # Send approval notification to kid
+        approval_notification = {
+            "recipient_email": f"{chore['kid_username']}@kids.aidiy",
+            "type": "chore_approved",
+            "title": f"✅ Chore Approved: {chore['title']}",
+            "message": f"Great job! You earned ${chore['reward']:.2f}!",
+            "chore_id": chore_id,
+            "earned_amount": chore["reward"],
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(approval_notification)
+        
+        return jsonify(success=True, message="Chore approved"), 200
+        
+    except Exception as e:
+        print(f"[Approve Chore Error] {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/chores/<chore_id>/decline", methods=["POST"])
+@auth_required
+def decline_chore(chore_id):
+    """Decline an individual chore completion"""
+    try:
+        from bson import ObjectId
+        
+        # Get the chore
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Verify the user is the parent
+        if chore["parent_email"] != request.user["email"]:
+            return jsonify(error="Unauthorized"), 403
+        
+        # Get decline reason from request
+        data = request.get_json() or {}
+        reason = data.get("reason", "Please check with your parents about this chore.")
+        
+        # Reset chore status to assigned
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {
+                "$set": {
+                    "status": "assigned",
+                    "declined_at": datetime.utcnow(),
+                    "declined_by": request.user["email"],
+                    "decline_reason": reason
+                }
+            }
+        )
+        
+        # Send decline notification to kid
+        decline_notification = {
+            "recipient_email": f"{chore['kid_username']}@kids.aidiy",
+            "type": "chore_declined",
+            "title": f"❌ Chore Declined: {chore['title']}",
+            "message": reason,
+            "chore_id": chore_id,
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(decline_notification)
+        
+        return jsonify(success=True, message="Chore declined"), 200
+        
+    except Exception as e:
+        print(f"[Decline Chore Error] {e}")
+        return jsonify(error=str(e)), 500
+
+# Add endpoint to get pending chores for parent
+@app.route("/api/parent/pending-chores", methods=["GET"])
+@auth_required
+def get_pending_chores():
+    """Get all pending chores awaiting parent approval"""
+    try:
+        # Find all chores with pending_approval status for this parent
+        pending_chores = list(chores_col.find({
+            "parent_email": request.user["email"],
+            "status": "pending_approval"
+        }))
+        
+        for chore in pending_chores:
+            chore["id"] = str(chore.pop("_id"))
+            # Get kid info
+            kid = children_col.find_one({"username": chore.get("kid_username")})
+            if kid:
+                chore["kid_name"] = kid.get("nickName", kid.get("firstName"))
+                chore["kid_avatar"] = kid.get("avatar", "👧")
+            
+            # Convert dates
+            for date_field in ["created_at", "updated_at", "submitted_at"]:
+                if date_field in chore and hasattr(chore[date_field], "isoformat"):
+                    chore[date_field] = chore[date_field].isoformat()
+        
+        return jsonify(success=True, chores=pending_chores), 200
+        
+    except Exception as e:
+        print(f"[Get Pending Chores Error] {e}")
+        return jsonify(error=str(e)), 500
+    
+    # Update the standalone chore completion endpoint
+@app.route("/api/chores/<chore_id>/mark-complete", methods=["POST"])
+@auth_required
+def mark_chore_complete_by_kid(chore_id):
+    """Kid marks a standalone chore as complete (not part of batch submission)"""
+    try:
+        from bson import ObjectId
+        
+        # Check if this is a kid user
+        if "@kids.aidiy" not in request.user["email"]:
+            return jsonify(error="Only kids can mark chores complete"), 403
+        
+        chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+        if not chore:
+            return jsonify(error="Chore not found"), 404
+        
+        # Update chore status to pending_approval
+        chores_col.update_one(
+            {"_id": ObjectId(chore_id)},
+            {
+                "$set": {
+                    "status": "pending_approval",
+                    "submitted_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        # Create notification for parent
+        kid_username = request.user["email"].split("@")[0]
+        kid = children_col.find_one({"username": kid_username})
+        
+        notification = {
+            "recipient_email": chore["parent_email"],
+            "type": "chore_completion_request",
+            "title": f"{kid.get('nickName', kid.get('firstName'))} completed a chore!",
+            "message": f"Chore: {chore['title']} - Reward: ${chore['reward']:.2f}",
+            "chore_id": chore_id,
+            "kid_username": kid_username,
+            "kid_avatar": kid.get("avatar", "👧"),
+            "status": "pending",
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(notification)
+        
+        return jsonify(success=True, message="Chore sent for approval"), 200
+        
+    except Exception as e:
+        print(f"[Mark Chore Complete Error] {e}")
+        return jsonify(error=str(e)), 500
 
 # ---------- Progress Submission Workflow ---------- #
 @app.route("/api/goals/submit-progress", methods=["POST"])
@@ -1365,6 +1596,8 @@ def submit_progress():
         print(f"[Submit Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
+
+# Updated progress approval endpoint with proper goal updates
 @app.route("/api/progress/<submission_id>/approve", methods=["POST"])
 @auth_required
 def approve_progress_submission(submission_id):
@@ -1387,12 +1620,16 @@ def approve_progress_submission(submission_id):
         new_progress = min((new_saved / goal["amount"]) * 100, 100)
         
         update_data = {
-            "$set": {"saved": new_saved, "progress": new_progress},
+            "$set": {
+                "saved": new_saved,
+                "progress": new_progress
+            },
             "$push": {
                 "progress_history": {
                     "date": datetime.utcnow(),
                     "amount": submission["earned_amount"],
-                    "approved_by": request.user["email"]
+                    "approved_by": request.user["email"],
+                    "chores_completed": submission.get("completed_chores", [])
                 }
             }
         }
@@ -1401,6 +1638,18 @@ def approve_progress_submission(submission_id):
         if new_saved >= goal["amount"]:
             update_data["$set"]["status"] = "completed"
             update_data["$set"]["completed_at"] = datetime.utcnow()
+            
+            # Create completion notification for the child
+            completion_notification = {
+                "recipient_email": f"{goal['kid_username']}@kids.aidiy",
+                "type": "goal_completed",
+                "title": f"🎉 Congratulations! You completed your goal: {goal['title']}!",
+                "message": f"You've successfully saved ${goal['amount']:.2f} for your {goal['title']}!",
+                "goal_id": str(goal["_id"]),
+                "read": False,
+                "created_at": datetime.utcnow()
+            }
+            notifications_col.insert_one(completion_notification)
         
         goals_col.update_one(
             {"_id": ObjectId(submission["goal_id"])},
@@ -1411,15 +1660,35 @@ def approve_progress_submission(submission_id):
         for chore_id in submission["completed_chore_ids"]:
             chores_col.update_one(
                 {"_id": ObjectId(chore_id)},
-                {"$set": {"status": "completed"}}
+                {"$set": {"status": "completed", "completed_at": datetime.utcnow()}}
             )
         
-        # Remove the notification
+        # Create approval notification for the child
+        approval_notification = {
+            "recipient_email": f"{goal['kid_username']}@kids.aidiy",
+            "type": "progress_approved",
+            "title": "✅ Your progress was approved!",
+            "message": f"Your parents approved ${submission['earned_amount']:.2f} earned from completed chores!",
+            "goal_id": str(goal["_id"]),
+            "earned_amount": submission["earned_amount"],
+            "new_total": new_saved,
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(approval_notification)
+        
+        # Remove the parent's notification
         notifications_col.delete_one({"_id": ObjectId(submission_id)})
         
-        return jsonify(success=True, message="Progress approved"), 200
+        return jsonify(
+            success=True, 
+            message="Progress approved",
+            new_saved=new_saved,
+            new_progress=new_progress
+        ), 200
         
     except Exception as e:
+        print(f"[Approve Progress Error] {e}")
         return jsonify(error=str(e)), 500
 
 @app.route("/api/progress/<submission_id>/decline", methods=["POST"])
@@ -1434,6 +1703,9 @@ def decline_progress_submission(submission_id):
         if not submission:
             return jsonify(error="Submission not found"), 404
 
+        # Get goal info for notification
+        goal = goals_col.find_one({"_id": ObjectId(submission["goal_id"])})
+        
         # Reset chore status to "assigned"
         for chore_id in submission["completed_chore_ids"]:
             chores_col.update_one(
@@ -1441,11 +1713,66 @@ def decline_progress_submission(submission_id):
                 {"$set": {"status": "assigned"}}
             )
         
-        # Remove the notification
+        # Create decline notification for the child
+        decline_notification = {
+            "recipient_email": f"{goal['kid_username']}@kids.aidiy",
+            "type": "progress_declined",
+            "title": "❌ Your progress was declined",
+            "message": "Your parents declined your chore completion. Please check with them about what needs to be redone.",
+            "goal_id": str(goal["_id"]),
+            "declined_amount": submission["earned_amount"],
+            "read": False,
+            "created_at": datetime.utcnow()
+        }
+        notifications_col.insert_one(decline_notification)
+        
+        # Remove the parent's notification
         notifications_col.delete_one({"_id": ObjectId(submission_id)})
         
         return jsonify(success=True, message="Progress declined"), 200
     except Exception as e:
+        print(f"[Decline Progress Error] {e}")
+        return jsonify(error=str(e)), 500
+
+# Add kid notifications endpoint
+@app.route("/api/kid/notifications")
+@auth_required
+def get_kid_notifications():
+    """Get notifications for logged-in kid"""
+    try:
+        kid_email = request.user["email"]
+        
+        # Only get notifications for kids
+        if "@kids.aidiy" not in kid_email:
+            return jsonify(error="Only kids can access this endpoint"), 403
+        
+        cursor = (
+            notifications_col
+            .find({"recipient_email": kid_email})
+            .sort("created_at", DESCENDING)
+            .limit(20)
+        )
+        
+        notifications = []
+        for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            if isinstance(doc.get("created_at"), datetime):
+                doc["created_at"] = doc["created_at"].isoformat()
+            doc.setdefault("read", False)
+            notifications.append(doc)
+        
+        unread_count = notifications_col.count_documents({
+            "recipient_email": kid_email,
+            "read": {"$ne": True}
+        })
+        
+        return jsonify(
+            success=True,
+            notifications=notifications,
+            unread_count=unread_count
+        ), 200
+    except Exception as e:
+        print("[Kid Notifications Error]", e)
         return jsonify(error=str(e)), 500
 
 # ---------- Notifications ---------- #
