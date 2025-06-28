@@ -569,17 +569,15 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 @auth_required
 def create_chat_session():
     user_email = request.user["email"]
-    title = request.json.get("title", "New Chat")
-    
-    session = {
-        "user_email": user_email,
-        "title": title,
-        "messages": [],
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-    }
-    
-    result = chat_sessions_col.insert_one(session)
+    # We create an *empty* shell here; it will get its first message a moment later
+    result = chat_sessions_col.insert_one({
+        "user_email":  user_email,
+        "title":       "New Chat",
+        "messages":    [],                 # empty until first real message
+        "created_at":  datetime.utcnow(),
+        "updated_at":  datetime.utcnow()
+    })
+    return jsonify(success=True, session_id=str(result.inserted_id))
     return jsonify(
         success=True,
         session_id=str(result.inserted_id),
@@ -666,24 +664,22 @@ def ai_chat():
         d = request.get_json() or {}
         message = d.get("message", "")
         image_base64 = d.get("image")
-        session_id = d.get("session_id")  # Get session_id from request
+        session_id = d.get("session_id")  # May be None for new chat
         
         if not message and not image_base64:
             return jsonify(error="Message or image required"), 400
-        
-        # Prepare messages for OpenAI
+
+        # Prepare messages for OpenAI call
         messages = [
-            {"role": "system", "content": "You are a helpful financial coach for kids and parents. Provide age-appropriate advice and tasks about money management, saving, financial literacy and chores."},
+            {"role": "system", "content": "You are a helpful financial coach..."},
             {"role": "user", "content": message}
         ]
-        
-        # If image is provided, add it to the message
         if image_base64:
             messages[-1]["content"] = [
                 {"type": "text", "text": message},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
             ]
-        
+
         # Call OpenAI API
         response = client.chat.completions.create(
             model="gpt-4o" if image_base64 else "gpt-3.5-turbo",
@@ -691,59 +687,53 @@ def ai_chat():
             max_tokens=500,
             temperature=0.7
         )
-        
         ai_response = response.choices[0].message.content
-        
-        # Save to chat history if session_id exists
-        if session_id:
-            try:
-                # Check if this is the first message in the session
-                session = chat_sessions_col.find_one(
-                    {"_id": ObjectId(session_id)},
-                    projection={"messages": 1}
-                )
-                is_first_message = session and len(session.get('messages', [])) == 0
 
-                # Prepare update data
-                update_data = {
-                    "$push": {
-                        "messages": {
-                            "$each": [
-                                {
-                                    "role": "user",
-                                    "content": message,
-                                    "image": image_base64,
-                                    "timestamp": datetime.utcnow()
-                                },
-                                {
-                                    "role": "assistant",
-                                    "content": ai_response,
-                                    "timestamp": datetime.utcnow()
-                                }
-                            ]
-                        }
-                    },
-                    "$set": {"updated_at": datetime.utcnow()}
-                }
-                
-                # Set title if first message
-                if is_first_message:
-                    user_message = message[:30] + "..." if len(message) > 30 else message
-                    update_data["$set"]["title"] = f"Chat: {user_message}"
-                
-                # Update session
-                chat_sessions_col.update_one(
-                    {"_id": ObjectId(session_id)},
-                    update_data
-                )
-            except Exception as e:
-                print(f"[Chat History] Update failed: {str(e)}")
-        
-        return jsonify(success=True, response=ai_response)
-        
+        # Prepare the user and assistant message entries
+        user_msg = {
+            "role": "user",
+            "content": message,
+            "image": image_base64,
+            "timestamp": datetime.utcnow()
+        }
+        assistant_msg = {
+            "role": "assistant",
+            "content": ai_response,
+            "timestamp": datetime.utcnow()
+        }
+
+        if not session_id:
+            # No existing session: create a new session document
+            # Set title based on first user message (or a default if empty)
+            title_snippet = (message[:30] + "...") if message else "New Chat"
+            new_session = {
+                "user_email": request.user["email"],
+                "title": f"Chat: {title_snippet}",
+                "messages": [user_msg, assistant_msg],
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            result = chat_sessions_col.insert_one(new_session)
+            session_id = str(result.inserted_id)
+        else:
+            # Existing session: append messages
+            session_obj = chat_sessions_col.find_one({"_id": ObjectId(session_id)})
+            is_first_message = (session_obj and len(session_obj.get("messages", [])) == 0)
+            update_data = {
+                "$push": {"messages": {"$each": [user_msg, assistant_msg]}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+            if is_first_message:
+                # Update title on first message
+                title_snippet = (message[:30] + "...") if message else "New Chat"
+                update_data["$set"]["title"] = f"Chat: {title_snippet}"
+            chat_sessions_col.update_one({"_id": ObjectId(session_id)}, update_data)
+
+        return jsonify(success=True, response=ai_response, session_id=session_id)
     except Exception as e:
         print(f"[AI Chat Error] {e}")
         return jsonify(error="Failed to process AI request"), 500
+
 
 @app.route("/api/ai/speech-to-text", methods=["POST"])
 @auth_required
