@@ -1610,19 +1610,32 @@ const ChoreManagementTab = ({
               </div>
 
               <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Assign to Child</label>
-                <select
-                  value={choreToAdd.assignedTo}
-                  onChange={(e) => setChoreToAdd({...choreToAdd, assignedTo: e.target.value})}
-                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
-                >
-                  {/* <option value="">-- Unassigned --</option> */}
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                  Assign to Child
+                </label>
+                <div className={tw('space-y-2')}>
                   {children.map((child) => (
-                    <option key={child.username} value={child.username}>
-                      {child.avatar} {child.nickName || child.firstName}
-                    </option>
+                    <label 
+                      key={child.username}
+                      className={tw(`flex items-center gap-3 p-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer ${
+                        choreToAdd.assignedTo === child.username ? 'border-2 border-blue-500 bg-blue-50' : ''
+                      }`)}
+                    >
+                      <input
+                        type="radio"
+                        name="assignedChild"
+                        value={child.username}
+                        checked={choreToAdd.assignedTo === child.username}
+                        onChange={() => setChoreToAdd({...choreToAdd, assignedTo: child.username})}
+                        className={tw('form-radio h-5 w-5 text-blue-600')}
+                      />
+                      <div className={tw('flex items-center gap-2')}>
+                        <span className={tw('text-xl')}>{child.avatar}</span>
+                        <span className={tw('font-medium')}>{child.nickName || child.firstName}</span>
+                      </div>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
             
@@ -1646,7 +1659,6 @@ const ChoreManagementTab = ({
           </div>
         </div>
       )}
-
       {showCreateChoreModal && (
         <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
           <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto')}>
@@ -1741,19 +1753,32 @@ const ChoreManagementTab = ({
               </div>
 
               <div>
-                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>Assign to Child</label>
-                <select
-                  value={newChore.assignedTo}
-                  onChange={(e) => setNewChore({...newChore, assignedTo: e.target.value})}
-                  className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
-                >
-                  {/* <option value="">-- Unassigned --</option> */}
+                <label className={tw('block text-sm font-medium text-gray-700 mb-2')}>
+                  Assign to Child
+                </label>
+                <div className={tw('space-y-2')}>
                   {children.map((child) => (
-                    <option key={child.username} value={child.username}>
-                      {child.avatar} {child.nickName || child.firstName}
-                    </option>
+                    <label 
+                      key={child.username}
+                      className={tw(`flex items-center gap-3 p-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer ${
+                        newChore.assignedTo === child.username ? 'border-2 border-blue-500 bg-blue-50' : ''
+                      }`)}
+                    >
+                      <input
+                        type="radio"
+                        name="assignedChild"
+                        value={child.username}
+                        checked={newChore.assignedTo === child.username}
+                        onChange={() => setNewChore({...newChore, assignedTo: child.username})}
+                        className={tw('form-radio h-5 w-5 text-blue-600')}
+                      />
+                      <div className={tw('flex items-center gap-2')}>
+                        <span className={tw('text-xl')}>{child.avatar}</span>
+                        <span className={tw('font-medium')}>{child.nickName || child.firstName}</span>
+                      </div>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
             
@@ -1780,5 +1805,4 @@ const ChoreManagementTab = ({
     </div>
   );
 };
-
 export default ParentDashboard;

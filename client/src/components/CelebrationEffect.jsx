@@ -58,7 +58,7 @@ const CelebrationEffect = ({ isVisible, onComplete }) => {
         </p>
         <div className={tw('flex justify-center items-center gap-2 text-2xl')}>
           <span className={tw('animate-spin')}>⭐</span>
-          <span className={tw('font-bold text-green-600')}>+$5.00</span>
+          {/* <span className={tw('font-bold text-green-600')}>+$5.00</span> */}
           <span className={tw('animate-spin')}>⭐</span>
         </div>
       </div>
