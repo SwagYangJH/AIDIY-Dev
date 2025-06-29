@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import BellIcon from "./BellIcon";
 import NotificationsModal from './NotificationsModal';
+import avatarDaughter from '../images/avatar-daughter.png';
+import avatarSon from '../images/avatar-son.png';
+import aidiyLogo from '../images/aidiy_logo.png';
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -382,10 +385,11 @@ const KidDashboard = () => {
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
-            <span className={tw("text-3xl font-bold text-white")}>AI</span>
-            <span className={tw("text-3xl font-bold text-accent-purple")}>
-              DIY
-            </span>
+            <img 
+              src={aidiyLogo} 
+              alt="AiDIY" 
+              className="h-16 w-auto"
+            />
           </div>
           <div className={tw("flex items-center gap-3")}>
             <button
@@ -424,9 +428,21 @@ const KidDashboard = () => {
                   "w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center"
                 )}
               >
-                <span className={tw("text-lg")}>
-                  {kidAvatar}
-                </span>
+                {(() => {
+                  const validAvatar = userProfile?.avatar && (
+                    userProfile.avatar.includes('/static/') || 
+                    userProfile.avatar === avatarDaughter || 
+                    userProfile.avatar === avatarSon
+                  ) ? userProfile.avatar : avatarDaughter;
+                  
+                  return (
+                    <img
+                      src={validAvatar}
+                      alt="User avatar"
+                      className="w-6 h-6 object-cover rounded-full"
+                    />
+                  );
+                })()}
               </div>
               <span className={tw("text-white font-medium")}>
                 {kidNickname}
@@ -458,7 +474,7 @@ const KidDashboard = () => {
                 Welcome, {kidNickname}! 👋
               </h2>
               <p className={tw("text-gray-600")}>
-                Ready for today's adventure? Let's start your progress!
+                Journey unlocked! Let’s boost your money smarts!
               </p>
             </div>
             <div className={tw("text-center")}>

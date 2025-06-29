@@ -243,7 +243,7 @@ const ChoreQuest = () => {
         {/* Weekly Target Progress Bar */}
         <div className={tw("mb-6 bg-white p-4 rounded-xl shadow")}>
           <h2 className={tw("text-lg font-bold text-black-700 text-center mb-6")}>
-            🚀 Keep Picking Chores To Reach Your Goal
+            🚀 Big Goals Start with Small Wins!
           </h2>
           <div className={tw("w-full bg-gray-200 h-3 rounded-full")}>
             <div

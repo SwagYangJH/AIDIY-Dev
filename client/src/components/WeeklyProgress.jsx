@@ -148,6 +148,8 @@ const WeeklyProgress = () => {
 
       {/* Header */}
       <div className={tw("max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
+        <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY GOAL PROGRESS</h2>
+        {/* <p className={tw("text-sm text-gray-500 mb-2")}>Let’s start this amazing adventure ✨</p> */}
         <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY ADVENTURE PROGRESS</h2>
         <p className={tw("text-sm text-gray-500 mb-2")}>Working on: {goal.title}</p>
         

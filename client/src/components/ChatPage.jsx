@@ -457,7 +457,6 @@ const ChatPage = () => {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}

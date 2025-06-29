@@ -13,7 +13,6 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import base64
 import tempfile
-import logging
 
 # ────────────── ENV / Flask / CORS ──────────────────
 load_dotenv()
@@ -449,7 +448,7 @@ def update_profile():
     d = request.get_json() or {}
     
     # Allowed fields to update
-    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents", "choreCategories"]
+    allowed_fields = ["firstName", "lastName", "phoneNumber", "birthDate", "parentRole", "spouse", "parents"]
     update_data = {k: v for k, v in d.items() if k in allowed_fields and v is not None}
     
     # Special handling for parents array
@@ -516,7 +515,7 @@ def children_add():
         "firstName": d["firstName"],
         "lastName": d["lastName"],
         "nickName": d.get("nickName", ""),
-        "avatar": d.get("avatar", "👧"),
+        "avatar": d.get("avatar", "/static/media/avatar-daughter.png"),  # Use proper default image path
         "birthDate": d["birthDate"],
         "loginCode": d["loginCode"],
         "moneyAccumulated": 0,
@@ -791,19 +790,10 @@ def speech_to_text():
 @auth_required
 def generate_chore_recommendations():
     try:
-        # 1. Get the current user based on JWT-protected request
-        user = users_col.find_one({"email": request.user["email"]})
-        categories = user.get("choreCategories", [])
-
-        # 2. If user has no saved categories, return an empty list
-        if not categories:
-            return jsonify(success=True, recommendations=[])
-        
         prompt = (
-            f"Generate 5 age-appropriate chores for kids in the following categories only: "
-            f"{', '.join(categories)}. "
-            f"Respond only with a JSON array of objects with a 'title' and 'description'. "
-            f"Do NOT include code blocks, markdown, or any explanation."
+            "Generate a list of 5 helpful, age-appropriate chores for kids. "
+            "Format the response as a JSON array with objects like: "
+            "[{\"title\": \"Clean your room\", \"description\": \"Tidy up and organize toys and books\"}, ...]"
         )
 
         response = client.chat.completions.create(
@@ -925,7 +915,7 @@ def create_goal():
             "description": d.get("description", ""),
             "kid_username": kid_username,
             "kid_name": child.get("nickName") or child["firstName"],
-            "kid_avatar": child.get("avatar", "👧"),
+            "kid_avatar": child.get("avatar", "/static/media/avatar-daughter.png"),
             "parent_email": child["parent_email"],
             "status": "pending_approval",
             "created_at": datetime.utcnow(),
@@ -1121,11 +1111,6 @@ def get_chores():
         chores = []
         for c in chores_col.find(q):
             c["id"] = str(c.pop("_id"))
-            # Convert datetime to ISO format
-            if "created_at" in c and hasattr(c["created_at"], "isoformat"):
-                c["created_at"] = c["created_at"].isoformat()
-            if "updated_at" in c and hasattr(c["updated_at"], "isoformat"):
-                c["updated_at"] = c["updated_at"].isoformat()
             chores.append(c)
 
         return jsonify(success=True, chores=chores), 200
@@ -1571,52 +1556,47 @@ def decline_progress_submission(submission_id):
 @app.route("/api/notifications")
 @auth_required
 def get_notifications():
-    """
-    Return the 20 most-recent notifications for the logged-in user
-    (parent), plus a count of how many are unread.
-    """
-    user_email = request.user["email"]
-    try:
-        cursor = (
-            notifications_col
-            .find({"recipient_email": user_email})
-            .sort("created_at", DESCENDING)
-            .limit(20)
-        )
-        notifications = []
-        for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            # created_at → ISO 8601 string
-            if isinstance(doc.get("created_at"), datetime):
-                doc["created_at"] = doc["created_at"].isoformat()
-            else:
-                doc["created_at"] = str(doc.get("created_at"))
-            
-            # Fix: Use consistent field names
-            # Set read status (default to False if not present)
-            doc.setdefault("read", False)
-            # Set type
-            doc.setdefault("type", "notification")
-            
-            notifications.append(doc)
-        
-        # Fix: Count unread notifications consistently
-        unread_count = notifications_col.count_documents({
-            "recipient_email": user_email,
-            "read": {"$ne": True}  # Count notifications where read is not True
-        })
-        
-        return jsonify(
-            success=True,
-            notifications=notifications,
-            unread_count=unread_count
-        ), 200
-    except Exception as e:
-        print("[Notifications Error]", e)
-        return jsonify(
-            success=False,
-            error="Failed to fetch notifications, please try again later."
-        ), 500
+    all_notifications = []
+    
+    # Get goal approval notifications from notifications_col
+    goal_notifications = list(
+        notifications_col.find(
+            {"recipient_email": request.user["email"]},
+            {"_id": 0}
+        ).sort("created_at", -1)
+    )
+    
+    # Get progress submission notifications from db.notifications
+    progress_notifications = list(
+        db.notifications.find(
+            {"parent_email": request.user["email"]},
+            {"_id": 0}
+        ).sort("created_at", -1)
+    )
+    
+    # Combine and sort all notifications
+    all_notifications.extend(goal_notifications)
+    all_notifications.extend(progress_notifications)
+    
+    # Convert datetime to ISO format and sort by date
+    for notif in all_notifications:
+        if "created_at" in notif:
+            if hasattr(notif["created_at"], "isoformat"):
+                notif["created_at"] = notif["created_at"].isoformat()
+        # Ensure all notifications have required fields
+        notif.setdefault("status", "pending")
+        notif.setdefault("type", "unknown")
+    
+    # Sort by created_at date (most recent first)
+    all_notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Limit to 20 most recent
+    all_notifications = all_notifications[:20]
+    
+    # Count unread notifications
+    unread_count = len([n for n in all_notifications if n.get("status") == "pending"])
+    
+    return jsonify(success=True, notifications=all_notifications, unread_count=unread_count)
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
 @auth_required
