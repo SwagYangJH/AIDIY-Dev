@@ -47,9 +47,9 @@ const WeeklyProgress = () => {
     );
     
     // Show celebration only when completing (not uncompleting)
-    // if (!wasCompleted) {
-    //   setShowCelebration(true);
-    // }
+    if (!wasCompleted) {
+      setShowCelebration(true);
+    }
   };
 
   const markAllComplete = () => {

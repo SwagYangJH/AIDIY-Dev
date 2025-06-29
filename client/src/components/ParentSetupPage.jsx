@@ -289,7 +289,7 @@ const ParentSetupPage = () => {
               </p>
 
               {/* Your Children */}
-              <div className={tw('bg-blue-50 rounded-xl p-6 mb-6')}>
+              {/* <div className={tw('bg-blue-50 rounded-xl p-6 mb-6')}>
                 <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
                   <span>👶</span> Your Children
                 </h3>
@@ -325,10 +325,10 @@ const ParentSetupPage = () => {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Money Learning Goals */}
-              <div className={tw('bg-green-50 rounded-xl p-6 mb-6')}>
+              {/* <div className={tw('bg-green-50 rounded-xl p-6 mb-6')}>
                 <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
                   <span>🎯</span> Money Learning Goals
                 </h3>
@@ -353,10 +353,10 @@ const ParentSetupPage = () => {
                     </label>
                   ))}
                 </div>
-              </div>
+              </div> */}
 
               {/* Weekly Allowance & Learning Focus */}
-              <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-6 mb-6')}>
+              {/* <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-6 mb-6')}>
                 <div className={tw('bg-yellow-50 rounded-xl p-6')}>
                   <h3 className={tw('flex items-center gap-2 text-lg font-semibold mb-4')}>
                     <span>💰</span> Weekly Allowance
@@ -399,7 +399,7 @@ const ParentSetupPage = () => {
                     ))}
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Chore Categories */}
               <div className={tw('bg-blue-50 rounded-xl p-6 mb-8')}>
