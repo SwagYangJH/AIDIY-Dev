@@ -321,6 +321,14 @@ const KidDashboard = () => {
       }
     };
 
+      const tomorrowChores = assignedChores.filter((chore) => {
+        const dueDate = new Date(chore.dueDate);
+        const now = new Date();
+        const diffInDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+        return diffInDays === 1 && chore.status !== 'completed';
+      });
+
+
   const handleStartGoal = async (goal) => {
     // Check if this goal already has chores assigned (mission launched)
     if (goal.has_launched_mission || goal.assigned_chore_ids?.length > 0) {
@@ -404,19 +412,16 @@ const KidDashboard = () => {
 
             <button
               onClick={() => setShowNotifications(true)}
-              className={tw(
-                "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative"
-              )}
+              className={tw("p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative")}
             >
-                {unreadCount > 0 && (
-                  <span className={tw(
-                    "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1"
-                  )}>
-                    {unreadCount}
-                  </span>
-                )}
+              {tomorrowChores.length > 0 && (
+                <span className={tw("absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1")}>
+                  {tomorrowChores.length}
+                </span>
+              )}
               <BellIcon size={24} />
             </button>
+
 
             <div
               className={tw(
@@ -1324,21 +1329,15 @@ const KidDashboard = () => {
       {showNotifications && (
         <NotificationsModal
           isOpen={showNotifications}
-          onClose={() => {
-            setShowNotifications(false);
-            // Refresh data when closing notifications to see any updates
-            fetchGoals();
-            fetchChores();
-            fetchNotifications();
-          }}
-          notifications={notifications}
-          // Kids don't need these handlers, but keep them for compatibility
-          onApproveGoal={() => {}}
-          onDeclineGoal={() => {}}
-          onApproveProgress={() => {}}
-          onDeclineProgress={() => {}}
+          onClose={() => setShowNotifications(false)}
+          notifications={tomorrowChores.map((chore) => ({
+            id: `chore-${chore.id}`,
+            message: `⏰ ${chore.title} is due tomorrow!`,
+            type: "chore"
+          }))}
         />
       )}
+
 
     </div>
   );
