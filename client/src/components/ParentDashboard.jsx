@@ -11,7 +11,7 @@ import parentAvatar from "../images/avatar-parents.png"; // adjust path as neede
 import avatarDaughter from "../images/avatar-daughter.png";
 import avatarSon from "../images/avatar-son.png";
 import aidiyLogo from "../images/aidiy_logo.png";
-
+import aiPowered from "../images/ai-powered.png";
 const tokenHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem("app_token")}`,
 });
@@ -485,148 +485,163 @@ const handleLogout = async () => {
 
   return (
     <div
+  className={tw("min-h-screen")}
+  style={{
+          background:
+            "linear-gradient(to bottom right, rgba(183, 115, 190, 0.9), rgba(30, 234, 234, 0.9))",
+        }}
+>
+
+      <header className={tw("bg-white")}>
+  <div className={tw("max-w-7xl mx-auto flex items-center justify-between")}>
+    <div
+      className={tw("flex items-center space-x-2 cursor-pointer")}
+      onClick={() => navigate("/")}
+    >
+      <img src={aidiyLogo} alt="AiDIY" className="h-16 w-auto" />
+    </div>
+    <div className={tw("flex items-center gap-4")}>
+      <button
+  onClick={() => setShowNotifications(true)}
+  className={tw(
+    "p-2 rounded-full bg-yellow-300 hover:bg-yellow-400 text-yellow-900 relative"
+  )}
+>
+  <BellIcon size={24} />
+  {unreadCount > 0 && (
+    <span
       className={tw(
-        "min-h-screen bg-gradient-to-r from-purple-100 to-blue-100"
+        "absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
       )}
     >
-      <header
-        className={tw(
-          "bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4"
-        )}
-      >
-        <div
-          className={tw("max-w-7xl mx-auto flex items-center justify-between")}
+      {unreadCount}
+    </span>
+  )}
+</button>
+
+
+      <div className="user-menu-container relative">
+        <button
+          onClick={() => setShowUserMenu(!showUserMenu)}
+          style={{
+            background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+            borderRadius: "10px",
+            border: "1px solid black",
+            color: "white",
+          }}
+          className={tw("flex items-center gap-2 px-3 py-1 transition-colors")}
         >
-          <div
-            className={tw("flex items-center space-x-2 cursor-pointer")}
-            onClick={() => navigate("/")}
-          >
-            <img 
-              src={aidiyLogo} 
-              alt="AiDIY" 
-              className="h-16 w-auto"
+          <div className={tw("w-8 h-8 rounded-full overflow-hidden")}>
+            <img
+              src={parentAvatar}
+              alt="Parent Avatar"
+              className="w-full h-full object-cover"
             />
           </div>
-          <div className={tw("flex items-center gap-4")}>
+          <span className={tw("font-medium")}>
+            {userProfile?.firstName || "Sarah"}
+          </span>
+          <span className={tw("font-medium")}>Parents</span>
+        </button>
+
+        {showUserMenu && (
+          <div
+            className={tw(
+              "absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+            )}
+          >
             <button
-              onClick={() => setShowNotifications(true)}
+              onClick={() => {
+                setShowUserMenu(false);
+                navigate("/profile");
+              }}
+              style={{
+                background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+                borderRadius: "10px",
+                border: "1px solid black",
+                color: "white",
+              }}
               className={tw(
-                "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative"
+                "w-full px-4 py-2 text-left flex items-center gap-3"
               )}
             >
-              <BellIcon size={24} />
-              {unreadCount > 0 && (
-                <span
-                  className={tw(
-                    "absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
-                  )}
-                >
-                  {unreadCount}
-                </span>
-              )}
+              <svg
+                className={tw("w-5 h-5 text-black")}
+                fill="none"
+                stroke="white"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              View Profile
             </button>
 
-            <div className="user-menu-container relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className={tw(
-                  "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 hover:bg-white/30 transition-colors"
-                )}
-              >
-                <div className={tw("w-8 h-8 rounded-full overflow-hidden")}>
-                  <img
-                    src={parentAvatar}
-                    alt="Parent Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-<<<<<<< HEAD
-
-                <span className={tw("text-white font-medium")}>
-                  {userProfile?.firstName || "Sarah"}
-                </span>
-=======
-                <span className={tw('text-white font-medium')}>Parents</span>
->>>>>>> d94de3fb74970e10cc36721b375fe09b3409be01
-              </button>
-
-              {showUserMenu && (
-                <div
-                  className={tw(
-                    "absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-                  )}
-                >
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigate("/profile");
-                    }}
-                    className={tw(
-                      "w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
-                    )}
-                  >
-                    <svg
-                      className={tw("w-5 h-5 text-gray-600")}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    View Profile
-                  </button>
-                  <hr className={tw("my-2 border-gray-200")} />
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      handleLogout();
-                    }}
-                    className={tw(
-                      "w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-red-600"
-                    )}
-                  >
-                    <svg
-                      className={tw("w-5 h-5")}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
+            <hr className={tw("my-2 border-gray-200")} />
 
             <button
-              onClick={handleLogout}
+              onClick={() => {
+                setShowUserMenu(false);
+                handleLogout();
+              }}
+              style={{
+                background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+                borderRadius: "10px",
+                border: "1px solid black",
+                color: "white",
+              }}
               className={tw(
-                "px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
+                "w-full px-4 py-2 text-left flex items-center gap-3 font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
               )}
             >
+              <svg
+                className={tw("w-5 h-5")}
+                fill="none"
+                stroke="white"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
               Sign Out
             </button>
           </div>
-        </div>
-      </header>
+        )}
+      </div>
+
+      <button
+        onClick={handleLogout}
+        style={{
+          background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+          borderRadius: "10px",
+          border: "1px solid black",
+          color: "white",
+        }}
+        className={tw(
+          "px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5 duration-300"
+        )}
+      >
+        Sign Out
+      </button>
+    </div>
+  </div>
+</header>
+
 
       <div className={tw("max-w-7xl mx-auto px-4 py-6")}>
         <div className={tw("text-center mb-8")}>
-          <h1 className={tw("text-3xl font-bold text-gray-800 mb-2")}>
+          <h1 className={tw("text-3xl font-bold text-[#0a2150]")}>
             Parent Dashboard
           </h1>
-          <p className={tw("text-lg text-gray-600")}>
+          <p className={tw("text-lg text-[#0a2150]")}>
             Watch Them Grow Life-Ready.
           </p>
         </div>
@@ -647,7 +662,7 @@ const handleLogout = async () => {
                 }`
               )}
             >
-              <span className={tw("flex items-center gap-2")}>
+              <span className={tw("flex items-center gap-2 text-[#0a2150]")}>
                 <span>🔔</span>
                 Goal Requests
                 {unreadCount > 0 && (
@@ -671,7 +686,7 @@ const handleLogout = async () => {
                 }`
               )}
             >
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-[#0a2150]">
                 <img src={progressIcon} alt="Progress" className="w-5 h-5" />
                 Progress Tracking
               </span>
@@ -686,7 +701,7 @@ const handleLogout = async () => {
                 }`
               )}
             >
-              <span className={tw("flex items-center gap-2")}>
+              <span className={tw("flex items-center gap-2 text-[#0a2150]")}>
                 <img src={choresIcon} alt="Chores" className="w-6 h-7" />
                 Chore Management
               </span>
@@ -940,10 +955,10 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
       >
         <div className={tw("flex items-center justify-between")}>
           <div>
-            <h2 className={tw("text-2xl font-bold text-gray-900 mb-1")}>
+            <h2 className={tw("text-2xl font-bold text-[#0a2150]")}>
               Goal Requests
             </h2>
-            <p className={tw("text-gray-600")}>
+            <p className={tw("text-[#0a2150]")}>
               You’ve Got a Life Skills Champ in the Making.
             </p>
           </div>
@@ -978,10 +993,10 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
             >
               <img src={caughtUpIcon} alt="Caught up" className="w-12 h-12" />
             </div>
-            <h3 className={tw("text-lg font-semibold text-gray-800 mb-2")}>
+            <h3 className={tw("text-lg font-semibold text-[#0a2150] mb-2")}>
               All caught up!
             </h3>
-            <p className={tw("text-gray-600")}>
+            <p className={tw("text-[#0a2150]")}>
               No pending goal requests at the moment
             </p>
           </div>
@@ -1115,10 +1130,10 @@ const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
       >
         <div className={tw("flex items-center justify-between mb-6")}>
           <div>
-            <h2 className={tw("text-2xl font-bold text-gray-900 mb-1")}>
+            <h2 className={tw("text-2xl font-bold text-[#0a2150]")}>
               Progress Tracking
             </h2>
-            <p className={tw("text-gray-600")}>
+            <p className={tw("text-[#0a2150]")}>
               See how your kid is leveling up and earning along the way!
             </p>
           </div>
@@ -1542,10 +1557,10 @@ const ChoreManagementTab = ({
       >
         <div className={tw("flex items-center justify-between mb-4")}>
           <div>
-            <h2 className={tw("text-2xl font-bold text-gray-900 mb-1")}>
+            <h2 className={tw("text-2xl font-bold text-[#0a2150]")}>
               Chore Management
             </h2>
-            <p className={tw("text-gray-600")}>
+            <p className={tw("text-[#0a2150]")}>
               Where everyday tasks build lifelong Money smart skills
             </p>
           </div>
@@ -1572,7 +1587,7 @@ const ChoreManagementTab = ({
               }`
             )}
           >
-            <span className={tw("flex items-center gap-2")}>
+            <span className={tw("flex items-center gap-2 text-[#0a2150]")}>
               <span>📋</span>
               Manage Chores
             </span>
@@ -1587,8 +1602,8 @@ const ChoreManagementTab = ({
               }`
             )}
           >
-            <span className={tw("flex items-center gap-2")}>
-              <span>🤖</span>
+            <span className={tw("flex items-center gap-2 text-[#0a2150]")}>
+              <span>✨</span>
               AI Recommendations
             </span>
           </button>
@@ -1604,7 +1619,7 @@ const ChoreManagementTab = ({
           <div className={tw("p-6 border-b border-gray-100")}>
             <div className={tw("flex items-center justify-between")}>
               <div>
-                <h3 className={tw("text-xl font-bold text-gray-900 mb-1")}>
+                <h3 className={tw("text-xl font-bold text-[#0a2150]")}>
                   Active Chores
                 </h3>
                 <p className={tw("text-gray-600")}></p>
@@ -1780,7 +1795,7 @@ const ChoreManagementTab = ({
             >
               <div className={tw("flex items-center justify-between mb-6")}>
                 <h3 className={tw("text-xl font-bold text-gray-900")}>
-                  💬 Chat with AI Assistant
+                  ✨ Chat with AI Assistant
                 </h3>
                 <button
                   onClick={() => setShowAiChat(false)}
@@ -1903,10 +1918,10 @@ const ChoreManagementTab = ({
             <div className={tw("p-6 border-b border-gray-100")}>
               <div className={tw("flex items-center justify-between")}>
                 <div>
-                  <h3 className={tw("text-xl font-bold text-gray-900 mb-1")}>
-                    🤖 AI Recommendations
+                  <h3 className={tw("text-xl font-bold text-[#0a2150]")}>
+                    ✨ AI Recommendations
                   </h3>
-                  <p className={tw("text-gray-600")}>
+                  <p className={tw("text-[#0a2150]")}>
                     Personalized chore suggestions for your children
                   </p>
                 </div>
@@ -1917,7 +1932,7 @@ const ChoreManagementTab = ({
                       "px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-200 transition-colors"
                     )}
                   >
-                    💬 Chat with AI
+                    ✨ Chat with AI
                   </button>
                   <button
                     onClick={handleRegenerateRecommendations}

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import aidiyLogo from "../images/aidiy_logo.png";
 import {
   loginStart,
   loginSuccess,
@@ -217,12 +218,9 @@ const LoginPage = () => {
         <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
           <div className={tw("flex items-center justify-between h-20")}>
             <Link to="/" className={tw("flex items-center space-x-2")}>
-              <span className={tw("text-3xl font-bold text-primary-turquoise")}>
-                AI
-              </span>
-              <span className={tw("text-3xl font-bold text-accent-purple")}>
-                DIY
-              </span>
+              <Link to="/" className={tw("flex items-center space-x-2")}>
+                <img src={aidiyLogo} alt="AiDIY" className="h-20 w-auto" />
+              </Link>
             </Link>
           </div>
         </div>
@@ -249,12 +247,22 @@ const LoginPage = () => {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={tw(
-                      `flex-1 py-4 px-6 text-center font-semibold transition-all duration-300 ${
+                      `flex-1 py-4 px-6 text-center font-semibold transition-all duration-300 rounded-lg border ${
                         activeTab === tab
-                          ? "bg-accent-pink text-primary-turquoise border-b-4 border-primary-turquoise"
-                          : "text-gray-500 hover:bg-gray-50"
+                          ? "text-black  shadow-md"
+                          : "text-[#0a2150] hover:bg-gray-50"
                       }`
                     )}
+                    style={
+                      activeTab === tab
+                        ? {
+                            background:
+                              "linear-gradient(to right, #2dd4bf, #a855f7)",
+                            // borderRadius: "10px",
+                            // border: "1px solid black",
+                          }
+                        : undefined
+                    }
                   >
                     {tab === "parent" ? "Parent Login" : "Kid Login"}
                   </button>
@@ -384,8 +392,15 @@ const LoginPage = () => {
                       <button
                         type="submit"
                         className={tw(
-                          "w-full py-3 px-4 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
+                          "w-full py-3 px-4 font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
                         )}
+                        style={{
+                          background:
+                            "linear-gradient(to right, #2dd4bf, #a855f7)",
+                          borderRadius: "10px",
+                          border: "1px solid black",
+                          color: "black",
+                        }}
                         disabled={loading}
                       >
                         {loading ? "Logging in…" : "Log in as parent"}
@@ -495,8 +510,15 @@ const LoginPage = () => {
                     <button
                       type="submit"
                       className={tw(
-                        "w-full py-3 px-4 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
+                        "w-full py-3 px-4 font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
                       )}
+                      style={{
+                        background:
+                          "linear-gradient(to right, #2dd4bf, #a855f7)",
+                        borderRadius: "10px",
+                        border: "1px solid black",
+                        color: "black",
+                      }}
                       disabled={loading}
                     >
                       {loading ? "Logging in…" : "Log in as kid"}

@@ -8,6 +8,7 @@ import avatarDad from "../images/avatar-parents.png";
 import avatarMom from "../images/avatar-parents.png";
 import avatarSon from "../images/avatar-son.png";
 import avatarDaughter from "../images/avatar-daughter.png";
+import aidiyLogo from "../images/aidiy_logo.png";
 
 /* ───────────────────────── small fetch helper ───────────────────────── */
 const api = (path, opts = {}) =>
@@ -34,7 +35,6 @@ const ProfilePage = () => {
   const [childEditData, setChildEditData] = useState(null);
   const [parentFormStep, setParentFormStep] = useState(1); // 1 or 2 for multi-step form
   const [selectedCategories, setSelectedCategories] = useState([]);
-
 
   /* parents data - will be populated based on user profile */
   const [parents, setParents] = useState([]);
@@ -74,9 +74,8 @@ const ProfilePage = () => {
         const profileRes = await api("/api/users/profile");
         if (profileRes.success) {
           setUserProfile(profileRes.user);
-          setSelectedCategories(profileRes.user.choreCategories || []); 
+          setSelectedCategories(profileRes.user.choreCategories || []);
 
-          
           // Build parents list from user profile
           const parentsList = [];
 
@@ -129,7 +128,7 @@ const ProfilePage = () => {
               parentsList.push({
                 id: spouseRole === "dad" ? 1 : 2,
                 name: profileRes.user.spouse.name,
-                avatar: spouseRole === "dad" ? avatarDad: avatarMom,
+                avatar: spouseRole === "dad" ? avatarDad : avatarMom,
                 role: spouseRole,
                 ...profileRes.user.spouse,
               });
@@ -155,14 +154,14 @@ const ProfilePage = () => {
           setKids(
             res.children.map((c) => {
               // Fix avatar display: check if avatar is a valid image path
-              const isValidImagePath = c.avatar && (
-                c.avatar.includes('/static/') || 
-                c.avatar === avatarDaughter || 
-                c.avatar === avatarSon ||
-                c.avatar === avatarMom ||
-                c.avatar === avatarDad
-              );
-              
+              const isValidImagePath =
+                c.avatar &&
+                (c.avatar.includes("/static/") ||
+                  c.avatar === avatarDaughter ||
+                  c.avatar === avatarSon ||
+                  c.avatar === avatarMom ||
+                  c.avatar === avatarDad);
+
               return {
                 ...c,
                 avatar: isValidImagePath ? c.avatar : avatarDaughter,
@@ -222,12 +221,14 @@ const ProfilePage = () => {
       if (!res.success) throw new Error(res.error || "Unknown error");
 
       /* push into UI list - ensure avatar is valid */
-      const validAvatar = childData.avatar && (
-        childData.avatar.includes('/static/') || 
-        childData.avatar === avatarDaughter || 
-        childData.avatar === avatarSon
-      ) ? childData.avatar : avatarDaughter;
-      
+      const validAvatar =
+        childData.avatar &&
+        (childData.avatar.includes("/static/") ||
+          childData.avatar === avatarDaughter ||
+          childData.avatar === avatarSon)
+          ? childData.avatar
+          : avatarDaughter;
+
       setKids((prev) => [...prev, { ...res.child, avatar: validAvatar }]);
 
       /* reset + close */
@@ -277,12 +278,14 @@ const ProfilePage = () => {
       if (!res.success) throw new Error(res.error || "Update failed");
 
       // update child in local state - ensure avatar is valid
-      const validAvatar = childEditData.avatar && (
-        childEditData.avatar.includes('/static/') || 
-        childEditData.avatar === avatarDaughter || 
-        childEditData.avatar === avatarSon
-      ) ? childEditData.avatar : avatarDaughter;
-      
+      const validAvatar =
+        childEditData.avatar &&
+        (childEditData.avatar.includes("/static/") ||
+          childEditData.avatar === avatarDaughter ||
+          childEditData.avatar === avatarSon)
+          ? childEditData.avatar
+          : avatarDaughter;
+
       setKids((prev) =>
         prev.map((kid) =>
           kid.id === editingChild.id
@@ -301,16 +304,18 @@ const ProfilePage = () => {
   const handleChildEdit = (kid) => {
     setEditingChild(kid);
     const [year, month, day] = (kid.birthDate || "2015-01-01").split("-");
-    
+
     // Ensure avatar is valid for editing
-    const validAvatar = kid.avatar && (
-      kid.avatar.includes('/static/') || 
-      kid.avatar === avatarDaughter || 
-      kid.avatar === avatarSon ||
-      kid.avatar === avatarMom ||
-      kid.avatar === avatarDad
-    ) ? kid.avatar : avatarDaughter;
-    
+    const validAvatar =
+      kid.avatar &&
+      (kid.avatar.includes("/static/") ||
+        kid.avatar === avatarDaughter ||
+        kid.avatar === avatarSon ||
+        kid.avatar === avatarMom ||
+        kid.avatar === avatarDad)
+        ? kid.avatar
+        : avatarDaughter;
+
     setChildEditData({
       firstName: kid.firstName || "",
       lastName: kid.lastName || "",
@@ -392,7 +397,7 @@ const ProfilePage = () => {
         birthDate: p.birthDate,
         role: p.role,
       }));
-      
+
       //   // ✅ Add selected chore categories to the update
       // const updatePayload = {
       //   parents: parentsForBackend,
@@ -409,7 +414,7 @@ const ProfilePage = () => {
             phoneNumber: parentEditData.phoneNumber,
             birthDate: parentEditData.birthDate,
             parentRole: parentEditData.parentRole,
-            choreCategories: selectedCategories
+            choreCategories: selectedCategories,
           }),
         });
 
@@ -423,10 +428,10 @@ const ProfilePage = () => {
         });
       } else {
         // Just updating parents array
-        const res = await api('/api/users/profile', {
-          method: 'PUT',
-          body: JSON.stringify({ 
-            parents: parentsForBackend ,
+        const res = await api("/api/users/profile", {
+          method: "PUT",
+          body: JSON.stringify({
+            parents: parentsForBackend,
             choreCategories: selectedCategories,
           }),
         });
@@ -434,8 +439,8 @@ const ProfilePage = () => {
         if (!res.success) throw new Error(res.error || "Update failed");
 
         // Update local state
-        setUserProfile({ 
-          ...userProfile, 
+        setUserProfile({
+          ...userProfile,
           parents: parentsForBackend,
           choreCategories: selectedCategories,
         });
@@ -533,7 +538,7 @@ const ProfilePage = () => {
   // // clicking button to save chore categories
   // const handleSubmit = async (e) => {
   //   e.preventDefault();
-    
+
   //   if (selectedCategories.length === 0) {
   //     setFormError("Please select at least one chore category.");
   //     return;
@@ -556,16 +561,17 @@ const ProfilePage = () => {
   //   }
   // };
 
-
   /* ───────── handle kid click ───────── */
   // Kids are now only clickable in manage mode for editing
 
   /* ─────────────────────── render ─────────────────────── */
   return (
     <div
-      className={tw(
-        "min-h-screen bg-gradient-to-br from-primary-turquoise to-primary-turquoise-dark"
-      )}
+      className={tw("min-h-screen")}
+      style={{
+          background:
+            "linear-gradient(to bottom right, rgba(183, 115, 190, 0.9), rgba(30, 234, 234, 0.9))",
+        }}
     >
       {/* Header */}
       <Header onLogout={handleLogout} />
@@ -577,18 +583,24 @@ const ProfilePage = () => {
         )}
       >
         <div className={tw("max-w-4xl w-full")}>
-          <div className={tw("bg-white rounded-2xl shadow-xl p-8")}>
+          <div className={tw("bg-[#E0F7FA]  rounded-2xl shadow-xl p-8")}>
             {/* Parents header */}
             <div className={tw("flex items-center justify-between mb-8")}>
-              <h2 className={tw("text-2xl font-bold text-gray-800")}>
+              <h2 className={tw("text-2xl font-bold text-[#0a2150]")}>
                 Parents
               </h2>
               {!isManageMode ? (
                 <button
                   onClick={() => setIsManageMode(true)}
                   className={tw(
-                    "flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
+                    "flex items-center gap-2 px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
                   )}
+                  style={{
+                    background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+                    borderRadius: "10px",
+                    border: "1px solid black",
+                    color: "black",
+                  }}
                 >
                   ⚙️ Manage profiles
                 </button>
@@ -622,7 +634,7 @@ const ProfilePage = () => {
             />
 
             {/* Kids */}
-            <h3 className={tw("text-xl font-bold text-gray-800 mb-6")}>Kids</h3>
+            <h3 className={tw("text-xl font-bold text-[#0a2150]")}>Kids</h3>
             <AvatarGrid
               items={kids.map((k) => ({
                 id: k.id,
@@ -716,14 +728,9 @@ const ProfilePage = () => {
             >
               <div className={tw("flex items-center justify-between")}>
                 <div className={tw("flex items-center space-x-2")}>
-                  <span
-                    className={tw("text-3xl font-bold text-primary-turquoise")}
-                  >
-                    AI
-                  </span>
-                  <span className={tw("text-3xl font-bold text-accent-purple")}>
-                    DIY
-                  </span>
+                  <Link to="/" className={tw("flex items-center space-x-2")}>
+                    <img src={aidiyLogo} alt="AiDIY" className="h-20 w-auto" />
+                  </Link>
                 </div>
                 <button
                   onClick={() => {
@@ -1339,18 +1346,21 @@ const Header = ({ onLogout }) => (
     <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
       <div className={tw("flex items-center justify-between h-20")}>
         <Link to="/" className={tw("flex items-center space-x-2")}>
-          <span className={tw("text-3xl font-bold text-primary-turquoise")}>
-            AI
-          </span>
-          <span className={tw("text-3xl font-bold text-accent-purple")}>
-            DIY
-          </span>
+          <Link to="/" className={tw("flex items-center space-x-2")}>
+            <img src={aidiyLogo} alt="AiDIY" className="h-20 w-auto" />
+          </Link>
         </Link>
         <button
           onClick={onLogout}
           className={tw(
-            "px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-turquoise hover:text-primary-turquoise transition-colors"
+            "px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
           )}
+          style={{
+            background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+            borderRadius: "10px",
+            border: "1px solid black",
+            color: "black",
+          }}
         >
           Logout
         </button>
@@ -1639,8 +1649,14 @@ const SubmitButton = () => (
     <button
       type="submit"
       className={tw(
-        "px-8 py-3 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
+        "px-8 py-3 font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
       )}
+      style={{
+        background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+        borderRadius: "10px",
+        // border: "1px solid black",
+        // color: "black",
+      }}
     >
       Save changes
     </button>
