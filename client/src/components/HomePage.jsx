@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { tw } from "@twind/core";
 // import KidCashImage from '../images/your-image.png'; // adjust the path if needed
-import KidCash from '../images/kidcash.png'; // adjust the path as needed
-import aidiyLogo from '../images/aidiy_logo.png';
-
-
+// import KidCash from "../images/kidcash.png"; // adjust the path as needed
+import aidiyLogo from "../images/aidiy_logo.png";
+import AIAvatar from "./AIAvatar";
+import aiPowered from "../images/ai-powered.png";
 
 const HomePage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,15 +17,29 @@ const HomePage = () => {
   return (
     <div className={tw("min-h-screen")}>
       {/* Navigation */}
-      <nav className={tw('fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 z-50')}>
-        <div className={tw('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8')}>
-          <div className={tw('flex items-center justify-between h-20')}>
-            <Link to="/" className={tw('flex items-center space-x-2')}>
-              <img 
-                src={aidiyLogo} 
-                alt="AiDIY" 
-                className="h-20 w-auto"
-              />
+      <nav
+        className={tw(
+          "fixed top-0 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 z-50"
+        )}
+      >
+        <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
+          <div className={tw("flex items-center justify-between h-20")}>
+            <Link to="/" className={tw("flex items-center space-x-2")}>
+              <img src={aidiyLogo} alt="AiDIY" className="h-20 w-auto" />
+            </Link>
+            <Link
+              to="/login"
+              className={tw(
+                "inline-block px-8 py-2 text-white font-semibold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+              )}
+              style={{
+                background: "linear-gradient(to right, #2dd4bf, #a855f7)",
+                borderRadius: "10px",
+                border: "1px solid black",
+                color: "black",
+              }}
+            >
+              Sign in 
             </Link>
 
             {/* <div className={tw(`md:flex items-center space-x-8 ${isMenuOpen ? 'flex' : 'hidden'}`)}>
@@ -57,21 +71,22 @@ const HomePage = () => {
       <section
         className={tw("pt-32 pb-20 overflow-hidden")}
         style={{
-          // background: "linear-gradient(to bottom right,rgb(145, 84, 152), #008080)", // turquoise shades gradient
-          background: "linear-gradient(to bottom right,rgb(183, 115, 190),rgb(30, 234, 234))"
+          background:
+            "linear-gradient(to bottom right, rgba(183, 115, 190, 0.9), rgba(30, 234, 234, 0.9))",
         }}
       >
+        {/* Your content here */}
+
         <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
           {/* Text and Button + Image Side-by-Side */}
           <div className={tw("text-white text-center lg:text-left")}>
             <h1
               className={tw(
-                "text-[42px] sm:text-[48px] lg:text-[58px] font-extrabold mr-6 mb-6"
+                "text-[42px] sm:text-[48px] lg:text-[58px] font-extrabold mr-6 mb-6 text-[#0a2150]"
               )}
-              style={{
-                fontFamily: "Nunito, sans-serif",
-                color: "#4f3727",
-              }}
+              // style={{
+              //   fontFamily: "Nunito, sans-serif",
+              // }}
             >
               AiDIY – Your Life Skills Buddy
             </h1>
@@ -85,7 +100,7 @@ const HomePage = () => {
               <div className={tw("lg:w-1/2 text-center lg:text-left")}>
                 <p
                   className={tw(
-                    "text-base sm:text-lg lg:text-xl opacity-90 mb-8 leading-relaxed text-[#4f3727] text-justify"
+                    "text-base sm:text-lg lg:text-xl opacity-90 mb-8 leading-relaxed text-[E17A20] text-justify"
                   )}
                 >
                   Meet AiDIY — Your friendly AI buddy that makes learning about
@@ -105,7 +120,7 @@ const HomePage = () => {
                     "flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
                   )}
                 >
-                  <Link
+                  {/* <Link
                     to="/login"
                     className={tw(
                       "shadow-lg transform hover:scale-105 hover:shadow-xl transition-all duration-300 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
@@ -124,18 +139,16 @@ const HomePage = () => {
                     }}
                   >
                     Lets Begin
-                  </Link>
+                  </Link> */}
                 </div>
               </div>
 
               {/* Right side: image */}
-              {/* <div className={tw("lg:w-1/2 mt-10 lg:mt-0 flex justify-center")}>
-                <img
-                  src={KidCash}
-                  alt="A sample"
-                  className={tw("w-150 h-auto rounded-lg shadow-lg")}
-                />
-              </div> */}
+              <div className={tw("lg:w-1/2 mt-10 lg:mt-0 flex justify-center")}>
+                <div className={tw("flex justify-center mb-6 scale-150")}>
+                  <AIAvatar size="large" animated={true} />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -143,119 +156,118 @@ const HomePage = () => {
             <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
               <h2
                 className={tw(
-                  "text-4xl font-bold text-center text-[#4f3727] mb-12"
+                  "text-4xl font-bold text-center text-[#0a2150] mb-12"
                 )}
               >
                 Set Goals. Hit Milestones. Build Money Smart Skills with
                 Confidence
               </h2>
 
-              {/* Kid Block Group */}
-              <div
-                className={tw(
-                  "bg-white rounded-t-[20px] overflow-hidden shadow-lg"
-                )}
-              >
-                <div className={tw("grid grid-cols-1 md:grid-cols-3")}>
-                  <div
-                    className={tw(
-                      "bg-[#E0F7FA] p-8 border-b md:border-b-0 md:border-r border-white"
-                    )}
-                  >
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      ⭐ Goal Setting
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      Smart, age-appropriate money missions tailored to skill
-                      level.
-                    </p>
-                  </div>
-                  <div
-                    className={tw(
-                      "bg-[#F1F8E9] p-8 border-b md:border-b-0 md:border-r border-white"
-                    )}
-                  >
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      📊 Progress Tracking
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      XP points, skill streaks, and achievement boards to boost
-                      engagement.
-                    </p>
-                  </div>
-                  <div className={tw("bg-[#FFF3E0] p-8")}>
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      🏅 Milestone Rewards
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      Digital badges, praise from Aidie, and optional parent-set
-                      rewards.
-                    </p>
-                  </div>
+              {/* Kid Blocks - Equal Sized */}
+              {/* First Row - Personalized, Safe, Parent Tools */}
+              <div className={tw("flex flex-col md:flex-row gap-6 mb-10")}>
+                {/* Personalized Learning */}
+                <div
+                  className={tw(
+                    "bg-[#FCE4EC] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <span className="text-2xl font-bold text-[#0a2150] mb-4">
+                    <span className="flex items-center gap-2">
+                      <img src={aiPowered} alt="ai" className="w-5 h-5" />
+                      Personalized Learning
+                    </span>
+                  </span>
+                  {/* <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    📈 Personalized Learning
+                  </h3> */}
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Powered by AI, made for kids. Empowering young minds, the money smart way.
+                  </p>
+                </div>
+
+                {/* Safe by Design */}
+                <div
+                  className={tw(
+                    "bg-[#E8EAF6] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    🔐 Safe by Design
+                  </h3>
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Designed with care, built for safety—because every child
+                    deserves a secure experience.
+                  </p>
+                </div>
+
+                {/* Parent Tools */}
+                <div
+                  className={tw(
+                    "bg-[#E0F2F1] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    💼 Parent Tools
+                  </h3>
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Approve challenges, add rewards, and witness your kids learning journey firsthand.
+                  </p>
                 </div>
               </div>
 
-              {/* Parent Block Group */}
-              <div
-                className={tw(
-                  "bg-white rounded-b-[20px] overflow-hidden shadow-lg"
-                )}
-              >
-                <div className={tw("grid grid-cols-1 md:grid-cols-3")}>
-                  <div
-                    className={tw(
-                      "bg-[#E8EAF6] p-8 border-b md:border-b-0 md:border-r border-white"
-                    )}
-                  >
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      🔐 Safe by Design
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      COPPA-compliant, privacy-first, and voice-controlled for
-                      secure fun.
-                    </p>
-                  </div>
-                  <div
-                    className={tw(
-                      "bg-[#FCE4EC] p-8 border-b md:border-b-0 md:border-r border-white"
-                    )}
-                  >
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      📈 Progress Dashboard
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      Stay informed with insights, skill tracking, and
-                      reflection logs.
-                    </p>
-                  </div>
-                  <div className={tw("bg-[#E0F2F1] p-8")}>
-                    <h3
-                      className={tw("text-2xl font-bold text-[#0a2150] mb-4")}
-                    >
-                      💼 Parent Tools
-                    </h3>
-                    <p className={tw("text-[#0a2150] text-base")}>
-                      Approve challenges, add incentives, and access growth
-                      reports.
-                    </p>
-                  </div>
+              {/* Second Row - Goal, Progress, Milestone */}
+              <div className={tw("flex flex-col md:flex-row gap-6")}>
+                {/* Goal Setting */}
+                <div
+                  className={tw(
+                    "bg-[#E0F7FA] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    🎯 Goal Setting
+                  </h3>
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Smart, age-appropriate money missions tailored to skill
+                    level.
+                  </p>
+                </div>
+
+                {/* Progress Tracking */}
+                <div
+                  className={tw(
+                    "bg-[#F1F8E9] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    📊 Progress Tracking
+                  </h3>
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Rewards, skill streaks, and achievement boards to boost
+                    engagement.
+                  </p>
+                </div>
+
+                {/* Milestone Rewards */}
+                <div
+                  className={tw(
+                    "bg-[#FFF3E0] p-8 rounded-[20px] shadow-lg flex-1 flex flex-col min-h-[220px]"
+                  )}
+                >
+                  <h3 className={tw("text-2xl font-bold text-[#0a2150] mb-4")}>
+                    🏅 Milestone Rewards
+                  </h3>
+                  <p className={tw("text-[#0a2150] text-base flex-grow")}>
+                    Digital badges, praise from AiDIY, and optional parent-set
+                    rewards.
+                  </p>
                 </div>
               </div>
 
               {/* CTA Below the Blocks */}
               <div className={tw("mt-16 text-center")}>
                 <h3 className={tw("text-3xl font-bold text-[#0a2150] mb-6")}>
-                  Ready to raise a financially confident kid?
+                  Ready to raise a Money Smart Confident kid?
                 </h3>
                 <Link
                   to="/login"
@@ -274,254 +286,6 @@ const HomePage = () => {
               </div>
             </div>
           </section>
-
-          {/* Purple Box Section */}
-          <div className={tw("mt-28 flex justify-center")}>
-            <div
-              className={tw(
-                "bg-[#F8ECFF] rounded-[5px] w-full max-w-[1650px] h-[600px] sm:h-[800px] lg:h-[1087px] px-6 sm:px-12 py-10 sm:py-16 flex flex-col justify-center items-center text-center"
-              )}
-            >
-              <h2
-                className={tw(
-                  "text-[28px] sm:text-[36px] lg:text-[48px] font-bold text-black font-inter mb-6"
-                )}
-              >
-                Interactive Learning Adventures
-              </h2>
-              <p
-                className={tw(
-                  "text-[16px] sm:text-[18px] lg:text-[20px] text-black font-dm-sans max-w-3xl mb-10"
-                )}
-              >
-                Join friends on money missions, manage your own virtual bank,
-                and unlock real-world skills—one adventure at a time!
-              </p>
-
-              <div
-                className={tw(
-                  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 w-full max-w-6xl"
-                )}
-              >
-                {/* Box 1 */}
-                <div
-                  className={tw(
-                    "bg-white rounded-2xl shadow-lg p-8 flex flex-col text-left relative w-[350px] h-[470px]"
-                  )}
-                >
-                  <div
-                    className={tw(
-                      "absolute top-0 left-0 w-full h-2 bg-[#40E0D0] rounded-t-2xl"
-                    )}
-                  ></div>
-
-                  <div className={tw("text-5xl mb-4 mt-12")}>💰</div>
-
-                  <h3
-                    className={tw(
-                      "text-[24px] font-bold text-black font-inter mb-3"
-                    )}
-                  >
-                    Virtual Bank
-                  </h3>
-
-                  <p
-                    className={tw(
-                      "text-[22px]/70 text-black font-dm-sans font-medium mb-8"
-                    )}
-                  >
-                    Explore an interactive financial world with real-time
-                    balance tracking and personalized accounts.
-                  </p>
-                </div>
-
-                <div
-                  className={tw(
-                    "bg-white rounded-2xl shadow-lg p-8 flex flex-col text-left relative w-[350px] h-[470px]"
-                  )}
-                >
-                  <div
-                    className={tw(
-                      "absolute top-0 left-0 w-full h-2 bg-[#40E0D0] rounded-t-2xl"
-                    )}
-                  ></div>
-
-                  <div className={tw("text-5xl mb-4 mt-12")}>🛒</div>
-
-                  <h3
-                    className={tw(
-                      "text-[24px] font-bold text-black font-inter mb-3"
-                    )}
-                  >
-                    Money Missions
-                  </h3>
-
-                  <p
-                    className={tw(
-                      "text-[22px]/70 text-black font-dm-sans font-medium mb-8"
-                    )}
-                  >
-                    Follow guides through exciting challenges with audio and
-                    written instructions.
-                  </p>
-                </div>
-
-                <div
-                  className={tw(
-                    "bg-white rounded-2xl shadow-lg p-8 flex flex-col text-left relative w-[350px] h-[470px]"
-                  )}
-                >
-                  <div
-                    className={tw(
-                      "absolute top-0 left-0 w-full h-2 bg-[#40E0D0] rounded-t-2xl"
-                    )}
-                  ></div>
-
-                  <div className={tw("text-5xl mb-4 mt-12")}>📈</div>
-
-                  <h3
-                    className={tw(
-                      "text-[24px] font-bold text-black font-inter mb-3"
-                    )}
-                  >
-                    Skill Building
-                  </h3>
-
-                  <p
-                    className={tw(
-                      "text-[22px]/70 text-black font-dm-sans font-medium mb-8"
-                    )}
-                  >
-                    Master 75+ financial terms through engaging activities and
-                    earn completion certificates.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* Features Section */}
-      <section className={tw("py-20 bg-gray-50")}>
-        <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
-          <h2
-            className={tw("text-4xl font-bold text-center text-gray-800 mb-12")}
-          >
-            Interactive Learning Adventures
-          </h2>
-          <div
-            className={tw(
-              "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            )}
-          >
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>🛡️</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Safety First
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Comprehensive parental monitoring system ensures children learn
-                AI technology in a safe environment.
-              </p>
-            </div>
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>🎮</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Interactive Learning
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Gamified approach makes it easy for children to understand
-                complex AI concepts.
-              </p>
-            </div>
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>👨‍👩‍👧‍👦</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Family Friendly
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Support multiple child profiles, parents can easily monitor each
-                child's learning progress.
-              </p>
-            </div>
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>🎯</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Personalized
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Customize learning content and difficulty based on child's age
-                and interests.
-              </p>
-            </div>
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>📱</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Cross-Platform
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Supports phones, tablets and computers, learn anytime, anywhere.
-              </p>
-            </div>
-            <div
-              className={tw(
-                "bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 border border-gray-100"
-              )}
-            >
-              <div className={tw("text-5xl mb-4")}>🏆</div>
-              <h3 className={tw("text-xl font-bold text-gray-800 mb-3")}>
-                Achievement System
-              </h3>
-              <p className={tw("text-gray-600 leading-relaxed")}>
-                Motivate children to continue learning and exploring through
-                rewards and achievements.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* CTA Section */}
-      <section
-        className={tw("py-20 bg-gradient-to-r from-accent-pink to-pink-300")}
-      >
-        <div
-          className={tw("max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8")}
-        >
-          <h2 className={tw("text-4xl font-bold text-gray-800 mb-4")}>
-            Ready to Start the AI Learning Journey?
-          </h2>
-          <p className={tw("text-xl text-gray-700 mb-8")}>
-            Join thousands of families and let children explore the infinite
-            possibilities of AI in a safe environment.
-          </p>
-          <Link
-            to="/login"
-            className={tw(
-              "inline-block px-8 py-4 bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark text-white rounded-full font-semibold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
-            )}
-          >
-            Start Now
-          </Link>
         </div>
       </section>
       {/* Footer */}
@@ -529,10 +293,12 @@ const HomePage = () => {
         <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
           <div className={tw("grid grid-cols-1 md:grid-cols-4 gap-8 mb-8")}>
             <div>
-              <h4 className={tw("text-lg font-bold mb-4")}>AiDIY</h4>
-              <p className={tw("text-gray-400")}>
-                AI learning platform designed for children
-              </p>
+              <h4
+                className={tw("text-lg font-bold text-primary-turquoise mb-4")}
+              >
+                AiDIY
+              </h4>
+              <p className={tw("text-gray-400")}>Your Life Skills Buddy</p>
             </div>
             <div>
               <h4
