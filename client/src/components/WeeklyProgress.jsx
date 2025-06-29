@@ -1,4 +1,4 @@
-// WeeklyProgress.jsx - Updated version with edit functionality
+// WeeklyProgress.jsx - Simplified version without approval status UI
 
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -9,8 +9,9 @@ const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const labelColors = ["#696EFF", "#FF85B8"];
 
 const WeeklyProgress = () => {
-  const { state } = useLocation();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { state } = location;
   const selectedChores = state?.selectedChores || [];
   const goal = state?.goal || {};
   const [completedChores, setCompletedChores] = useState([]);
@@ -59,7 +60,6 @@ const WeeklyProgress = () => {
 
   const handleEditMissionList = () => {
     // Navigate back to ChoreQuest with the current goal
-    // The ChoreQuest component will re-fetch chores and show current selection
     navigate("/chore-quest", { state: { goal } });
   };
 
@@ -103,8 +103,6 @@ const WeeklyProgress = () => {
       
       if (data.success) {
         setHasSubmitted(true);
-        alert('🎉 Great job! Your progress has been submitted to your parents for approval!');
-        
         // Set a flag to trigger refresh in KidDashboard
         sessionStorage.setItem('refreshKidDashboard', 'true');
       } else {
@@ -124,7 +122,7 @@ const WeeklyProgress = () => {
     .toFixed(2);
 
   const overallProgress = goal.amount 
-    ? Math.min(100, Math.floor((goal.currentAmount / goal.amount) * 100))
+    ? Math.min(100, Math.floor(((goal.saved || goal.currentAmount || 0) / goal.amount) * 100))
     : 0;
 
   return (
@@ -161,7 +159,7 @@ const WeeklyProgress = () => {
           </div>
           <div className={tw("w-full bg-gray-200 h-2 rounded-full")}>
             <div
-              className={tw("bg-purple-600 h-2 rounded-full")}
+              className={tw("bg-purple-600 h-2 rounded-full transition-all duration-500")}
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -170,7 +168,7 @@ const WeeklyProgress = () => {
         {/* Weekly Progress */}
         <div className={tw("w-full bg-gray-200 h-3 rounded-full mb-2")}>
           <div
-            className={tw("bg-blue-400 h-3 rounded-full")}
+            className={tw("bg-blue-400 h-3 rounded-full transition-all duration-300")}
             style={{ width: `${(completedChores.length / selectedChores.length) * 100}%` }}
           />
         </div>
@@ -179,23 +177,25 @@ const WeeklyProgress = () => {
         </p>
       </div>
 
-      {/* Controls */}
-      <div className={tw("max-w-4xl mx-auto mb-6 flex gap-4")}>
-        <button
-          onClick={markAllComplete}
-          disabled={completedChores.length === selectedChores.length}
-          className={tw("px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors disabled:opacity-50")}
-        >
-          ✅ Mark All Complete
-        </button>
-        <button
-          onClick={() => setCompletedChores([])}
-          disabled={completedChores.length === 0}
-          className={tw("px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors disabled:opacity-50")}
-        >
-          🔄 Reset Progress
-        </button>
-      </div>
+      {/* Controls - only show if not submitted */}
+      {!hasSubmitted && (
+        <div className={tw("max-w-4xl mx-auto mb-6 flex gap-4")}>
+          <button
+            onClick={markAllComplete}
+            disabled={completedChores.length === selectedChores.length}
+            className={tw("px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors disabled:opacity-50")}
+          >
+            ✅ Mark All Complete
+          </button>
+          <button
+            onClick={() => setCompletedChores([])}
+            disabled={completedChores.length === 0}
+            className={tw("px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors disabled:opacity-50")}
+          >
+            🔄 Reset Progress
+          </button>
+        </div>
+      )}
 
       {/* Chore Cards */}
       <div className={tw("max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6")}>
@@ -208,9 +208,9 @@ const WeeklyProgress = () => {
             <div
               key={index}
               className={tw(
-                `rounded-xl bg-white shadow-md border ${
-                  isCompleted ? "border-green-500" : "border-gray-300"
-                }`
+                `rounded-xl bg-white shadow-md border transition-all duration-300 ${
+                  isCompleted ? "border-green-500 transform scale-[1.02]" : "border-gray-300"
+                } ${hasSubmitted ? "opacity-75" : ""}`
               )}
             >
               {/* Full-width Day Label Bar */}
@@ -230,6 +230,7 @@ const WeeklyProgress = () => {
                     checked={isCompleted}
                     onChange={() => toggleComplete(chore.name)}
                     className={tw("mr-2 w-4 h-4 accent-green-500")}
+                    disabled={hasSubmitted}
                   />
                   <h3
                     className={tw(
@@ -297,38 +298,51 @@ const WeeklyProgress = () => {
         </div>
       )}
 
-      {/* Success Message */}
+      {/* Simplified Success Message */}
       {hasSubmitted && (
-        <div className={tw("mt-8 max-w-4xl mx-auto bg-gradient-to-r from-green-400 to-blue-500 rounded-3xl shadow-lg p-6 text-white text-center")}>
-          <div className={tw("text-6xl mb-4")}>🎉</div>
-          <h3 className={tw("text-2xl font-bold mb-2")}>Awesome Work!</h3>
-          <p className={tw("text-lg mb-4")}>
-            Your parents will review your completed tasks and update your savings!
+        <div className={tw("mt-8 max-w-4xl mx-auto bg-gradient-to-r from-blue-400 to-purple-500 rounded-3xl shadow-lg p-6 text-white text-center")}>
+          <div className={tw('text-6xl mb-4')}>📨</div>
+          <h3 className={tw('text-2xl font-bold mb-2')}>Progress Submitted!</h3>
+          <p className={tw('text-lg mb-4')}>
+            Your progress has been sent to your parents for review.
           </p>
-          <div className={tw("text-xl font-bold mb-6")}>
-            💰 You earned ${totalEarned} this week!
+          <p className={tw('text-md mb-6 opacity-90')}>
+            ✨ You'll be notified when your parents approve your progress and add ${totalEarned} to your savings!
+          </p>
+          
+          <div className={tw('bg-white/20 rounded-xl p-4 mb-6')}>
+            <p className={tw('text-sm mb-2')}>💡 What happens next?</p>
+            <ul className={tw('text-sm text-left space-y-1')}>
+              <li>• Your parents will review your completed chores</li>
+              <li>• Once approved, the money will be added to your goal</li>
+              <li>• These chores will be marked as complete</li>
+              <li>• You can then select new chores to continue</li>
+            </ul>
           </div>
+          
           <button
             onClick={() => navigate("/kid-dashboard")}
             className={tw(
-              "px-8 py-4 bg-white text-green-600 font-bold text-lg rounded-2xl hover:shadow-xl transform hover:scale-105 transition-all"
+              "px-8 py-4 bg-white text-purple-600 font-bold text-lg rounded-2xl hover:shadow-xl transform hover:scale-105 transition-all"
             )}
           >
-            🏠 View Updated Dashboard
+            🏠 Return to Dashboard
           </button>
         </div>
       )}
 
       {/* Footer Buttons */}
       <div className={tw("mt-10 text-center flex flex-wrap justify-center gap-4")}>
-        <button
-          onClick={handleEditMissionList}
-          className={tw(
-            "px-6 py-2 bg-gradient-to-r from-yellow-400 to-pink-300 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
-          )}
-        >
-          ✏️ Edit My Mission List
-        </button>
+        {!hasSubmitted && (
+          <button
+            onClick={handleEditMissionList}
+            className={tw(
+              "px-6 py-2 bg-gradient-to-r from-yellow-400 to-pink-300 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+            )}
+          >
+            ✏️ Edit My Mission List
+          </button>
+        )}
         <button
           onClick={() => navigate("/kid-dashboard")}
           className={tw(
