@@ -1136,8 +1136,7 @@ const ProfilePage = () => {
                           ))}
                         </div>
                       </div>
-                    </div>  */} */}
-
+                    </div>  */} 
                     {/* Chore Categories */}
                     <div className={tw("bg-blue-50 rounded-xl p-6 mb-8")}>
                       <h3
