@@ -1119,7 +1119,7 @@ const KidDashboard = () => {
                 </div>
               </div>
 
-              <div className={tw("mb-6")}>
+              {/* <div className={tw("mb-6")}>
                 <label
                   className={tw(
                     "flex items-center gap-2 text-gray-700 font-medium mb-2"
@@ -1134,7 +1134,7 @@ const KidDashboard = () => {
                     "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
                   )}
                 />
-              </div>
+              </div> */}
 
               <div className={tw("mb-6")}>
                 <label

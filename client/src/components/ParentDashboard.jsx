@@ -438,7 +438,7 @@ const ParentDashboard = () => {
                 <div className={tw('w-8 h-8 rounded-full bg-accent-pink flex items-center justify-center')}>
                   <span className={tw('text-lg')}>{userProfile?.avatar || '👩‍💼'}</span>
                 </div>
-                <span className={tw('text-white font-medium')}>{userProfile?.firstName || 'Sarah'}</span>
+                <span className={tw('text-white font-medium')}>Parents</span>
               </button>
 
               {showUserMenu && (
@@ -779,11 +779,11 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
                       >
                         ✅ Approve Goal
                       </button>
-                      <button
+                      {/* <button
                         className={tw('px-6 py-3 bg-blue-50 text-blue-600 rounded-xl font-semibold hover:bg-blue-100 transition-colors border border-blue-200')}
                       >
                         💭 Suggest Changes
-                      </button>
+                      </button> */}
                       <button
                         onClick={() => onDecline(goal._id)}
                         className={tw('px-6 py-3 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors border border-red-200')}
@@ -1616,7 +1616,7 @@ const ChoreManagementTab = ({
                   onChange={(e) => setChoreToAdd({...choreToAdd, assignedTo: e.target.value})}
                   className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 >
-                  <option value="">-- Unassigned --</option>
+                  {/* <option value="">-- Unassigned --</option> */}
                   {children.map((child) => (
                     <option key={child.username} value={child.username}>
                       {child.avatar} {child.nickName || child.firstName}
@@ -1747,7 +1747,7 @@ const ChoreManagementTab = ({
                   onChange={(e) => setNewChore({...newChore, assignedTo: e.target.value})}
                   className={tw('w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200')}
                 >
-                  <option value="">-- Unassigned --</option>
+                  {/* <option value="">-- Unassigned --</option> */}
                   {children.map((child) => (
                     <option key={child.username} value={child.username}>
                       {child.avatar} {child.nickName || child.firstName}
