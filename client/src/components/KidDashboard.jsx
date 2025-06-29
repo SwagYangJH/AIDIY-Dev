@@ -30,7 +30,6 @@ const KidDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-
   // Calculate total earnings from active goals
   const totalEarnings = activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
   
@@ -116,6 +115,30 @@ const KidDashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Periodically check for new notifications
+  useEffect(() => {
+    // Check for new notifications every 30 seconds
+    const interval = setInterval(() => {
+      fetchNotifications();
+      
+      // If there are any unread goal completion or progress approved notifications, refresh goals
+      const hasImportantNotifications = notifications.some(
+        notif => !notif.read && (
+          notif.type === 'goal_completed' || 
+          notif.type === 'progress_approved' ||
+          notif.type === 'progress_declined'
+        )
+      );
+      
+      if (hasImportantNotifications) {
+        fetchGoals();
+        fetchChores();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [notifications]);
 
   const fetchUserData = async () => {
     try {
@@ -382,7 +405,7 @@ const KidDashboard = () => {
             <button
               onClick={() => setShowNotifications(true)}
               className={tw(
-                "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white"
+                "p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative"
               )}
             >
                 {unreadCount > 0 && (
@@ -671,7 +694,17 @@ const KidDashboard = () => {
             {activeGoals
               .filter(goal => {
                 const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
-                return progressPercent < 100; // Only show incomplete goals
+                const isCompleted = progressPercent >= 100;
+                
+                // Show completed goals for 24 hours after completion
+                if (isCompleted && goal.completed_at) {
+                  const completedDate = new Date(goal.completed_at);
+                  const now = new Date();
+                  const hoursSinceCompletion = (now - completedDate) / (1000 * 60 * 60);
+                  return hoursSinceCompletion < 24; // Show for 24 hours
+                }
+                
+                return !isCompleted; // Show all incomplete goals
               })
               .map((goal) => {
                 const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
@@ -682,15 +715,21 @@ const KidDashboard = () => {
                   <div
                     key={goal._id || goal.id}
                     className={tw(
-                      `rounded-xl p-4 shadow ${
+                      `rounded-xl p-4 shadow transition-all duration-300 relative ${
                         isCompleted 
-                          ? "bg-green-50 border border-green-200"
+                          ? "bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 transform scale-105"
                           : goal.status === "approved" || goal.status === "declined"
                           ? "bg-white-50 border border-blue-200"
                           : "bg-white"
                       }`
                     )}
                   >
+                    {isCompleted && (
+                      <div className={tw("absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2 animate-bounce")}>
+                        <span className={tw("text-xl")}>🎉</span>
+                      </div>
+                    )}
+                    
                     <div className={tw("flex items-center justify-between mb-2")}>
                       <span className={tw("text-sm font-medium")}>
                         {goal.title}
@@ -698,10 +737,10 @@ const KidDashboard = () => {
                       {isCompleted ? (
                         <span
                           className={tw(
-                            "text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                            "text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full font-bold"
                           )}
                         >
-                          Completed! 🎉
+                          COMPLETED! 🎉
                         </span>
                       ) : goal.status === "approved" ? (
                         <span
@@ -743,7 +782,7 @@ const KidDashboard = () => {
                       <span>💰 Saved: ${(goal.saved || 0).toFixed(2)}</span>
                     </div>
 
-                    {hasLaunchedMission && (
+                    {hasLaunchedMission && !isCompleted && (
                       <div className={tw("text-xs text-purple-600 mb-2 flex items-center gap-1")}>
                         <span>🚀</span> Mission Launched
                       </div>
@@ -761,9 +800,9 @@ const KidDashboard = () => {
                       <div className={tw("w-full bg-gray-200 rounded-full h-2")}>
                         <div
                           className={tw(
-                            `h-2 rounded-full ${
+                            `h-2 rounded-full transition-all duration-1000 ${
                               isCompleted 
-                                ? "bg-gradient-to-r from-green-400 to-green-600" 
+                                ? "bg-gradient-to-r from-green-400 to-emerald-600" 
                                 : "bg-gradient-to-r from-primary-turquoise to-accent-purple"
                             }`
                           )}
@@ -778,7 +817,7 @@ const KidDashboard = () => {
                       className={tw(
                         `w-full py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                           isCompleted
-                            ? "bg-green-100 text-green-700 cursor-not-allowed"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white cursor-default"
                             : goal.status === "approved"
                             ? hasLaunchedMission
                               ? "bg-purple-500 text-white hover:bg-purple-600"
@@ -787,13 +826,34 @@ const KidDashboard = () => {
                         }`
                       )}
                     >
-                      {isCompleted ? "Goal Achieved! 🎉" : hasLaunchedMission ? "Continue Mission" : "Start"}
+                      {isCompleted ? "🎊 Goal Achieved! 🎊" : hasLaunchedMission ? "Continue Mission" : "Start"}
                     </button>
                   </div>
                 );
               })}
           </div>
         </div>
+
+        {/* Completed Goals Section */}
+        {activeGoals.some(goal => {
+          const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
+          return progressPercent >= 100;
+        }) && (
+          <div className={tw("mb-6")}>
+            <h3 className={tw("text-lg font-bold text-gray-800 mb-4 flex items-center gap-2")}>
+              <span>🏆</span> Completed Goals
+            </h3>
+            <div className={tw("bg-gradient-to-r from-yellow-50 to-green-50 rounded-2xl p-6 border-2 border-green-300")}>
+              <div className={tw("text-center")}>
+                <div className={tw("text-4xl mb-3")}>🎉</div>
+                <h4 className={tw("text-xl font-bold text-gray-800 mb-2")}>Congratulations!</h4>
+                <p className={tw("text-gray-600")}>
+                  You've achieved your savings goals! Keep up the great work!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chore Categories */}
         <div className={tw("mb-6")}>
@@ -1075,7 +1135,7 @@ const KidDashboard = () => {
                 </div>
               </div>
 
-              <div className={tw("mb-6")}>
+              {/* <div className={tw("mb-6")}>
                 <label
                   className={tw(
                     "flex items-center gap-2 text-gray-700 font-medium mb-2"
@@ -1090,7 +1150,7 @@ const KidDashboard = () => {
                     "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
                   )}
                 />
-              </div>
+              </div> */}
 
               <div className={tw("mb-6")}>
                 <label
@@ -1265,9 +1325,20 @@ const KidDashboard = () => {
 
       {showNotifications && (
         <NotificationsModal
-           isOpen={showNotifications}
-           onClose={() => setShowNotifications(false)}
-           notifications={notifications}
+          isOpen={showNotifications}
+          onClose={() => {
+            setShowNotifications(false);
+            // Refresh data when closing notifications to see any updates
+            fetchGoals();
+            fetchChores();
+            fetchNotifications();
+          }}
+          notifications={notifications}
+          // Kids don't need these handlers, but keep them for compatibility
+          onApproveGoal={() => {}}
+          onDeclineGoal={() => {}}
+          onApproveProgress={() => {}}
+          onDeclineProgress={() => {}}
         />
       )}
 
