@@ -2,6 +2,17 @@
 
 import React from 'react';
 import { tw } from '@twind/core';
+import avatarDaughter from '../images/avatar-daughter.png';
+import avatarSon from '../images/avatar-son.png';
+
+// Helper function to get valid avatar for children
+const getValidChildAvatar = (avatar) => {
+  return avatar && (
+    avatar.includes('/static/') || 
+    avatar === avatarDaughter || 
+    avatar === avatarSon
+  ) ? avatar : avatarDaughter;
+};
 
 const NotificationsModal = ({ 
   isOpen, 
@@ -32,8 +43,12 @@ const NotificationsModal = ({
       return (
         <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
           <div className={tw('flex items-start gap-3')}>
-            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center')}>
-              <span className={tw('text-lg')}>{notification.kid_avatar || '👧'}</span>
+            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden')}>
+              <img
+                src={getValidChildAvatar(notification.kid_avatar)}
+                alt={`${notification.kid_name || 'Child'} avatar`}
+                className="w-8 h-8 object-cover rounded-full"
+              />
             </div>
             
             <div className={tw('flex-1')}>
@@ -88,8 +103,12 @@ const NotificationsModal = ({
       return (
         <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
           <div className={tw('flex items-start gap-3')}>
-            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center')}>
-              <span className={tw('text-lg')}>{notification.kid_avatar || '👧'}</span>
+            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center overflow-hidden')}>
+              <img
+                src={getValidChildAvatar(notification.kid_avatar)}
+                alt={`${notification.kid_name || 'Child'} avatar`}
+                className="w-8 h-8 object-cover rounded-full"
+              />
             </div>
             
             <div className={tw('flex-1')}>
