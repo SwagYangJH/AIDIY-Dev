@@ -271,23 +271,59 @@ const ParentDashboard = () => {
   };
 
   // Add progress decline handler
- const handleDeclineProgress = async (submissionId) => {
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const response = await fetch(`http://localhost:5500/api/progress/${submissionId}/decline`, {
+// ParentDashboard.jsx
+const handleDeclineProgress = async (notificationId, goalTitle) => {
+  try {
+    const token = sessionStorage.getItem('app_token');
+
+    // 1. Call backend to decline progress
+    const response = await fetch(
+      `http://localhost:5500/api/progress/${notificationId}/decline`,
+      {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        alert('Progress declined.');
-        fetchNotifications();
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-    } catch (error) {
-      console.error('Failed to decline progress:', error);
+    );
+    const data = await response.json();
+
+    if (data.success) {
+      // 2. Build kid-friendly notification
+      const notificationMessage = `Oh no! 😢 Your chore progress for "${goalTitle}" wasn't approved. ${data.message || "Let's try again!"}`;
+
+      const newNotification = {
+  user_id: data.kid_id,
+  title: "Chore Needs Redo",   // Or "Chore Needs Improvement"
+  message: notificationMessage,
+  type: "progress_declined",
+  goal_title: goalTitle,              // ← Make sure this is set!
+  related_goal_id: data.goal_id,
+  reassigned_chore_ids: data.reassigned_chore_ids,
+};
+
+
+      // 3. Send notification to backend
+      await fetch(`http://localhost:5500/api/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newNotification),
+      });
+
+      // 4. Refresh notifications in UI
+      fetchNotifications();
+    } else {
+      // Optional: handle error in response
+      console.error('Decline failed:', data.message);
     }
-  };
+  } catch (error) {
+    console.error('Error declining progress:', error);
+  }
+};
+
 
 const handleLogout = async () => {
     try {

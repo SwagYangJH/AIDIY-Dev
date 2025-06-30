@@ -1534,23 +1534,23 @@ def decline_progress_submission(submission_id):
         reassigned_count = 0
         for chore_id in submitted_chore_ids:
             result = chores_col.update_one(
-                {"_id": ObjectId(chore_id), "status": "pending_approval"},  # Only update if it's pending
+                {"_id": ObjectId(chore_id), "status": "pending_approval"},
                 {
                     "$set": {
-                        "status": "Assigned",  # Reset to Assigned
+                        "status": "Assigned",
                         "updated_at": datetime.utcnow(),
                         "declined_at": datetime.utcnow(),
                         "declined_by": request.user["email"]
                     },
                     "$unset": {
-                        "submitted_at": ""  # Remove submission timestamp
+                        "submitted_at": ""
                     }
                 }
             )
             if result.modified_count > 0:
                 reassigned_count += 1
         
-        # Get the goal to find kid's username
+        # Get the goal to find kid's username AND goal title
         goal = goals_col.find_one({"_id": ObjectId(submission["goal_id"])})
         
         if goal:
@@ -1570,8 +1570,9 @@ def decline_progress_submission(submission_id):
                 "title": "Try Again! 💪",
                 "message": f"Your parents want you to redo {len(reassigned_chores)} chore(s). They're ready for another try!",
                 "goal_id": submission["goal_id"],
-                "reassigned_chore_ids": submitted_chore_ids,  # Specific chore IDs
-                "reassigned_chores": reassigned_chores,  # Chore details
+                "goal_title": goal.get("title", ""),  # ← ADD THIS LINE
+                "reassigned_chore_ids": submitted_chore_ids,
+                "reassigned_chores": reassigned_chores,
                 "status": "declined",
                 "read": False,
                 "created_at": datetime.utcnow(),
@@ -1584,7 +1585,9 @@ def decline_progress_submission(submission_id):
         
         return jsonify(
             success=True, 
-            message=f"Progress declined and {reassigned_count} chore(s) reassigned"
+            message=f"Progress declined and {reassigned_count} chore(s) reassigned",
+            kid_id=goal.get("kid_username"),  # Add this for frontend
+            goal_id=submission["goal_id"]     # Add this for frontend
         ), 200
         
     except Exception as e:

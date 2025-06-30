@@ -253,48 +253,63 @@ if (notification.type === 'progress_approved') {
 }
     
     // Handle progress declined notifications for kids with reassignment
-    if (notification.type === 'progress_declined') {
-      return (
-        <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
-          <div className={tw('flex items-start gap-3')}>
-            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-500 flex items-center justify-center')}>
-              <span className={tw('text-lg')}>💪</span>
-            </div>
-            
-            <div className={tw('flex-1')}>
-              <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
-              <p className={tw('text-sm text-gray-600 mt-1')}>{notification.message}</p>
-              
-              {notification.reassigned_chore_ids && notification.reassigned_chore_ids.length > 0 && (
-                <div className={tw('mt-3 bg-yellow-50 rounded-lg p-3')}>
-                  <p className={tw('text-sm font-medium text-yellow-800')}>
-                    ✨ Your chores are ready for you to try again! You've got this!
-                  </p>
-                  <p className={tw('text-xs text-yellow-600 mt-1')}>
-                    {notification.reassigned_chore_ids.length} chore{notification.reassigned_chore_ids.length > 1 ? 's' : ''} reassigned
-                  </p>
-                </div>
-              )}
-              
-              <p className={tw('text-xs text-gray-500 mt-2')}>
-                {new Date(notification.created_at).toLocaleDateString()}
+// NotificationsModal.jsx
+// Add this case to the renderNotification function
+if (notification.type === 'progress_declined') {
+  return (
+    <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
+      <div className={tw('flex items-start gap-3')}>
+        <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center')}>
+          <span className={tw('text-lg')}>🔄</span>
+        </div>
+        
+        <div className={tw('flex-1')}>
+          <h4 className={tw('font-semibold text-gray-900 flex items-center gap-2')}>
+            <span>Chore Needs Redo</span>
+            <span className={tw('text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full')}>
+              Try Again!
+            </span>
+          </h4>
+          
+          {/* ADDED GOAL INFO HERE */}
+          {notification.goal_title && (
+            <div className={tw('mt-1 bg-purple-50 rounded-lg p-2 inline-block')}>
+              <p className={tw('text-sm text-purple-700 font-medium')}>
+                Goal: {notification.goal_title}
               </p>
-              
-              <button
-                onClick={() => {
-                  handleMarkAsRead(notification._id);
-                  onClose(); // Close the modal
-                  navigate('/kid-dashboard'); // Navigate to dashboard to see reassigned chores
-                }}
-                className={tw('mt-3 px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors')}
-              >
-                Let's Try Again! 🚀
-              </button>
             </div>
+          )}
+          
+          <p className={tw('text-sm text-gray-600 mt-2')}>
+            {notification.message}
+          </p>
+          
+          <div className={tw('mt-4 flex gap-2')}>
+            {/* <button
+              onClick={() => {
+                handleMarkAsRead(notification._id);
+                onClose();
+                navigate('/kid-dashboard');
+              }}
+              className={tw('flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:shadow-md transition-all')}
+            >
+              View Chores
+            </button> */}
+            <button
+              onClick={() => {
+                handleMarkAsRead(notification._id);
+                navigate('/chat');
+              }}
+              className={tw('flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors')}
+            >
+              Ask for Help
+            </button>
           </div>
         </div>
-      );
-    }
+      </div>
+    </div>
+  );
+}
     
     // Default notification rendering
     return (

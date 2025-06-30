@@ -424,23 +424,21 @@ const KidDashboard = () => {
               ✨
             </button>
 
-            <button
-              onClick={() => setShowNotifications(true)}
-              className={tw(
-                "p-2 rounded-full bg-yellow-200 hover:bg-white/30 text-white relative"
-              )}
-            >
-              {tomorrowChores.length > 0 && (
-                <span
-                  className={tw(
-                    "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1"
-                  )}
-                >
-                  {tomorrowChores.length}
-                </span>
-              )}
-              <BellIcon size={24} />
-            </button>
+<button
+  onClick={() => setShowNotifications(true)}
+  className={tw("p-2 rounded-full bg-yellow-200 hover:bg-white/30 text-white relative")}
+>
+  {unreadCount > 0 && (
+    <span className={tw(
+      "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1",
+      notifications.some(n => n.type === "progress_declined" && !n.read) 
+        ? "animate-pulse" : ""
+    )}>
+      {unreadCount}
+    </span>
+  )}
+  <BellIcon size={24} />
+</button>
 
             <div
               // className={tw(
@@ -1440,16 +1438,12 @@ const KidDashboard = () => {
       )}
 
       {showNotifications && (
-        <NotificationsModal
-          isOpen={showNotifications}
-          onClose={() => setShowNotifications(false)}
-          notifications={tomorrowChores.map((chore) => ({
-            id: `chore-${chore.id}`,
-            message: `⏰ ${chore.title} is due tomorrow!`,
-            type: "chore",
-          }))}
-        />
-      )}
+  <NotificationsModal
+    isOpen={showNotifications}
+    onClose={() => setShowNotifications(false)}
+    notifications={notifications}
+  />
+)}
     </div>
   );
 };
