@@ -282,7 +282,7 @@ const LoginPage = () => {
                   {/* Google / FB */}
                   <div className={tw("space-y-3 mb-6")}>
                     <div id="google-signin" className={tw("w-full")} />
-                    <button
+                    {/* <button
                       className={tw(
                         "w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-blue-600 rounded-lg font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
                       )}
@@ -295,7 +295,7 @@ const LoginPage = () => {
                         f
                       </span>
                       Facebook
-                    </button>
+                    </button> */}
                   </div>
 
                   {/* divider */}

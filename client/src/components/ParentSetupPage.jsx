@@ -172,7 +172,7 @@ const ParentSetupPage = () => {
               </div>
 
               {/* Avatar Selection */}
-              <div className={tw('flex justify-center mb-8')}>
+              {/* <div className={tw('flex justify-center mb-8')}>
                 <div className={tw('relative')}>
                   <div className={tw('w-32 h-32 rounded-full bg-gradient-to-r from-primary-turquoise to-accent-purple p-1')}>
                     <div className={tw('w-full h-full rounded-full bg-white flex items-center justify-center')}>
@@ -191,7 +191,7 @@ const ParentSetupPage = () => {
                     📷
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* Form Fields */}
               <div className={tw('grid grid-cols-1 md:grid-cols-2 gap-6')}>

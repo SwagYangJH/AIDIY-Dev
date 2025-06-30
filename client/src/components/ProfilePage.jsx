@@ -800,7 +800,7 @@ const ProfilePage = () => {
                   </div>
 
                   {/* Avatar Section */}
-                  <div className={tw("flex justify-center mb-8")}>
+                  {/* <div className={tw("flex justify-center mb-8")}>
                     <div className={tw("relative")}>
                       <div
                         className={tw(
@@ -812,9 +812,9 @@ const ProfilePage = () => {
                             "w-full h-full rounded-full bg-white flex items-center justify-center"
                           )}
                         >
-                          <span className={tw("text-6xl")}>
+                          <span className={tw("text-6xl")}> */}
                             {/* {editingParentRole === "dad" ? avatarDad : avatarMom} */}
-                          </span>
+                          {/* </span>
                         </div>
                       </div>
                       <button
@@ -826,7 +826,7 @@ const ProfilePage = () => {
                         📷
                       </button>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Form Step 1 */}
                   <div

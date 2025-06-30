@@ -588,9 +588,9 @@ const handleLogout = async () => {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className={tw("font-medium")}>
+          {/* <span className={tw("font-medium")}>
             {userProfile?.firstName || "Sarah"}
-          </span>
+          </span> */}
           <span className={tw("font-medium")}>Parents</span>
         </button>
 
