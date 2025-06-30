@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import BellIcon from "./BellIcon";
-import NotificationsModal from './NotificationsModal';
-import avatarDaughter from '../images/avatar-daughter.png';
-import avatarSon from '../images/avatar-son.png';
-import aidiyLogo from '../images/aidiy_logo.png';
+import NotificationsModal from "./NotificationsModal";
+import avatarDaughter from "../images/avatar-daughter.png";
+import avatarSon from "../images/avatar-son.png";
+import aidiyLogo from "../images/aidiy_logo.png";
 
 const KidDashboard = () => {
   const navigate = useNavigate();
@@ -31,10 +31,14 @@ const KidDashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Calculate total earnings from active goals
-  const totalEarnings = activeGoals.reduce((sum, goal) => sum + (goal.saved || 0), 0);
-  
+  const totalEarnings = activeGoals.reduce(
+    (sum, goal) => sum + (goal.saved || 0),
+    0
+  );
+
   // Calculate real values from goals and user profile
-  const totalSavings = userProfile?.financial_info?.total_savings || totalEarnings;
+  const totalSavings =
+    userProfile?.financial_info?.total_savings || totalEarnings;
   const investments = 0; // Can be calculated later
   const level = Math.floor(totalSavings / 50) + 1; // Level up every $50
   const progress = Math.min((level - 1) * 10 + 1, 100); // Progress based on level
@@ -44,28 +48,28 @@ const KidDashboard = () => {
       id: 1,
       icon: "💰",
       title: "Money Smarts",
-      count: 5,
+      count: "",
       description: "Learn about saving, budgeting, and investing",
     },
     {
       id: 2,
       icon: "🏠",
       title: "Home Hero",
-      count: 3,
+      count: "",
       description: "Help around the house and learn new skills",
     },
     {
       id: 3,
       icon: "🍳",
       title: "Kitchen Pro",
-      count: 4,
+      count: "",
       description: "Learn to cook and help with meal prep",
     },
     {
       id: 4,
       icon: "🏃",
       title: "Outdoor Champ",
-      count: 2,
+      count: "",
       description: "Get active, sports, and outdoor activities",
     },
   ];
@@ -93,26 +97,29 @@ const KidDashboard = () => {
   // Check for refresh flag when component becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && sessionStorage.getItem('refreshKidDashboard') === 'true') {
-        console.log('🔄 Refreshing KidDashboard data...');
+      if (
+        !document.hidden &&
+        sessionStorage.getItem("refreshKidDashboard") === "true"
+      ) {
+        console.log("🔄 Refreshing KidDashboard data...");
         fetchGoals();
         fetchChores();
-        sessionStorage.removeItem('refreshKidDashboard');
+        sessionStorage.removeItem("refreshKidDashboard");
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Also check immediately when component mounts
-    if (sessionStorage.getItem('refreshKidDashboard') === 'true') {
-      console.log('🔄 Refreshing KidDashboard data on mount...');
+    if (sessionStorage.getItem("refreshKidDashboard") === "true") {
+      console.log("🔄 Refreshing KidDashboard data on mount...");
       fetchGoals();
       fetchChores();
-      sessionStorage.removeItem('refreshKidDashboard');
+      sessionStorage.removeItem("refreshKidDashboard");
     }
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -121,16 +128,16 @@ const KidDashboard = () => {
     // Check for new notifications every 30 seconds
     const interval = setInterval(() => {
       fetchNotifications();
-      
+
       // If there are any unread goal completion or progress approved notifications, refresh goals
       const hasImportantNotifications = notifications.some(
-        notif => !notif.read && (
-          notif.type === 'goal_completed' || 
-          notif.type === 'progress_approved' ||
-          notif.type === 'progress_declined'
-        )
+        (notif) =>
+          !notif.read &&
+          (notif.type === "goal_completed" ||
+            notif.type === "progress_approved" ||
+            notif.type === "progress_declined")
       );
-      
+
       if (hasImportantNotifications) {
         fetchGoals();
         fetchChores();
@@ -173,18 +180,23 @@ const KidDashboard = () => {
   const handleMarkChoreComplete = async (choreId) => {
     try {
       const token = sessionStorage.getItem("app_token");
-      const response = await fetch(`http://localhost:5500/api/chores/${choreId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: "completed" }),
-      });
+      const response = await fetch(
+        `http://localhost:5500/api/chores/${choreId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "completed" }),
+        }
+      );
 
       const data = await response.json();
       if (data.success) {
-        alert("🎉 Great job! Your chore has been sent to your parents for approval!");
+        alert(
+          "🎉 Great job! Your chore has been sent to your parents for approval!"
+        );
         fetchChores();
       } else {
         alert(data.error || "Failed to mark chore as complete");
@@ -305,29 +317,28 @@ const KidDashboard = () => {
     }
   };
 
-      const fetchNotifications = async () => {
-      try {
-        const token = sessionStorage.getItem("app_token");
-        const res = await fetch("http://localhost:5500/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data.success) {
-          setNotifications(data.notifications);
-          setUnreadCount(data.unread_count);
-        }
-      } catch (e) {
-        console.error("Error fetching notifications:", e);
-      }
-    };
-
-      const tomorrowChores = assignedChores.filter((chore) => {
-        const dueDate = new Date(chore.dueDate);
-        const now = new Date();
-        const diffInDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-        return diffInDays === 1 && chore.status !== 'completed';
+  const fetchNotifications = async () => {
+    try {
+      const token = sessionStorage.getItem("app_token");
+      const res = await fetch("http://localhost:5500/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json();
+      if (data.success) {
+        setNotifications(data.notifications);
+        setUnreadCount(data.unread_count);
+      }
+    } catch (e) {
+      console.error("Error fetching notifications:", e);
+    }
+  };
 
+  const tomorrowChores = assignedChores.filter((chore) => {
+    const dueDate = new Date(chore.dueDate);
+    const now = new Date();
+    const diffInDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+    return diffInDays === 1 && chore.status !== "completed";
+  });
 
   const handleStartGoal = async (goal) => {
     // Check if this goal already has chores assigned (mission launched)
@@ -335,29 +346,32 @@ const KidDashboard = () => {
       // Fetch the assigned chores for this goal
       try {
         const token = sessionStorage.getItem("app_token");
-        const response = await fetch(`http://localhost:5500/api/goals/${goal._id || goal.id}/chores`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetch(
+          `http://localhost:5500/api/goals/${goal._id || goal.id}/chores`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         const data = await response.json();
-        
+
         if (data.success && data.chores.length > 0) {
           // Convert chores to the format expected by WeeklyProgress
-          const formattedChores = data.chores.map(chore => ({
+          const formattedChores = data.chores.map((chore) => ({
             id: chore.id,
             name: chore.title,
             description: chore.description,
             amount: chore.reward,
             difficulty: chore.difficulty,
             category: chore.category,
-            dueDate: chore.dueDate
+            dueDate: chore.dueDate,
           }));
-          
+
           // Go directly to WeeklyProgress with the assigned chores
-          navigate("/weekly-progress", { 
-            state: { 
-              selectedChores: formattedChores, 
-              goal: goal 
-            } 
+          navigate("/weekly-progress", {
+            state: {
+              selectedChores: formattedChores,
+              goal: goal,
+            },
           });
         } else {
           // If no chores found, go to ChoreQuest
@@ -376,14 +390,16 @@ const KidDashboard = () => {
 
   return (
     <div
-      className={tw(
-        "min-h-screen bg-gradient-to-r from-purple-100 to-blue-100"
-      )}
+      className={tw("min-h-screen")}
+      style={{
+        background:
+          "linear-gradient(to bottom right, rgba(183, 115, 190, 0.9), rgba(30, 234, 234, 0.9))",
+      }}
     >
       {/* Header */}
       <header
         className={tw(
-          "bg-gradient-to-r from-primary-turquoise to-primary-turquoise-dark p-4"
+          "bg-white p-4"
         )}
       >
         <div
@@ -393,40 +409,47 @@ const KidDashboard = () => {
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
           >
-            <img 
-              src={aidiyLogo} 
-              alt="AiDIY" 
-              className="h-16 w-auto"
-            />
+            <img src={aidiyLogo} alt="AiDIY" className="h-16 w-auto" />
           </div>
           <div className={tw("flex items-center gap-3")}>
             <button
               onClick={() => navigate("/chat")}
-              className={tw(
-                "top-4  p-2 bg-white rounded-full shadow"
-              )}
+              // className={tw("top-4  p-2 bg-white rounded-full shadow")}
+              className={tw(`
+  px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
+  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+  text-white`)}
               title="Open AI Chatbot"
             >
-              🤖
+              ✨
             </button>
 
             <button
               onClick={() => setShowNotifications(true)}
-              className={tw("p-2 rounded-full bg-white/20 hover:bg-white/30 text-white relative")}
+              className={tw(
+                "p-2 rounded-full bg-yellow-200 hover:bg-white/30 text-white relative"
+              )}
             >
               {tomorrowChores.length > 0 && (
-                <span className={tw("absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1")}>
+                <span
+                  className={tw(
+                    "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1"
+                  )}
+                >
                   {tomorrowChores.length}
                 </span>
               )}
               <BellIcon size={24} />
             </button>
 
-
             <div
-              className={tw(
-                "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
-              )}
+              // className={tw(
+              //   "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
+              // )}
+              className={tw(`
+  flex items-center gap-2 bg-white/20 rounded-full px-3 py-1
+  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+  text-white`)}
             >
               <div
                 className={tw(
@@ -434,12 +457,14 @@ const KidDashboard = () => {
                 )}
               >
                 {(() => {
-                  const validAvatar = userProfile?.avatar && (
-                    userProfile.avatar.includes('/static/') || 
-                    userProfile.avatar === avatarDaughter || 
-                    userProfile.avatar === avatarSon
-                  ) ? userProfile.avatar : avatarDaughter;
-                  
+                  const validAvatar =
+                    userProfile?.avatar &&
+                    (userProfile.avatar.includes("/static/") ||
+                      userProfile.avatar === avatarDaughter ||
+                      userProfile.avatar === avatarSon)
+                      ? userProfile.avatar
+                      : avatarDaughter;
+
                   return (
                     <img
                       src={validAvatar}
@@ -455,9 +480,13 @@ const KidDashboard = () => {
             </div>
             <button
               onClick={handleLogout}
-              className={tw(
-                "px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
-              )}
+              // className={tw(
+              //   "px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
+              // )}
+              className={tw(`
+  px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
+  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+  text-white`)}
             >
               Sign Out
             </button>
@@ -467,7 +496,7 @@ const KidDashboard = () => {
 
       {/* Main Content */}
       <div className={tw("max-w-7xl mx-auto px-4 py-6")}>
-        <h1 className={tw("text-2xl font-bold text-gray-800 mb-6")}>
+        <h1 className={tw("text-2xl font-bold text-[#0a2150] mb-6")}>
           Kid dashboard
         </h1>
 
@@ -475,10 +504,10 @@ const KidDashboard = () => {
         <div className={tw("bg-white rounded-2xl shadow-lg p-6 mb-6")}>
           <div className={tw("flex items-center justify-between mb-4")}>
             <div>
-              <h2 className={tw("text-xl font-bold text-gray-800")}>
+              <h2 className={tw("text-xl font-bold text-[#0a2150]")}>
                 Welcome, {kidNickname}! 👋
               </h2>
-              <p className={tw("text-gray-600")}>
+              <p className={tw("text-[#0a2150]")}>
                 Journey unlocked! Let’s boost your money smarts!
               </p>
             </div>
@@ -579,162 +608,236 @@ const KidDashboard = () => {
         </div>
 
         {/* Create New Goal */}
-        <div
-          className={tw(
-            "bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl p-6 mb-6 text-white"
-          )}
-        >
-          <h2 className={tw("text-2xl font-bold mb-2")}>Create new goal</h2>
-          <p className={tw("mb-4")}>& Get Approval from parents</p>
-          <button
-            onClick={() => setShowGoalModal(true)}
+        <div className={tw("flex justify-start")}>
+          <div
             className={tw(
-              "w-12 h-12 bg-white/30 rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
+              "w-[50%] h-[170px] bg-gradient-to-r from-blue-500 to-purple-600 rounded-[30px] p-6 mb-6 text-white"
             )}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M5 12L19 12"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              <path
-                d="M12 5L19 12L12 19"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+            <h2 className={tw("text-2xl font-bold mb-2")}>Create a new goal</h2>
+            <p className={tw("mb-4")}>& Get Approval from parents</p>
+            <button
+              onClick={() => setShowGoalModal(true)}
+              className={tw(
+                "w-12 h-12 bg-white/30 rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
+              )}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12L19 12"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M12 5L19 12L12 19"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
-{/* // My Assigned Chores Section */}
-<div className={tw("mb-6")}>
-  <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>My Assigned Chores</h3>
-  {assignedChores.filter(chore => !chore.assigned_goal_id).length === 0 ? (
-    <div className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}>
-      <div className={tw("text-4xl mb-4")}>📋</div>
-      <p className={tw("text-gray-600")}>No standalone chores assigned! Check your goals for chores.</p>
-    </div>
-  ) : (
-    <div className={tw("grid grid-cols-1 md:grid-cols-2 gap-4")}>
-      {assignedChores
-        .filter(chore => !chore.assigned_goal_id) // Only show chores not assigned to goals
-        .map((chore) => {
-          const dueDate = new Date(chore.dueDate);
-          const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
-          const isPending = chore.status === "pending_approval";
-          const isCompleted = chore.status === "completed" || isPending;
-
-          return (
+        {/* // My Assigned Chores Section */}
+        <div className={tw("mb-6")}>
+          <h3 className={tw("text-lg font-bold text-[#0a2150] mb-4")}>
+            My Assigned Chores
+          </h3>
+          {assignedChores.filter((chore) => !chore.assigned_goal_id).length ===
+          0 ? (
             <div
-              key={chore.id}
-              className={tw(`bg-white rounded-xl p-6 shadow-lg border-2 ${
-                isPending ? "border-yellow-400 bg-yellow-50" :
-                isCompleted ? "border-green-400 bg-green-50" :
-                daysUntilDue <= 2 ? "border-red-400" : "border-gray-200"
-              }`)}
+              className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}
             >
-              <div className={tw("flex items-start justify-between mb-4")}>
-                <div className={tw("flex-1")}>
-                  <h4 className={tw("text-lg font-bold text-gray-800 mb-2")}>{chore.title}</h4>
-                  <p className={tw("text-sm text-gray-600 mb-3")}>{chore.description}</p>
-                  
-                  <div className={tw("flex items-center gap-4 text-sm text-gray-600 mb-3")}>
-                    <span className={tw("flex items-center gap-1")}>
-                      <span>📂</span> {chore.category}
-                    </span>
-                    <span className={tw("flex items-center gap-1")}>
-                      <span>⏰</span> {daysUntilDue > 0 ? `${daysUntilDue} days left` : "Overdue!"}
-                    </span>
-                  </div>
-
-                  <div className={tw("flex items-center justify-between")}>
-                    <div className={tw("text-2xl font-bold text-green-600")}>
-                      💰 ${chore.reward.toFixed(2)}
-                    </div>
-                    {isPending ? (
-                      <span className={tw("px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium")}>
-                        ⏳ Waiting for approval
-                      </span>
-                    ) : isCompleted ? (
-                      <span className={tw("px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium")}>
-                        ✅ Completed
-                      </span>
-                    ) : (
-                      // REMOVED THE MARK COMPLETE BUTTON HERE
-                      <span className={tw("text-sm text-gray-600")}>
-                        Assigned
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className={tw(`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                  isPending ? "bg-yellow-100" :
-                  isCompleted ? "bg-green-100" :
-                  "bg-gray-100"
-                }`)}>
-                  {chore.difficulty === "Easy" ? "⭐" :
-                   chore.difficulty === "Medium" ? "⭐⭐" :
-                   "⭐⭐⭐"}
-                </div>
-              </div>
+              <div className={tw("text-4xl mb-4")}>📋</div>
+              <p className={tw("text-gray-600")}>
+                No standalone chores assigned! Check your goals for chores.
+              </p>
             </div>
-          );
-        })}
-    </div>
-  )}
-</div>
+          ) : (
+            <div className={tw("grid grid-cols-1 md:grid-cols-2 gap-4")}>
+              {assignedChores
+                .filter((chore) => !chore.assigned_goal_id) // Only show chores not assigned to goals
+                .map((chore) => {
+                  const dueDate = new Date(chore.dueDate);
+                  const daysUntilDue = Math.ceil(
+                    (dueDate - new Date()) / (1000 * 60 * 60 * 24)
+                  );
+                  const isPending = chore.status === "pending_approval";
+                  const isCompleted = chore.status === "completed" || isPending;
+
+                  return (
+                    <div
+                      key={chore.id}
+                      className={tw(
+                        `bg-white rounded-xl p-6 shadow-lg border-2 ${
+                          isPending
+                            ? "border-yellow-400 bg-yellow-50"
+                            : isCompleted
+                            ? "border-green-400 bg-green-50"
+                            : daysUntilDue <= 2
+                            ? "border-red-400"
+                            : "border-gray-200"
+                        }`
+                      )}
+                    >
+                      <div
+                        className={tw("flex items-start justify-between mb-4")}
+                      >
+                        <div className={tw("flex-1")}>
+                          <h4
+                            className={tw(
+                              "text-lg font-bold text-gray-800 mb-2"
+                            )}
+                          >
+                            {chore.title}
+                          </h4>
+                          <p className={tw("text-sm text-gray-600 mb-3")}>
+                            {chore.description}
+                          </p>
+
+                          <div
+                            className={tw(
+                              "flex items-center gap-4 text-sm text-gray-600 mb-3"
+                            )}
+                          >
+                            <span className={tw("flex items-center gap-1")}>
+                              <span>📂</span> {chore.category}
+                            </span>
+                            <span className={tw("flex items-center gap-1")}>
+                              <span>⏰</span>{" "}
+                              {daysUntilDue > 0
+                                ? `${daysUntilDue} days left`
+                                : "Overdue!"}
+                            </span>
+                          </div>
+
+                          <div
+                            className={tw("flex items-center justify-between")}
+                          >
+                            <div
+                              className={tw(
+                                "text-2xl font-bold text-green-600"
+                              )}
+                            >
+                              💰 ${chore.reward.toFixed(2)}
+                            </div>
+                            {isPending ? (
+                              <span
+                                className={tw(
+                                  "px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium"
+                                )}
+                              >
+                                ⏳ Waiting for approval
+                              </span>
+                            ) : isCompleted ? (
+                              <span
+                                className={tw(
+                                  "px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium"
+                                )}
+                              >
+                                ✅ Completed
+                              </span>
+                            ) : (
+                              // REMOVED THE MARK COMPLETE BUTTON HERE
+                              <span className={tw("text-sm text-gray-600")}>
+                                Assigned
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          className={tw(
+                            `w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                              isPending
+                                ? "bg-yellow-100"
+                                : isCompleted
+                                ? "bg-green-100"
+                                : "bg-gray-100"
+                            }`
+                          )}
+                        >
+                          {chore.difficulty === "Easy"
+                            ? "⭐"
+                            : chore.difficulty === "Medium"
+                            ? "⭐⭐"
+                            : "⭐⭐⭐"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
 
         {/* Active Goals */}
         <div className={tw("mb-6")}>
-          <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>
+          <h3 className={tw("text-lg font-bold text-[#0a2150] mb-4")}>
             Active Goals
           </h3>
           <div className={tw("grid grid-cols-1 md:grid-cols-4 gap-4")}>
             {activeGoals
-              .filter(goal => {
-                const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
+              .filter((goal) => {
+                const progressPercent = Math.min(
+                  ((goal.saved || 0) / (goal.amount || 1)) * 100,
+                  100
+                );
                 const isCompleted = progressPercent >= 100;
-                
+
                 // Show completed goals for 24 hours after completion
                 if (isCompleted && goal.completed_at) {
                   const completedDate = new Date(goal.completed_at);
                   const now = new Date();
-                  const hoursSinceCompletion = (now - completedDate) / (1000 * 60 * 60);
+                  const hoursSinceCompletion =
+                    (now - completedDate) / (1000 * 60 * 60);
                   return hoursSinceCompletion < 24; // Show for 24 hours
                 }
-                
+
                 return !isCompleted; // Show all incomplete goals
               })
               .map((goal) => {
-                const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
+                const progressPercent = Math.min(
+                  ((goal.saved || 0) / (goal.amount || 1)) * 100,
+                  100
+                );
                 const isCompleted = progressPercent >= 100;
-                const hasLaunchedMission = goal.has_launched_mission || goal.assigned_chore_ids?.length > 0;
-                
+                const hasLaunchedMission =
+                  goal.has_launched_mission ||
+                  goal.assigned_chore_ids?.length > 0;
+
                 return (
                   <div
                     key={goal._id || goal.id}
                     className={tw(
-                      `rounded-xl p-4 shadow transition-all duration-300 relative ${
-                        isCompleted 
+                      `bg-white rounded-xl p-4 shadow transition-all duration-300 relative ${
+                        isCompleted
                           ? "bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 transform scale-105"
-                          : goal.status === "approved" || goal.status === "declined"
+                          : goal.status === "approved" ||
+                            goal.status === "declined"
                           ? "bg-white-50 border border-blue-200"
                           : "bg-white"
                       }`
                     )}
                   >
                     {isCompleted && (
-                      <div className={tw("absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2 animate-bounce")}>
+                      <div
+                        className={tw(
+                          "absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2 animate-bounce"
+                        )}
+                      >
                         <span className={tw("text-xl")}>🎉</span>
                       </div>
                     )}
-                    
-                    <div className={tw("flex items-center justify-between mb-2")}>
-                      <span className={tw("text-sm font-medium")}>
+
+                    <div
+                      className={tw("flex items-center justify-between mb-2")}
+                    >
+                      <span
+                        className={tw("text-sm font-medium text-[#0a2150]")}
+                      >
                         {goal.title}
                       </span>
                       {isCompleted ? (
@@ -772,13 +875,13 @@ const KidDashboard = () => {
                       )}
                     </div>
 
-                    <div className={tw("text-sm text-gray-600 mb-2")}>
+                    <div className={tw("text-sm text-gray-700 mb-2")}>
                       Save ${goal.amount} for {goal.category || "your goal"}
                     </div>
 
                     <div
                       className={tw(
-                        "flex items-center gap-2 text-xs text-gray-500 mb-3"
+                        "flex items-center gap-2 text-xs text-[#0a2150] mb-3"
                       )}
                     >
                       <span>📅 Due in {goal.duration || "N/A"} Weeks</span>
@@ -786,7 +889,11 @@ const KidDashboard = () => {
                     </div>
 
                     {hasLaunchedMission && !isCompleted && (
-                      <div className={tw("text-xs text-purple-600 mb-2 flex items-center gap-1")}>
+                      <div
+                        className={tw(
+                          "text-xs text-purple-600 font-bold mb-2 flex items-center gap-1"
+                        )}
+                      >
                         <span>🚀</span> Mission Launched
                       </div>
                     )}
@@ -794,18 +901,20 @@ const KidDashboard = () => {
                     <div className={tw("mb-2")}>
                       <div
                         className={tw(
-                          "flex justify-between text-xs text-gray-600 mb-1"
+                          "flex justify-between text-xs text-[#0a2150]"
                         )}
                       >
                         <span>Progress</span>
                         <span>{progressPercent.toFixed(0)}%</span>
                       </div>
-                      <div className={tw("w-full bg-gray-200 rounded-full h-2")}>
+                      <div
+                        className={tw("w-full bg-gray-200 rounded-full h-2")}
+                      >
                         <div
                           className={tw(
                             `h-2 rounded-full transition-all duration-1000 ${
-                              isCompleted 
-                                ? "bg-gradient-to-r from-green-400 to-emerald-600" 
+                              isCompleted
+                                ? "bg-gradient-to-r from-green-400 to-emerald-600"
                                 : "bg-gradient-to-r from-primary-turquoise to-accent-purple"
                             }`
                           )}
@@ -829,7 +938,11 @@ const KidDashboard = () => {
                         }`
                       )}
                     >
-                      {isCompleted ? "🎊 Goal Achieved! 🎊" : hasLaunchedMission ? "Continue Mission" : "Start"}
+                      {isCompleted
+                        ? "🎊 Goal Achieved! 🎊"
+                        : hasLaunchedMission
+                        ? "Continue Mission"
+                        : "Start"}
                     </button>
                   </div>
                 );
@@ -860,8 +973,8 @@ const KidDashboard = () => {
 
         {/* Chore Categories */}
         <div className={tw("mb-6")}>
-          <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>
-            Chore categories
+          <h3 className={tw("text-lg font-bold text-[#0a2150] mb-4")}>
+            Chore Categories
           </h3>
           <div className={tw("grid grid-cols-2 md:grid-cols-4 gap-4")}>
             {choreCategories.map((category) => (
@@ -872,10 +985,10 @@ const KidDashboard = () => {
                 )}
               >
                 <div className={tw("text-3xl mb-2")}>{category.icon}</div>
-                <h4 className={tw("font-semibold text-gray-800 mb-1")}>
+                <h4 className={tw("font-semibold text-[#0a2150] mb-1")}>
                   {category.title}
                 </h4>
-                <p className={tw("text-xs text-gray-600 mb-2")}>
+                <p className={tw("text-xs text-[#0a2150] mb-2")}>
                   {category.description}
                 </p>
                 <span
@@ -890,7 +1003,7 @@ const KidDashboard = () => {
 
         {/* Achievement Gallery */}
         <div className={tw("bg-white rounded-2xl shadow-lg p-6")}>
-          <h3 className={tw("text-lg font-bold text-gray-800 mb-4")}>
+          <h3 className={tw("text-lg font-bold text-[#0a2150] mb-4")}>
             Achievement Gallery
           </h3>
           <div className={tw("space-y-3")}>
@@ -910,11 +1023,11 @@ const KidDashboard = () => {
                     {achievement.icon}
                   </div>
                   <div>
-                    <h4 className={tw("font-semibold text-gray-800")}>
+                    <h4 className={tw("font-semibold text-[#0a2150]")}>
                       {achievement.title}
                     </h4>
                     {achievement.level && (
-                      <p className={tw("text-xs text-gray-600")}>
+                      <p className={tw("text-xs text-[#0a2150]")}>
                         {achievement.level}
                       </p>
                     )}
@@ -1333,12 +1446,10 @@ const KidDashboard = () => {
           notifications={tomorrowChores.map((chore) => ({
             id: `chore-${chore.id}`,
             message: `⏰ ${chore.title} is due tomorrow!`,
-            type: "chore"
+            type: "chore",
           }))}
         />
       )}
-
-
     </div>
   );
 };

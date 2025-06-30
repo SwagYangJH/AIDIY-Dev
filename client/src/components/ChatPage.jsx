@@ -1,6 +1,7 @@
 // src/pages/ChatPage.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { tw } from "@twind/core";
+import AIAvatar from "./AIAvatar";
 
 const ChatPage = () => {
   /* ─────────────── state ─────────────── */
@@ -365,7 +366,7 @@ const ChatPage = () => {
       <main className={tw`flex-1 flex flex-col px-4 py-6`}>
         {/* Header */}
         <div className={tw`flex justify-between items-center mb-4`}>
-          <h1 className={tw`text-2xl font-bold text-primary-turquoise`}>🤖 AI Financial Coach</h1>
+          <h1 className={tw`text-2xl font-bold text-primary-turquoise`}>Ai DIY</h1>
           {activeSession && (
             <input
               value={chatSessions.find((s) => s._id === activeSession)?.title || ""}
@@ -375,16 +376,20 @@ const ChatPage = () => {
             />
           )}
         </div>
+    
+
 
         {/* Messages */}
         <section
           className={tw`flex flex-col flex-grow max-w-4xl mx-auto rounded-xl shadow-md p-6 sm:p-8`}
           style={{ backgroundColor: "#E3DCEE" }}
         >
+          
           <div className={tw`flex-grow overflow-y-auto mb-4 space-y-4 max-h-[70vh]`}>
             {messages.length === 0 && !isLoading && (
               <div className={tw`flex flex-col items-center justify-center h-full text-gray-500`}>
                 <div className={tw`text-4xl mb-4`}>💬</div>
+                     {/* <AIAvatar size="large" animated={true} /> */}
                 <p>Start a conversation with your financial coach</p>
                 <p className={tw`text-sm mt-2`}>Ask about saving, budgeting, or money management!</p>
               </div>
