@@ -1481,18 +1481,18 @@ const PinkStatsCard = ({ avatar }) => (
         />
       </div>
       {/* optional edit icon */}
-      <button
+      {/* <button
         className={tw(
           "absolute bottom-0 right-0 w-8 h-8 bg-primary-turquoise text-white rounded-full flex items-center justify-center text-sm"
         )}
       >
         ✏️
-      </button>
+      </button> */}
     </div>
     <div className={tw("space-y-3")}>
-      <Stat label="Money Accumulated" value="$ 0" />
+      {/* <Stat label="Money Accumulated" value="$ 0" />
       <Stat label="Tasks Assigned" value="0" />
-      <Stat label="Tasks Completed" value="0" />
+      <Stat label="Tasks Completed" value="0" /> */}
     </div>
   </div>
 );
