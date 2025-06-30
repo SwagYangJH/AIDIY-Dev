@@ -572,7 +572,7 @@ const KidDashboard = () => {
                 <span className={tw("text-sm text-gray-600")}>Savings</span>
               </div>
               <p className={tw("text-2xl font-bold")}>
-                $0.00
+                ${totalSavings.toFixed(2)}
               </p>
             </div>
             <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
@@ -1068,22 +1068,27 @@ const KidDashboard = () => {
       </div>
 
       {/* Goal Creation Modal */}
-{showGoalModal && (
-  <div className={tw(
-    "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-  )}>
-    <div className={tw(
-      "bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-y-auto max-h-[90vh] p-0"
-    )}>
-      <div className={tw(
-        "bg-gradient-to-r from-purple-400 to-pink-400 p-4 sm:p-6 rounded-t-2xl text-white text-center"
-      )}>
-        <h3 className={tw("text-2xl font-bold mb-2")}>CREATE A GOAL!</h3>
-        <p className={tw("text-sm opacity-90")}>
-          What Amazing Thing Do You Want To Save For?
-        </p>
-      </div>
-      <form onSubmit={handleCreateGoal} className={tw("p-4 sm:p-6")}>
+      {showGoalModal && (
+        <div
+          className={tw(
+            "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          )}
+        >
+          <div
+            className={tw("bg-white rounded-2xl shadow-2xl w-full max-w-md")}
+          >
+            <div
+              className={tw(
+                "bg-gradient-to-r from-purple-400 to-pink-400 p-6 rounded-t-2xl text-white text-center"
+              )}
+            >
+              <h3 className={tw("text-2xl font-bold mb-2")}>CREATE A GOAL!</h3>
+              <p className={tw("text-sm opacity-90")}>
+                What Amazing Thing Do You Want To Save For?
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateGoal} className={tw("p-6")}>
               <div className={tw("mb-4")}>
                 <label
                   className={tw(
