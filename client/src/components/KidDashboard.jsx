@@ -572,7 +572,7 @@ const KidDashboard = () => {
                 <span className={tw("text-sm text-gray-600")}>Savings</span>
               </div>
               <p className={tw("text-2xl font-bold")}>
-                ${totalSavings.toFixed(2)}
+                $0.00
               </p>
             </div>
             <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
