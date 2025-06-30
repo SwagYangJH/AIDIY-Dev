@@ -217,14 +217,14 @@ const NotificationsModal = ({
                 {new Date(notification.created_at).toLocaleDateString()}
               </p>
               
-              {!notification.read && (
+              {/* {!notification.read && (
                 <button
                   onClick={() => handleMarkAsRead(notification._id)}
                   className={tw('mt-3 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors')}
                 >
                   Mark as Read
                 </button>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -263,7 +263,7 @@ const NotificationsModal = ({
             {new Date(notification.created_at).toLocaleDateString()}
           </p>
           
-          <button
+          {/* <button
             onClick={() => {
               handleMarkAsRead(notification._id);
               navigate('/kid-dashboard');
@@ -271,7 +271,7 @@ const NotificationsModal = ({
             className={tw('mt-3 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
           >
             View Dashboard 🏠
-          </button>
+          </button> */}
         </div>
       </div>
     </div>
@@ -339,14 +339,14 @@ const NotificationsModal = ({
               {new Date(notification.created_at).toLocaleDateString()}
             </p>
             
-            {!notification.read && (
-              <button
-                onClick={() => handleMarkAsRead(notification._id)}
-                className={tw('mt-3 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors')}
-              >
-                Mark as Read
-              </button>
-            )}
+            {/* {!notification.read && (
+              // <button
+              //   onClick={() => handleMarkAsRead(notification._id)}
+              //   className={tw('mt-3 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors')}
+              // >
+              //   Mark as Read
+              // </button>
+            )} */}
           </div>
         </div>
       </div>
