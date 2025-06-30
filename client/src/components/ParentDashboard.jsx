@@ -1161,267 +1161,345 @@ const GoalRequestsTab = ({ goals, notifications, onApprove, onDecline }) => {
   );
 };
 
-const ProgressTrackingTab = ({ childrenProgress, childrenChores }) => {
-  const overallStats = childrenChores.reduce(
-    (acc, child) => {
-      acc.completed += child.chores_completed || 0;
-      acc.pending += child.chores_pending || 0;
-      acc.totalRewards += child.total_earned || 0;
-      return acc;
-    },
-    { completed: 0, pending: 0, totalRewards: 0 }
-  );
+const ProgressTrackingTab = ({ childrenProgress = [], childrenChores = [] }) => {
+  // Helper function for avatar
+  const getValidChildAvatar = (avatar) => {
+    return avatar || '👧';
+  };
+
+  // Helper function to format date
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Helper function to calculate days remaining
+  const getDaysRemaining = (dueDate) => {
+    if (!dueDate) return null;
+    const due = new Date(dueDate);
+    const today = new Date();
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Helper function to get status color
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'completed': 'bg-green-100 text-green-700 border-green-200',
+      'archived': 'bg-gray-100 text-gray-700 border-gray-200',
+      'pending_approval': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      'in_progress': 'bg-blue-100 text-blue-700 border-blue-200',
+      'Assigned': 'bg-purple-100 text-purple-700 border-purple-200',
+      'approved': 'bg-green-100 text-green-700 border-green-200',
+      'pending': 'bg-orange-100 text-orange-700 border-orange-200',
+      'declined': 'bg-red-100 text-red-700 border-red-200'
+    };
+    return statusColors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+  };
+
+  // Calculate overall statistics
+  const overallStats = React.useMemo(() => {
+    const stats = {
+      totalKids: childrenChores.length,
+      totalCompleted: 0,
+      totalPending: 0,
+      totalEarned: 0,
+      totalGoals: 0,
+      activeGoals: 0,
+      completedGoals: 0,
+      totalSaved: 0
+    };
+
+    childrenChores.forEach(child => {
+      stats.totalCompleted += child.chores_completed || 0;
+      stats.totalPending += child.chores_pending || 0;
+      stats.totalEarned += child.total_earned || 0;
+    });
+
+    childrenProgress.forEach(child => {
+      if (child.goals) {
+        stats.totalGoals += child.goals.length;
+        stats.activeGoals += child.active_goals || 0;
+        stats.completedGoals += child.completed_goals || 0;
+        stats.totalSaved += child.total_saved || 0;
+      }
+    });
+
+    return stats;
+  }, [childrenChores, childrenProgress]);
+
+  // Merge children data
+  const mergedChildren = React.useMemo(() => {
+    const childMap = new Map();
+    
+    // Add chores data
+    childrenChores.forEach(child => {
+      childMap.set(child.username, { ...child });
+    });
+    
+    // Merge progress data
+    childrenProgress.forEach(child => {
+      const existing = childMap.get(child.username) || {};
+      childMap.set(child.username, { ...existing, ...child });
+    });
+    
+    return Array.from(childMap.values());
+  }, [childrenChores, childrenProgress]);
 
   return (
-    <div className={tw("space-y-6")}>
-      <div
-        className={tw(
-          "bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
-        )}
-      >
-        <div className={tw("flex items-center justify-between mb-6")}>
-          <div>
-            <h2 className={tw("text-2xl font-bold text-[#0a2150]")}>
-              Progress Tracking
-            </h2>
-            <p className={tw("text-[#0a2150]")}>
-              See how your kid is leveling up and earning along the way!
-            </p>
-          </div>
-          <div className={tw("text-right")}>
-            <div className={tw("text-3xl font-bold text-green-600")}>
-              ${overallStats.totalRewards.toFixed(2)}
-            </div>
-            <div className={tw("text-sm text-gray-600")}>Total Earned</div>
-          </div>
+    <div className="space-y-6">
+      {/* Overall Statistics Card */}
+      <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Progress Overview</h2>
+          <p className="text-gray-600 mt-1">Track your children's achievements and earnings</p>
         </div>
 
-        <div className={tw("grid grid-cols-3 gap-4")}>
-          <div
-            className={tw(
-              "bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200"
-            )}
-          >
-            <div className={tw("text-3xl font-bold text-blue-600 mb-1")}>
-              {overallStats.completed}
-            </div>
-            <div className={tw("text-sm font-medium text-blue-800")}>
-              Completed
-            </div>
-            <div className={tw("text-xs text-blue-600")}>Chores done</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200">
+            <div className="text-3xl font-bold text-blue-600 mb-1">{overallStats.totalKids}</div>
+            <div className="text-sm font-medium text-blue-800">Active Kids</div>
           </div>
-          <div
-            className={tw(
-              "bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 text-center border border-orange-200"
-            )}
-          >
-            <div className={tw("text-3xl font-bold text-orange-600 mb-1")}>
-              {overallStats.pending}
-            </div>
-            <div className={tw("text-sm font-medium text-orange-800")}>
-              In Progress
-            </div>
-            <div className={tw("text-xs text-orange-600")}>Active tasks</div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 text-center border border-green-200">
+            <div className="text-3xl font-bold text-green-600 mb-1">${overallStats.totalSaved.toFixed(2)}</div>
+            <div className="text-sm font-medium text-green-800">Total Earned</div>
           </div>
-          <div
-            className={tw(
-              "bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center border border-purple-200"
-            )}
-          >
-            <div className={tw("text-3xl font-bold text-purple-600 mb-1")}>
-              {childrenChores.length}
-            </div>
-            <div className={tw("text-sm font-medium text-purple-800")}>
-              Children
-            </div>
-            <div className={tw("text-xs text-purple-600")}>Tracked</div>
+          {/* <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center border border-purple-200">
+            <div className="text-3xl font-bold text-purple-600 mb-1">{overallStats.totalCompleted}</div>
+            <div className="text-sm font-medium text-purple-800">Chores Done</div>
+          </div> */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 text-center border border-orange-200">
+            <div className="text-3xl font-bold text-orange-600 mb-1">{overallStats.activeGoals}</div>
+            <div className="text-sm font-medium text-orange-800">Active Goals</div>
           </div>
         </div>
       </div>
 
-      {childrenChores.map((child) => {
-        const childGoals = childrenProgress.find(
-          (cp) => cp.username === child.username
-        );
-        const activeGoal = childGoals?.goals?.find(
-          (g) => g.status === "approved"
-        );
-        const progressPercentage = activeGoal
-          ? Math.min((child.total_earned / activeGoal.amount) * 100, 100)
-          : 0;
-
-        return (
-          <div
-            key={child.username}
-            className={tw(
-              "bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
-            )}
-          >
-            <div
-              className={tw(
-                "bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200"
-              )}
-            >
-              <div className={tw("flex items-center justify-between")}>
-                <div className={tw("flex items-center gap-4")}>
-                  <div
-                    className={tw(
-                      "w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg overflow-hidden"
-                    )}
-                  >
-                    <img
-                      src={getValidChildAvatar(child.avatar)}
-                      alt={`${child.nickName || child.firstName} avatar`}
-                      className="w-12 h-12 object-cover rounded-full"
-                    />
-                  </div>
-                  <div>
-                    <h3 className={tw("text-xl font-bold text-gray-900")}>
-                      {child.nickName || child.firstName}
-                    </h3>
-                    <p className={tw("text-gray-600")}>
-                      {activeGoal
-                        ? `Saving for ${activeGoal.title}`
-                        : "No active goal"}
-                    </p>
-                    {activeGoal && (
-                      <div className={tw("flex items-center gap-2 mt-1")}>
-                        <div
-                          className={tw(
-                            "w-32 h-2 bg-gray-200 rounded-full overflow-hidden"
-                          )}
-                        >
-                          <div
-                            className={tw(
-                              "h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
-                            )}
-                            style={{ width: `${progressPercentage}%` }}
-                          />
-                        </div>
-                        <span
-                          className={tw("text-sm font-medium text-gray-700")}
-                        >
-                          ${(child.total_earned || 0).toFixed(2)} / $
-                          {activeGoal.amount}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className={tw("flex items-center gap-4")}>
-                  <div className={tw("text-center")}>
-                    <div className={tw("text-2xl font-bold text-green-600")}>
-                      {child.chores_completed || 0}
+      {/* Individual Child Cards */}
+      {mergedChildren.length === 0 ? (
+        <div className="bg-white rounded-3xl shadow-lg p-12 text-center border border-gray-100">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+            <span className="text-3xl">👨‍👩‍👧‍👦</span>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Children Added Yet</h3>
+          <p className="text-gray-600">Add your children to start tracking their progress</p>
+        </div>
+      ) : (
+        mergedChildren.map((child) => {
+          const activeGoals = child.goals?.filter(g => g.status === 'approved') || [];
+          const completedGoals = child.goals?.filter(g => g.status === 'completed') || [];
+          const pendingGoals = child.goals?.filter(g => g.status === 'pending_approval') || [];
+          
+          return (
+            <div key={child.username} className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+              {/* Child Header */}
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl">
+                      {getValidChildAvatar(child.avatar)}
                     </div>
-                    <div className={tw("text-xs text-gray-600")}>Completed</div>
-                  </div>
-                  <div className={tw("text-center")}>
-                    <div className={tw("text-2xl font-bold text-orange-500")}>
-                      {child.chores_pending || 0}
+                    <div className="text-white">
+                      <h3 className="text-2xl font-bold">{child.nickName || child.firstName}</h3>
+                      <p className="text-white/80">@{child.username}</p>
                     </div>
-                    <div className={tw("text-xs text-gray-600")}>Pending</div>
                   </div>
-                  <div className={tw("text-center")}>
-                    <div className={tw("text-2xl font-bold text-purple-600")}>
-                      ${(child.total_earned || 0).toFixed(2)}
-                    </div>
-                    <div className={tw("text-xs text-gray-600")}>Earned</div>
+                  <div className="text-right text-white">
+                    <div className="text-3xl font-bold">${(child.total_saved || 0).toFixed(2)}</div>
+                    <div className="text-sm text-white/80">Total Earned</div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className={tw("p-6")}>
-              <h4
-                className={tw(
-                  "text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
-                )}
-              >
-                <span>📋</span>
-                Assigned Tasks
-              </h4>
-
-              {!child.assigned_chores || child.assigned_chores.length === 0 ? (
-                <div className={tw("text-center py-8")}>
-                  <div
-                    className={tw(
-                      "w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center"
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>📝</span>
-                  </div>
-                  <p className={tw("text-gray-600")}>No chores assigned yet</p>
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50">
+                {/* <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{child.chores_completed || 0}</div>
+                  <div className="text-sm text-gray-600">Chores Done</div>
                 </div>
-              ) : (
-                <div className={tw("space-y-3")}>
-                  {child.assigned_chores.map((chore) => (
-                    <div
-                      key={chore.id}
-                      className={tw(
-                        "flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"
-                      )}
-                    >
-                      <div className={tw("flex items-center gap-3")}>
-                        <div
-                          className={tw(
-                            `w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
-                              chore.status === "completed"
-                                ? "bg-green-100 text-green-700"
-                                : chore.status === "in_progress"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`
-                          )}
-                        >
-                          {chore.status === "completed"
-                            ? "✅"
-                            : chore.status === "in_progress"
-                            ? "⏳"
-                            : "📋"}
-                        </div>
-                        <div className={tw("flex-1")}>
-                          <h5 className={tw("font-semibold text-gray-900")}>
-                            {chore.title}
-                          </h5>
-                          <p className={tw("text-sm text-gray-600")}>
-                            {chore.description}
-                          </p>
-                          <p className={tw("text-xs text-gray-500")}>
-                            Due: {new Date(chore.dueDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className={tw("text-right")}>
-                        <div className={tw("text-lg font-bold text-green-600")}>
-                          ${chore.reward}
-                        </div>
-                        <div
-                          className={tw(
-                            `text-xs font-medium px-2 py-1 rounded-full ${
-                              chore.status === "completed"
-                                ? "bg-green-100 text-green-700"
-                                : chore.status === "in_progress"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`
-                          )}
-                        >
-                          {chore.status === "completed"
-                            ? "Done"
-                            : chore.status === "in_progress"
-                            ? "Working"
-                            : "To Do"}
-                        </div>
-                      </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{child.chores_pending || 0}</div>
+                  <div className="text-sm text-gray-600">In Progress</div>
+                </div> */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">${(child.total_saved  || 0).toFixed(2)}</div>
+                  <div className="text-sm text-gray-600">Earned</div>
+
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">{activeGoals.length}</div>
+                  <div className="text-sm text-gray-600">Active Goals</div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Goals Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>🎯</span> Goals Progress
+                  </h4>
+                  
+                  {child.goals && child.goals.length > 0 ? (
+                    <div className="space-y-3">
+                      {child.goals.map((goal) => {
+                        const progress = goal.progress || ((goal.saved || 0) / goal.amount * 100);
+                        const isCompleted = goal.status === 'completed';
+                        
+                        return (
+                          <div key={goal._id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <h5 className="font-semibold text-gray-900">{goal.title}</h5>
+                                <p className="text-sm text-gray-600">{goal.category} • {goal.duration} days</p>
+                              </div>
+                              <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(goal.status)}`}>
+                                {goal.status.replace('_', ' ')}
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between text-sm mb-1">
+                                <span className="text-gray-600">Progress</span>
+                                <span className="font-medium">${(goal.saved || 0).toFixed(2)} / ${goal.amount}</span>
+                              </div>
+                              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-500 ${
+                                    isCompleted ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                                  }`}
+                                  style={{ width: `${Math.min(progress, 100)}%` }}
+                                />
+                              </div>
+                              <div className="mt-1 text-right">
+                                <span className="text-sm font-medium text-gray-700">{Math.round(progress)}%</span>
+                              </div>
+                            </div>
+                            
+                            {goal.created_at && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Started: {formatDate(goal.created_at)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-xl">🎯</span>
+                      </div>
+                      <p className="text-gray-600">No goals set yet</p>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Assigned Chores Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>📋</span> Assigned Chores
+                  </h4>
+                  
+                  {child.assigned_chores && child.assigned_chores.length > 0 ? (
+                    <div className="space-y-3">
+                      {child.assigned_chores.map((chore) => {
+                        const daysLeft = getDaysRemaining(chore.dueDate);
+                        const isOverdue = daysLeft !== null && daysLeft < 0;
+                        
+                        return (
+                          <div key={chore._id || chore.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h5 className="font-semibold text-gray-900">{chore.title}</h5>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(chore.status)}`}>
+                                    {chore.status}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{chore.description}</p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <span>📁</span> {chore.category}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span>⚡</span> {chore.difficulty}
+                                  </span>
+                                  <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-600 font-medium' : ''}`}>
+                                    <span>📅</span> {formatDate(chore.dueDate)}
+                                    {daysLeft !== null && (
+                                      <span className={`ml-1 ${isOverdue ? 'text-red-600' : daysLeft <= 3 ? 'text-orange-600' : 'text-gray-600'}`}>
+                                        ({isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`})
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right ml-4">
+                                <div className="text-xl font-bold text-green-600">${chore.reward}</div>
+                                <div className="text-xs text-gray-500">Reward</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-xl">📋</span>
+                      </div>
+                      <p className="text-gray-600">No chores assigned</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Achievement Badges (if child has achievements) */}
+                {(child.completed_goals > 0 || child.chores_completed > 5) && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <span>🏆</span> Achievements
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {child.completed_goals >= 1 && (
+                        <div className="bg-yellow-100 border border-yellow-300 rounded-2xl px-4 py-2 flex items-center gap-2">
+                          <span className="text-2xl">🥇</span>
+                          <div>
+                            <div className="font-semibold text-yellow-800">Goal Getter</div>
+                            <div className="text-xs text-yellow-700">Completed {child.completed_goals} goal{child.completed_goals > 1 ? 's' : ''}</div>
+                          </div>
+                        </div>
+                      )}
+                      {child.chores_completed >= 5 && (
+                        <div className="bg-blue-100 border border-blue-300 rounded-2xl px-4 py-2 flex items-center gap-2">
+                          <span className="text-2xl">⭐</span>
+                          <div>
+                            <div className="font-semibold text-blue-800">Super Helper</div>
+                            <div className="text-xs text-blue-700">Completed {child.chores_completed} chores</div>
+                          </div>
+                        </div>
+                      )}
+                      {child.total_earned >= 50 && (
+                        <div className="bg-green-100 border border-green-300 rounded-2xl px-4 py-2 flex items-center gap-2">
+                          <span className="text-2xl">💰</span>
+                          <div>
+                            <div className="font-semibold text-green-800">Money Maker</div>
+                            <div className="text-xs text-green-700">Earned ${child.total_saved.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
     </div>
   );
 };
