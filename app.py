@@ -1695,6 +1695,20 @@ def mark_single_notification_read(notification_id):
             success=False,
             error="Failed to mark notification as read"
         ), 500
+    
+@app.route("/api/notifications/unread-count")
+@auth_required
+def get_unread_count():
+    user_email = request.user["email"]
+    try:
+        count = notifications_col.count_documents({
+            "recipient_email": user_email,
+            "read": {"$ne": True}
+        })
+        return jsonify(success=True, count=count), 200
+    except Exception as e:
+        print("[Unread Count Error]", e)
+        return jsonify(success=False, error="Could not get unread count"), 500
 
 @app.route("/api/chores/assign-to-goal", methods=["POST"])
 @auth_required

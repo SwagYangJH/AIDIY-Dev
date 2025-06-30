@@ -14,6 +14,8 @@ const KidDashboard = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const [goalForm, setGoalForm] = useState({
     title: "",
     category: "",
@@ -28,7 +30,19 @@ const KidDashboard = () => {
   const [assignedChores, setAssignedChores] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+  try {
+    const token = sessionStorage.getItem('app_token');
+    const response = await fetch('http://localhost:5500/api/notifications/unread-count', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    setUnreadCount(data.count);
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+  }
+};
 
   // Enhanced total earnings calculation with multiple sources
   const calculateTotalRewards = () => {
@@ -1489,6 +1503,8 @@ const KidDashboard = () => {
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
           notifications={notifications}
+            refreshUnreadCount={fetchUnreadCount}
+
         />
       )}
     </div>

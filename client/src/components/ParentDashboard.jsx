@@ -49,6 +49,7 @@ const ParentDashboard = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
+
   const addChore = (c) => setChores((prev) => [...prev, c]);
   const patchChore = (c) =>
     setChores((prev) => prev.map((x) => (x.id === c.id ? c : x)));
@@ -71,6 +72,19 @@ const ParentDashboard = () => {
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, []);
+
+  const fetchUnreadCount = async () => {
+  try {
+    const token = sessionStorage.getItem('app_token');
+    const response = await fetch('http://localhost:5500/api/notifications/unread-count', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    setUnreadCount(data.count);
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+  }
+};
 
   const fetchUserData = async () => {
     try {
@@ -973,6 +987,7 @@ const handleLogout = async () => {
           onDeclineGoal={handleDeclineGoal}
           onApproveProgress={handleApproveProgress} // Add this
           onDeclineProgress={handleDeclineProgress} // Add this
+          refreshUnreadCount={fetchUnreadCount}
         />
       )}
     </div>

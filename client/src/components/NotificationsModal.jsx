@@ -1,6 +1,5 @@
-// NotificationsModal.jsx - Updated with goal completion notifications and reassigned chores
-
-import React from 'react';
+// NotificationsModal.jsx - Updated to mark all as read on open/close
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
 import avatarDaughter from '../images/avatar-daughter.png';
@@ -22,11 +21,39 @@ const NotificationsModal = ({
   onApproveGoal, 
   onDeclineGoal,
   onApproveProgress,
-  onDeclineProgress 
+  onDeclineProgress,
+  refreshUnreadCount 
 }) => {
   const navigate = useNavigate();
   
-  if (!isOpen) return null;
+  // Mark all notifications as read when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      markAllAsRead();
+    }
+  }, [isOpen]);
+
+  // Function to mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      const token = sessionStorage.getItem('app_token');
+      await fetch(`http://localhost:5500/api/notifications/mark-read`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      // Refresh unread count in parent component
+      if (refreshUnreadCount) refreshUnreadCount();
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
+
+  // Updated close handler with mark as read
+  const handleClose = () => {
+    markAllAsRead();
+    onClose();
+  };
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -65,10 +92,10 @@ const NotificationsModal = ({
                 <div className={tw('flex gap-2 mt-3')}>
                   <button
                     onClick={() => {
-  handleMarkAsRead(notification._id);
-  sessionStorage.setItem('refreshChoreList', 'true');
-  navigate('/kid-dashboard');
-}}
+                      handleMarkAsRead(notification._id);
+                      sessionStorage.setItem('refreshChoreList', 'true');
+                      navigate('/kid-dashboard');
+                    }}
                     className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
                   >
                     ✅ Approve
@@ -204,24 +231,23 @@ const NotificationsModal = ({
       );
     }
     
-    // Handle progress approved notifications for kids
-   // In NotificationsModal.jsx, update the progress_approved case:
-if (notification.type === 'progress_approved') {
-  return (
-    <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
-      <div className={tw('flex items-start gap-3')}>
-        <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center')}>
-          <span className={tw('text-lg')}>✅</span>
-        </div>
-        
-        <div className={tw('flex-1')}>
-          <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
-          <p className={tw('text-sm text-gray-600 mt-1')}>{notification.message}</p>
-          
-          {notification.earned_amount && (
-            <div className={tw('mt-2 bg-green-50 rounded-lg p-2 inline-block')}>
-              <p className={tw('text-sm font-medium text-green-800')}>
-                💰 ${notification.earned_amount.toFixed(2)} added to your savings!
+    // Handle progress approved notifications
+    if (notification.type === 'progress_approved') {
+      return (
+        <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
+          <div className={tw('flex items-start gap-3')}>
+            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center')}>
+              <span className={tw('text-lg')}>✅</span>
+            </div>
+            
+            <div className={tw('flex-1')}>
+              <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
+              <p className={tw('text-sm text-gray-600 mt-1')}>{notification.message}</p>
+              
+              {notification.earned_amount && (
+                <div className={tw('mt-2 bg-green-50 rounded-lg p-2 inline-block')}>
+                  <p className={tw('text-sm font-medium text-green-800')}>
+                    💰 ${notification.earned_amount.toFixed(2)} added to your savings!
               </p>
             </div>
           )}
@@ -252,64 +278,51 @@ if (notification.type === 'progress_approved') {
   );
 }
     
-    // Handle progress declined notifications for kids with reassignment
-// NotificationsModal.jsx
-// Add this case to the renderNotification function
-if (notification.type === 'progress_declined') {
-  return (
-    <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
-      <div className={tw('flex items-start gap-3')}>
-        <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center')}>
-          <span className={tw('text-lg')}>🔄</span>
-        </div>
-        
-        <div className={tw('flex-1')}>
-          <h4 className={tw('font-semibold text-gray-900 flex items-center gap-2')}>
-            <span>Chore Needs Redo</span>
-            <span className={tw('text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full')}>
-              Try Again!
-            </span>
-          </h4>
-          
-          {/* ADDED GOAL INFO HERE */}
-          {notification.goal_title && (
-            <div className={tw('mt-1 bg-purple-50 rounded-lg p-2 inline-block')}>
-              <p className={tw('text-sm text-purple-700 font-medium')}>
-                Goal: {notification.goal_title}
-              </p>
+    // Handle progress declined notifications
+    if (notification.type === 'progress_declined') {
+      return (
+        <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
+          <div className={tw('flex items-start gap-3')}>
+            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center')}>
+              <span className={tw('text-lg')}>🔄</span>
             </div>
-          )}
-          
-          <p className={tw('text-sm text-gray-600 mt-2')}>
-            {notification.message}
-          </p>
-          
-          <div className={tw('mt-4 flex gap-2')}>
-            {/* <button
-              onClick={() => {
-                handleMarkAsRead(notification._id);
-                onClose();
-                navigate('/kid-dashboard');
-              }}
-              className={tw('flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-medium rounded-lg hover:shadow-md transition-all')}
-            >
-              View Chores
-            </button> */}
-            <button
-              onClick={() => {
-                handleMarkAsRead(notification._id);
-                navigate('/chat');
-              }}
-              className={tw('flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors')}
-            >
-              Ask for Help
-            </button>
+            
+            <div className={tw('flex-1')}>
+              <h4 className={tw('font-semibold text-gray-900 flex items-center gap-2')}>
+                <span>Chore Needs Redo</span>
+                <span className={tw('text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full')}>
+                  Try Again!
+                </span>
+              </h4>
+              
+              {notification.goal_title && (
+                <div className={tw('mt-1 bg-purple-50 rounded-lg p-2 inline-block')}>
+                  <p className={tw('text-sm text-purple-700 font-medium')}>
+                    Goal: {notification.goal_title}
+                  </p>
+                </div>
+              )}
+              
+              <p className={tw('text-sm text-gray-600 mt-2')}>
+                {notification.message}
+              </p>
+              
+              <div className={tw('mt-4 flex gap-2')}>
+                <button
+                  onClick={() => {
+                    handleMarkAsRead(notification._id);
+                    navigate('/chat');
+                  }}
+                  className={tw('flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors')}
+                >
+                  Ask for Help
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      );
+    }
     
     // Default notification rendering
     return (
@@ -341,8 +354,14 @@ if (notification.type === 'progress_declined') {
   };
 
   return (
-    <div className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}>
-      <div className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col')}>
+    <div 
+      className={tw('fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4')}
+      onClick={handleClose} // Close modal when clicking backdrop
+    >
+      <div 
+        className={tw('bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col')}
+        onClick={e => e.stopPropagation()} // Prevent close when clicking inside modal
+      >
         <div className={tw('p-6 border-b border-gray-100')}>
           <div className={tw('flex items-center justify-between')}>
             <div>
@@ -352,7 +371,7 @@ if (notification.type === 'progress_declined') {
               </p>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className={tw('p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors')}
             >
               <svg className={tw('w-6 h-6')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,7 +399,7 @@ if (notification.type === 'progress_declined') {
         
         <div className={tw('p-6 border-t border-gray-100')}>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className={tw('w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors')}
           >
             Close
