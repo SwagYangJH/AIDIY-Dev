@@ -1296,25 +1296,30 @@ const ProgressTrackingTab = ({ childrenProgress = [], childrenChores = [] }) => 
           const pendingGoals = child.goals?.filter(g => g.status === 'pending_approval') || [];
           
           return (
-            <div key={child.username} className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-              {/* Child Header */}
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl">
-                      {getValidChildAvatar(child.avatar)}
-                    </div>
-                    <div className="text-white">
-                      <h3 className="text-2xl font-bold">{child.nickName || child.firstName}</h3>
-                      <p className="text-white/80">@{child.username}</p>
-                    </div>
+          <div key={child.username} className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+            {/* Child Header - CORRECTED AVATAR USAGE */}
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center overflow-hidden">
+                    {/* Render avatar as image instead of text */}
+                    <img 
+                      src={getValidChildAvatar(child.avatar)} 
+                      alt={`${child.nickName || child.firstName} avatar`}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <div className="text-right text-white">
-                    <div className="text-3xl font-bold">${(child.total_saved || 0).toFixed(2)}</div>
-                    <div className="text-sm text-white/80">Total Earned</div>
+                  <div className="text-white">
+                    <h3 className="text-2xl font-bold">{child.nickName || child.firstName}</h3>
+                    <p className="text-white/80">@{child.username}</p>
                   </div>
                 </div>
+                <div className="text-right text-white">
+                  <div className="text-3xl font-bold">${(child.total_saved || 0).toFixed(2)}</div>
+                  <div className="text-sm text-white/80">Total Earned</div>
+                </div>
               </div>
+            </div>
 
               {/* Quick Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50">

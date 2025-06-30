@@ -109,6 +109,11 @@ const KidDashboard = () => {
   const totalSavings = userProfile?.financial_info?.total_savings || totalRewards;
   const investments = userProfile?.financial_info?.investments || 0;
 
+  const completedGoalsCount = activeGoals.filter(g => 
+  g.status === 'completed' || (g.saved >= g.amount)
+).length;
+  const totalGoalsCount = activeGoals.length;
+
   // Create level badge based on current level
   const getLevelBadge = (level) => {
     if (level >= 50) return "🏆"; // Master
@@ -656,7 +661,7 @@ const KidDashboard = () => {
 
               </div>
               <p className={tw("text-2xl font-bold text-green-700")}>
-                ${totalSavings.toFixed(2)}
+              {activeGoals.filter(g => g.status === "approved").length}
               </p>
             </div>
             <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
@@ -668,7 +673,7 @@ const KidDashboard = () => {
 
               </div>
               <p className={tw("text-2xl font-bold text-blue-700")}>
-                ${investments.toFixed(2)}
+                {activeGoals.length}
               </p>
             </div>
           </div>
@@ -1046,6 +1051,61 @@ const KidDashboard = () => {
               })}
           </div>
         </div>
+
+{/* Achievement Badges Section */}
+{(completedGoalsCount > 0 || totalGoalsCount >= 3 || totalRewards >= 50 || currentLevel >= 10) && (
+  <div className={tw("mt-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200")}>
+    <h4 className={tw("text-lg font-bold text-gray-800 mb-3 flex items-center gap-2")}>
+      <span>🏆</span> My Achievements
+    </h4>
+    <div className={tw("flex flex-wrap gap-3")}>
+      {completedGoalsCount >= 1 && (
+        <div className={tw("bg-yellow-100 border border-yellow-300 rounded-2xl px-4 py-2 flex items-center gap-2")}>
+          <span className={tw("text-2xl")}>🥇</span>
+          <div>
+            <div className={tw("font-semibold text-yellow-800")}>Goal Getter</div>
+            <div className={tw("text-xs text-yellow-700")}>
+              Completed {completedGoalsCount} goal{completedGoalsCount > 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+      )}
+      {totalGoalsCount >= 3 && (
+        <div className={tw("bg-blue-100 border border-blue-300 rounded-2xl px-4 py-2 flex items-center gap-2")}>
+          <span className={tw("text-2xl")}>🎯</span>
+          <div>
+            <div className={tw("font-semibold text-blue-800")}>Dream Builder</div>
+            <div className={tw("text-xs text-blue-700")}>
+              Created {totalGoalsCount} goals
+            </div>
+          </div>
+        </div>
+      )}
+      {totalRewards >= 50 && (
+        <div className={tw("bg-green-100 border border-green-300 rounded-2xl px-4 py-2 flex items-center gap-2")}>
+          <span className={tw("text-2xl")}>💰</span>
+          <div>
+            <div className={tw("font-semibold text-green-800")}>Money Maker</div>
+            <div className={tw("text-xs text-green-700")}>
+              Earned ${totalRewards.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      )}
+      {currentLevel >= 10 && (
+        <div className={tw("bg-purple-100 border border-purple-300 rounded-2xl px-4 py-2 flex items-center gap-2")}>
+          <span className={tw("text-2xl")}>🌟</span>
+          <div>
+            <div className={tw("font-semibold text-purple-800")}>Level Master</div>
+            <div className={tw("text-xs text-purple-700")}>
+              Reached Level {currentLevel}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {/* Chore Categories */}
         <div className={tw("mb-6")}>
