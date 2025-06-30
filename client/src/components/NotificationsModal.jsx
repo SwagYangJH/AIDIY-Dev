@@ -1,6 +1,7 @@
-// NotificationsModal.jsx - Updated with goal completion notifications
+// NotificationsModal.jsx - Updated with goal completion notifications and reassigned chores
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { tw } from '@twind/core';
 import avatarDaughter from '../images/avatar-daughter.png';
 import avatarSon from '../images/avatar-son.png';
@@ -23,6 +24,8 @@ const NotificationsModal = ({
   onApproveProgress,
   onDeclineProgress 
 }) => {
+  const navigate = useNavigate();
+  
   if (!isOpen) return null;
 
   const handleMarkAsRead = async (notificationId) => {
@@ -62,9 +65,10 @@ const NotificationsModal = ({
                 <div className={tw('flex gap-2 mt-3')}>
                   <button
                     onClick={() => {
-                      onApproveGoal(notification.goal_id);
-                      handleMarkAsRead(notification._id);
-                    }}
+  handleMarkAsRead(notification._id);
+  sessionStorage.setItem('refreshChoreList', 'true');
+  navigate('/kid-dashboard');
+}}
                     className={tw('px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
                   >
                     ✅ Approve
@@ -200,29 +204,74 @@ const NotificationsModal = ({
       );
     }
     
-    // Handle progress approved/declined notifications for kids
-    if (notification.type === 'progress_approved' || notification.type === 'progress_declined') {
+    // Handle progress approved notifications for kids
+   // In NotificationsModal.jsx, update the progress_approved case:
+if (notification.type === 'progress_approved') {
+  return (
+    <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
+      <div className={tw('flex items-start gap-3')}>
+        <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center')}>
+          <span className={tw('text-lg')}>✅</span>
+        </div>
+        
+        <div className={tw('flex-1')}>
+          <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
+          <p className={tw('text-sm text-gray-600 mt-1')}>{notification.message}</p>
+          
+          {notification.earned_amount && (
+            <div className={tw('mt-2 bg-green-50 rounded-lg p-2 inline-block')}>
+              <p className={tw('text-sm font-medium text-green-800')}>
+                💰 ${notification.earned_amount.toFixed(2)} added to your savings!
+              </p>
+            </div>
+          )}
+          
+          <div className={tw('mt-3 bg-blue-50 rounded-lg p-3')}>
+            <p className={tw('text-xs text-blue-700')}>
+              ✨ Great job! Your completed chores have been approved and removed from your list.
+              {notification.can_select_new_chores && ' You can now select new chores to continue earning!'}
+            </p>
+          </div>
+          
+          <p className={tw('text-xs text-gray-500 mt-2')}>
+            {new Date(notification.created_at).toLocaleDateString()}
+          </p>
+          
+          <button
+            onClick={() => {
+              handleMarkAsRead(notification._id);
+              navigate('/kid-dashboard');
+            }}
+            className={tw('mt-3 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors')}
+          >
+            View Dashboard 🏠
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+    
+    // Handle progress declined notifications for kids with reassignment
+    if (notification.type === 'progress_declined') {
       return (
         <div key={notification._id} className={tw('p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors')}>
           <div className={tw('flex items-start gap-3')}>
-            <div className={tw(`w-10 h-10 rounded-full flex items-center justify-center ${
-              notification.type === 'progress_approved' 
-                ? 'bg-gradient-to-br from-green-400 to-emerald-500' 
-                : 'bg-gradient-to-br from-orange-400 to-red-500'
-            }`)}>
-              <span className={tw('text-lg')}>
-                {notification.type === 'progress_approved' ? '✅' : '🔄'}
-              </span>
+            <div className={tw('w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-500 flex items-center justify-center')}>
+              <span className={tw('text-lg')}>💪</span>
             </div>
             
             <div className={tw('flex-1')}>
               <h4 className={tw('font-semibold text-gray-900')}>{notification.title}</h4>
               <p className={tw('text-sm text-gray-600 mt-1')}>{notification.message}</p>
               
-              {notification.earned_amount && notification.type === 'progress_approved' && (
-                <div className={tw('mt-2 bg-green-50 rounded-lg p-2 inline-block')}>
-                  <p className={tw('text-sm font-medium text-green-800')}>
-                    💰 ${notification.earned_amount.toFixed(2)} added to your savings!
+              {notification.reassigned_chore_ids && notification.reassigned_chore_ids.length > 0 && (
+                <div className={tw('mt-3 bg-yellow-50 rounded-lg p-3')}>
+                  <p className={tw('text-sm font-medium text-yellow-800')}>
+                    ✨ Your chores are ready for you to try again! You've got this!
+                  </p>
+                  <p className={tw('text-xs text-yellow-600 mt-1')}>
+                    {notification.reassigned_chore_ids.length} chore{notification.reassigned_chore_ids.length > 1 ? 's' : ''} reassigned
                   </p>
                 </div>
               )}
@@ -231,14 +280,16 @@ const NotificationsModal = ({
                 {new Date(notification.created_at).toLocaleDateString()}
               </p>
               
-              {!notification.read && (
-                <button
-                  onClick={() => handleMarkAsRead(notification._id)}
-                  className={tw('mt-3 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors')}
-                >
-                  Mark as Read
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  handleMarkAsRead(notification._id);
+                  onClose(); // Close the modal
+                  navigate('/kid-dashboard'); // Navigate to dashboard to see reassigned chores
+                }}
+                className={tw('mt-3 px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors')}
+              >
+                Let's Try Again! 🚀
+              </button>
             </div>
           </div>
         </div>

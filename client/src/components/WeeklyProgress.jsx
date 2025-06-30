@@ -1,4 +1,4 @@
-// WeeklyProgress.jsx - Simplified version without approval status UI
+// WeeklyProgress.jsx - Fixed version with proper hook ordering
 
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -20,8 +20,11 @@ const WeeklyProgress = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [deadlineWarning, setDeadlineWarning] = useState(false);
   const [deadlinePassed, setDeadlinePassed] = useState(false);
-  
-  // Calculate deadline status
+  const [currentChoreStatuses, setCurrentChoreStatuses] = useState({});
+  const [loadingStatuses, setLoadingStatuses] = useState(true);
+  const [hasPendingApproval, setHasPendingApproval] = useState(false);
+
+  // Calculate deadline status - MOVED BEFORE CONDITIONAL RETURNS
   useEffect(() => {
     if (goal?.duration) {
       const createdDate = new Date(goal.created_at || goal.createdAt);
@@ -38,6 +41,76 @@ const WeeklyProgress = () => {
       }
     }
   }, [goal]);
+
+  // Fetch current chore statuses
+ // In WeeklyProgress.jsx, update the hasPendingApproval logic:
+useEffect(() => {
+  const fetchChoreStatuses = async () => {
+    if (!goal._id && !goal.id) return;
+    
+    try {
+      const token = sessionStorage.getItem('app_token');
+      const goalId = goal._id || goal.id;
+      
+      // Fetch chores assigned to this goal
+      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/chores`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.chores) {
+        // Create a map of chore statuses
+        const statusMap = {};
+        let foundPending = false;
+        
+        // Check if any of the selected chores are pending approval
+        selectedChores.forEach(chore => {
+          // Find the current status of this chore from the backend
+          const currentChore = data.chores.find(c => c.id === chore.id);
+          if (!currentChore) {
+            // If chore is not in the list, it might be archived or pending
+            statusMap[chore.id] = 'archived_or_pending';
+            foundPending = true;
+          } else {
+            statusMap[chore.id] = currentChore.status;
+            if (currentChore.status === 'pending_approval') {
+              foundPending = true;
+            }
+          }
+        });
+        
+        setCurrentChoreStatuses(statusMap);
+        setHasPendingApproval(foundPending);
+        
+        // If all selected chores are archived, redirect to dashboard
+        const allArchived = selectedChores.every(chore => 
+          statusMap[chore.id] === 'archived_or_pending'
+        );
+        
+        if (allArchived) {
+          alert('All chores have been processed. Returning to dashboard.');
+          navigate('/kid-dashboard');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching chore statuses:', error);
+    } finally {
+      setLoadingStatuses(false);
+    }
+  };
+  
+  fetchChoreStatuses();
+  
+  // Also check if refreshing from submission
+  const shouldRefresh = sessionStorage.getItem('refreshKidDashboard');
+  if (shouldRefresh) {
+    fetchChoreStatuses();
+    sessionStorage.removeItem('refreshKidDashboard');
+  }
+}, [goal, selectedChores, navigate]);
 
   const toggleComplete = (name) => {
     const wasCompleted = completedChores.includes(name);
@@ -125,6 +198,61 @@ const WeeklyProgress = () => {
     ? Math.min(100, Math.floor(((goal.saved || goal.currentAmount || 0) / goal.amount) * 100))
     : 0;
 
+  // CONDITIONAL RETURNS AFTER ALL HOOKS
+
+  // Show loading while checking statuses
+  if (loadingStatuses) {
+    return (
+      <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center")}>
+        <div className={tw("text-xl font-semibold text-purple-700")}>Loading progress...</div>
+      </div>
+    );
+  }
+
+  // If there are pending approvals, show different UI
+  if (hasPendingApproval) {
+    return (
+      <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center px-4")}>
+        <div className={tw("max-w-md mx-auto bg-white rounded-3xl shadow-lg p-8 text-center")}>
+          <div className={tw("text-6xl mb-4")}>⏳</div>
+          <h2 className={tw("text-2xl font-bold text-gray-800 mb-3")}>
+            Progress Already Submitted
+          </h2>
+          <p className={tw("text-gray-600 mb-6")}>
+            You've already submitted these chores for approval. Please wait for your parents to review them before submitting new progress.
+          </p>
+          
+          <div className={tw("bg-purple-50 rounded-xl p-4 mb-6")}>
+            <p className={tw("text-sm font-semibold text-purple-700 mb-2")}>Chores Pending Approval:</p>
+            <ul className={tw("text-sm text-gray-600 space-y-1")}>
+              {selectedChores
+                .filter(chore => currentChoreStatuses[chore.id] === 'pending_approval')
+                .map((chore, index) => (
+                  <li key={index}>• {chore.name}</li>
+                ))}
+            </ul>
+          </div>
+          
+          <div className={tw("flex flex-col gap-3")}>
+            <button
+              onClick={() => navigate("/kid-dashboard")}
+              className={tw("px-6 py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-600 transition-colors")}
+            >
+              🏠 Back to Dashboard
+            </button>
+            <button
+              onClick={() => navigate("/chore-quest", { state: { goal } })}
+              className={tw("px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors")}
+            >
+              📋 View Other Chores
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main component render
   return (
     <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 px-4 py-6")}>
       {/* Deadline warnings */}
@@ -149,8 +277,6 @@ const WeeklyProgress = () => {
       {/* Header */}
       <div className={tw("max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
         <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 OVERALL GOAL PROGRESS</h2>
-        {/* <p className={tw("text-sm text-gray-500 mb-2")}>Let’s start this amazing adventure ✨</p> */}
-        {/* <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 WEEKLY ADVENTURE PROGRESS</h2> */}
         <p className={tw("text-sm text-gray-500 mb-2")}>Working on: {goal.title}</p>
         
         {/* Overall Goal Progress */}

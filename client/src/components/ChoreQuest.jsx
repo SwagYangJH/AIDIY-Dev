@@ -22,74 +22,81 @@ const ChoreQuest = () => {
 
   // Fetch chores assigned to this child
   useEffect(() => {
-    if (goal && goal.status === "approved") {
-      const fetchChores = async () => {
-        setLoading(true);
-        try {
-          const token = sessionStorage.getItem('app_token');
+    const fetchChores = async () => {
+      if (!goal || goal.status !== "approved") return;
+      
+      setLoading(true);
+      try {
+        const token = sessionStorage.getItem('app_token');
+        
+        // Direct API call - the backend will determine the kid from the token
+        const response = await fetch('http://localhost:5500/api/chores', {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        console.log("Fetched chores:", data);
+        
+        if (data.success && data.chores) {
+          // Filter out completed chores and only show assigned ones that aren't already assigned to a goal
+          const assignedChores = data.chores.filter(
+            chore => (chore.status === 'Assigned' || chore.status === 'pending') && !chore.assigned_goal_id
+          );
           
-          // Direct API call - the backend will determine the kid from the token
-          const response = await fetch('http://localhost:5500/api/chores', {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
+          // Convert each assigned chore to match the required format
+          const emojiMap = {
+            Cleaning: '🧹',
+            Kitchen: '🍳',
+            Outdoor: '🌳',
+            Organization: '📦',
+            'Pet Care': '🐕',
+            Other: '📝'
+          };
+          
+          const convertedChores = assignedChores.map(chore => {
+            // Prefix title with an emoji based on category
+            const prefix = chore.category && emojiMap[chore.category] ? emojiMap[chore.category] + ' ' : '';
+            
+            // Map difficulty to child-friendly format with emoji
+            let diffLabel;
+            if (chore.difficulty.toLowerCase() === 'easy') diffLabel = '☺️ Easy';
+            else if (chore.difficulty.toLowerCase() === 'medium') diffLabel = '💪 Medium';
+            else if (chore.difficulty.toLowerCase() === 'hard') diffLabel = '🔥 Hard';
+            else diffLabel = chore.difficulty;
+            
+            return {
+              id: chore.id, // Keep the chore ID for tracking
+              name: prefix + chore.title,
+              description: chore.description,
+              amount: Math.round(chore.reward), // round reward to nearest whole number
+              difficulty: diffLabel,
+              dueDate: chore.dueDate,
+              status: chore.status,
+              category: chore.category
+            };
           });
           
-          const data = await response.json();
-          console.log("Fetched chores:", data);
-          
-          if (data.success && data.chores) {
-            // Filter out completed chores and only show assigned ones that aren't already assigned to a goal
-            const assignedChores = data.chores.filter(
-              chore => (chore.status === 'Assigned' || chore.status === 'pending') && !chore.assigned_goal_id
-            );
-            
-            // Convert each assigned chore to match the required format
-            const emojiMap = {
-              Cleaning: '🧹',
-              Kitchen: '🍳',
-              Outdoor: '🌳',
-              Organization: '📦',
-              'Pet Care': '🐕',
-              Other: '📝'
-            };
-            
-            const convertedChores = assignedChores.map(chore => {
-              // Prefix title with an emoji based on category
-              const prefix = chore.category && emojiMap[chore.category] ? emojiMap[chore.category] + ' ' : '';
-              
-              // Map difficulty to child-friendly format with emoji
-              let diffLabel;
-              if (chore.difficulty.toLowerCase() === 'easy') diffLabel = '☺️ Easy';
-              else if (chore.difficulty.toLowerCase() === 'medium') diffLabel = '💪 Medium';
-              else if (chore.difficulty.toLowerCase() === 'hard') diffLabel = '🔥 Hard';
-              else diffLabel = chore.difficulty;
-              
-              return {
-                id: chore.id, // Keep the chore ID for tracking
-                name: prefix + chore.title,
-                description: chore.description,
-                amount: Math.round(chore.reward), // round reward to nearest whole number
-                difficulty: diffLabel,
-                dueDate: chore.dueDate,
-                status: chore.status,
-                category: chore.category
-              };
-            });
-            
-            setAllChores(convertedChores);
-          } else {
-            setAllChores([]);
-          }
-        } catch (err) {
-          console.error("Failed to fetch chores:", err);
+          setAllChores(convertedChores);
+        } else {
           setAllChores([]);
-        } finally {
-          setLoading(false);
         }
-      };
-      
+      } catch (err) {
+        console.error("Failed to fetch chores:", err);
+        setAllChores([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Check if we need to refresh after approval
+    const needsRefresh = sessionStorage.getItem('refreshChoreList');
+    if (needsRefresh) {
+      sessionStorage.removeItem('refreshChoreList');
+      fetchChores();
+    } else if (goal && goal.status === "approved") {
       fetchChores();
     }
   }, [goal]);

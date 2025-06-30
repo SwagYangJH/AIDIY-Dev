@@ -1310,7 +1310,7 @@ def submit_progress():
         if not child:
             return jsonify(error="Child not found"), 404
         
-        # Get chore details from IDs
+        # Get chore details from IDs - IMPORTANT: Only get the submitted chores
         completed_chores = []
         for chore_id in completed_chore_ids:
             chore = chores_col.find_one({"_id": ObjectId(chore_id)})
@@ -1321,7 +1321,7 @@ def submit_progress():
                     "reward": chore.get("reward", 0)
                 })
 
-        # Create notification for parents
+        # Create notification for parents with ONLY the submitted chores
         notification = {
             "type": "progress_submission",
             "title": f"{child.get('nickName', child.get('firstName'))} completed chores!",
@@ -1330,8 +1330,8 @@ def submit_progress():
             "kid_avatar": child.get('avatar', '👧'),
             "goal_id": goal_id,
             "earned_amount": total_earned,
-            "completed_chore_ids": completed_chore_ids,
-            "completed_chores": completed_chores,
+            "completed_chore_ids": completed_chore_ids,  # Only the submitted chore IDs
+            "completed_chores": completed_chores,  # Only the submitted chore details
             "status": "pending",
             "read": False,
             "created_at": datetime.utcnow(),
@@ -1341,27 +1341,15 @@ def submit_progress():
         # Add to notifications collection
         notifications_col.insert_one(notification)
 
-        # Mark chores as "pending_approval"
+        # Mark ONLY the submitted chores as "pending_approval"
         for chore_id in completed_chore_ids:
             chores_col.update_one(
                 {"_id": ObjectId(chore_id)},
-                {"$set": {"status": "pending_approval"}}
+                {"$set": {
+                    "status": "pending_approval",
+                    "submitted_at": datetime.utcnow()
+                }}
             )
-
-        # Add progress submission to goal
-        goals_col.update_one(
-            {"_id": ObjectId(goal_id)},
-            {
-                "$push": {
-                    "progress_submissions": {
-                        "date": submission_date,
-                        "completed_chore_ids": completed_chore_ids,
-                        "earned": total_earned,
-                        "status": "pending_parent_approval"
-                    }
-                }
-            }
-        )
 
         return jsonify(
             success=True, 
@@ -1417,7 +1405,7 @@ def approve_progress_submission(submission_id):
                     "date": datetime.utcnow(),
                     "amount": submission["earned_amount"],
                     "approved_by": request.user["email"],
-                    "chore_ids": submission["completed_chore_ids"]
+                    "chore_ids": submission["completed_chore_ids"]  # Only the submitted chores
                 }
             }
         }
@@ -1432,30 +1420,43 @@ def approve_progress_submission(submission_id):
             update_data
         )
         
-        # Mark chores as "archived" (dead) - they can't be reused
-        for chore_id in submission["completed_chore_ids"]:
-            chores_col.update_one(
-                {"_id": ObjectId(chore_id)},
+        # Archive ONLY the submitted chores
+        submitted_chore_ids = submission.get("completed_chore_ids", [])
+        archived_count = 0
+        for chore_id in submitted_chore_ids:
+            result = chores_col.update_one(
+                {"_id": ObjectId(chore_id), "status": "pending_approval"},  # Only if pending
                 {
                     "$set": {
-                        "status": "archived",  # Changed from "completed" to "archived"
+                        "status": "archived",
                         "archived_at": datetime.utcnow(),
                         "approved_by": request.user["email"],
-                        "is_active": False  # Add flag to exclude from queries
+                        "is_active": False
                     }
                 }
             )
+            if result.modified_count > 0:
+                archived_count += 1
+        
+        # Check if there are more chores available for this kid
+        remaining_chores = chores_col.count_documents({
+            "kid_username": goal['kid_username'],
+            "status": "Assigned",
+            "is_active": {"$ne": False}
+        })
         
         # Delete the notification (it's been processed)
         notifications_col.delete_one({"_id": ObjectId(submission_id)})
         
-        # Create a success notification for the child
+        # Create a success notification for the child with more info
         child_notification = {
             "type": "progress_approved",
             "title": "Progress Approved! 🎉",
             "message": f"Your parents approved your progress! ${submission['earned_amount']:.2f} has been added to your savings.",
             "goal_id": submission["goal_id"],
             "earned_amount": submission["earned_amount"],
+            "archived_chores_count": archived_count,
+            "can_select_new_chores": remaining_chores > 0,
             "status": "success",
             "read": False,
             "created_at": datetime.utcnow(),
@@ -1513,7 +1514,7 @@ def approve_progress_submission(submission_id):
 @app.route("/api/progress/<submission_id>/decline", methods=["POST"])
 @auth_required
 def decline_progress_submission(submission_id):
-    """Decline child's progress submission"""
+    """Decline child's progress submission and reassign ONLY the submitted chores"""
     try:
         # Find the progress submission notification
         submission = notifications_col.find_one(
@@ -1526,31 +1527,51 @@ def decline_progress_submission(submission_id):
         if submission["recipient_email"] != request.user["email"]:
             return jsonify(error="Unauthorized"), 403
 
-        # Mark chores as "archived" even when declined - they can't be reused
-        for chore_id in submission["completed_chore_ids"]:
-            chores_col.update_one(
-                {"_id": ObjectId(chore_id)},
+        # Get the specific chore IDs that were submitted
+        submitted_chore_ids = submission.get("completed_chore_ids", [])
+        
+        # Reassign ONLY the submitted chores back to "Assigned" status
+        reassigned_count = 0
+        for chore_id in submitted_chore_ids:
+            result = chores_col.update_one(
+                {"_id": ObjectId(chore_id), "status": "pending_approval"},  # Only update if it's pending
                 {
                     "$set": {
-                        "status": "archived",  # Mark as archived even when declined
-                        "archived_at": datetime.utcnow(),
-                        "declined_by": request.user["email"],
-                        "is_active": False,  # Add flag to exclude from queries
-                        "was_declined": True  # Track that it was declined
+                        "status": "Assigned",  # Reset to Assigned
+                        "updated_at": datetime.utcnow(),
+                        "declined_at": datetime.utcnow(),
+                        "declined_by": request.user["email"]
+                    },
+                    "$unset": {
+                        "submitted_at": ""  # Remove submission timestamp
                     }
                 }
             )
+            if result.modified_count > 0:
+                reassigned_count += 1
         
         # Get the goal to find kid's username
         goal = goals_col.find_one({"_id": ObjectId(submission["goal_id"])})
         
         if goal:
-            # Create a notification for the child about the decline
+            # Get details of reassigned chores for the notification
+            reassigned_chores = []
+            for chore_id in submitted_chore_ids:
+                chore = chores_col.find_one({"_id": ObjectId(chore_id)})
+                if chore and chore.get("status") == "Assigned":
+                    reassigned_chores.append({
+                        "id": str(chore["_id"]),
+                        "title": chore.get("title", "")
+                    })
+            
+            # Create a notification for the child with specific chore details
             child_notification = {
                 "type": "progress_declined",
-                "title": "Progress Review",
-                "message": "Your parents have reviewed your progress. The chores have been archived. Please select new chores to continue working toward your goal.",
+                "title": "Try Again! 💪",
+                "message": f"Your parents want you to redo {len(reassigned_chores)} chore(s). They're ready for another try!",
                 "goal_id": submission["goal_id"],
+                "reassigned_chore_ids": submitted_chore_ids,  # Specific chore IDs
+                "reassigned_chores": reassigned_chores,  # Chore details
                 "status": "declined",
                 "read": False,
                 "created_at": datetime.utcnow(),
@@ -1561,7 +1582,10 @@ def decline_progress_submission(submission_id):
         # Delete the progress submission notification
         notifications_col.delete_one({"_id": ObjectId(submission_id)})
         
-        return jsonify(success=True, message="Progress declined"), 200
+        return jsonify(
+            success=True, 
+            message=f"Progress declined and {reassigned_count} chore(s) reassigned"
+        ), 200
         
     except Exception as e:
         print(f"[Decline Progress Error] {e}")
@@ -1723,14 +1747,19 @@ def assign_chores_to_goal():
 @auth_required
 def get_goal_chores(goal_id):
     """
-    Get chores assigned to a specific goal
+    Get chores assigned to a specific goal (excluding archived/approved ones)
     """
     try:
-        # Find chores assigned to this goal
-        chores = list(chores_col.find({"assigned_goal_id": goal_id}))
+        # Find chores assigned to this goal that are NOT archived or pending approval
+        chores = list(chores_col.find({
+            "assigned_goal_id": goal_id,
+            "status": {"$nin": ["archived", "pending_approval"]}  # Exclude these statuses
+        }))
         
         for chore in chores:
             chore["id"] = str(chore.pop("_id"))
+            # Include the status field
+            chore["status"] = chore.get("status", "Assigned")
             if "created_at" in chore and hasattr(chore["created_at"], "isoformat"):
                 chore["created_at"] = chore["created_at"].isoformat()
             if "updated_at" in chore and hasattr(chore["updated_at"], "isoformat"):
