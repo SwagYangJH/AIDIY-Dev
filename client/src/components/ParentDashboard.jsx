@@ -526,7 +526,7 @@ const handleLogout = async () => {
           style={{
             background: "linear-gradient(to right, #2dd4bf, #a855f7)",
             borderRadius: "10px",
-            border: "1px solid black",
+            // border: "1px solid black",
             color: "white",
           }}
           className={tw("flex items-center gap-2 px-3 py-1 transition-colors")}
@@ -558,7 +558,7 @@ const handleLogout = async () => {
               style={{
                 background: "linear-gradient(to right, #2dd4bf, #a855f7)",
                 borderRadius: "10px",
-                border: "1px solid black",
+                // border: "1px solid black",
                 color: "white",
               }}
               className={tw(
@@ -591,7 +591,7 @@ const handleLogout = async () => {
               style={{
                 background: "linear-gradient(to right, #2dd4bf, #a855f7)",
                 borderRadius: "10px",
-                border: "1px solid black",
+                // border: "1px solid black",
                 color: "white",
               }}
               className={tw(
@@ -622,7 +622,7 @@ const handleLogout = async () => {
         style={{
           background: "linear-gradient(to right, #2dd4bf, #a855f7)",
           borderRadius: "10px",
-          border: "1px solid black",
+          // border: "1px solid black",
           color: "white",
         }}
         className={tw(
