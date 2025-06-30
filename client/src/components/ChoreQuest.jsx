@@ -1,61 +1,13 @@
-// ChoreQuest.jsx - Updated version with goal assignment functionality
-
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
-
-// Static list of suggested chores (for when parent hasn't assigned specific chores)
-const defaultChoresList = [
-  {
-    name: "🛏️ Make Your Bed",
-    description: "Start your day like a superhero",
-    amount: 5,
-    time: "5 min",
-    difficulty: "☺️ Easy",
-  },
-  {
-    name: "🍽 Load Dishwasher",
-    description: "Be a Kitchen Helper Hero!",
-    amount: 5,
-    time: "10 min",
-    difficulty: "☺️ Easy",
-  },
-  {
-    name: "🧹 Vacuum Living Room",
-    description: "Dance while you clean!",
-    amount: 5,
-    time: "15 min",
-    difficulty: "💪 Medium",
-  },
-  {
-    name: "📚 Organize Bookshelf",
-    description: "Sort and organize your books",
-    amount: 5,
-    time: "20 min",
-    difficulty: "💪 Medium",
-  },
-  {
-    name: "🛁 Clean Bathroom",
-    description: "Wipe down surfaces and scrub the tub",
-    amount: 5,
-    time: "8 min",
-    difficulty: "☺️ Easy",
-  },
-  {
-    name: "🧺 Fold Laundry",
-    description: "Fold and put away clean clothes",
-    amount: 5,
-    time: "25 min",
-    difficulty: "💪 Medium",
-  },
-];
 
 const ChoreQuest = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { goal } = location.state || {};
 
-  const [allChores, setAllChores] = useState(defaultChoresList);
+  const [allChores, setAllChores] = useState([]);
   const [selectedChores, setSelectedChores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -93,7 +45,7 @@ const ChoreQuest = () => {
               chore => (chore.status === 'Assigned' || chore.status === 'pending') && !chore.assigned_goal_id
             );
             
-            // Convert each assigned chore to match the format of defaultChoresList
+            // Convert each assigned chore to match the required format
             const emojiMap = {
               Cleaning: '🧹',
               Kitchen: '🍳',
@@ -126,24 +78,13 @@ const ChoreQuest = () => {
               };
             });
             
-            if (convertedChores.length > 0) {
-              // If there are assigned chores, show only those
-              setAllChores(convertedChores);
-              // Pre-select all assigned chores
-              setSelectedChores(convertedChores);
-            } else {
-              // If no assigned chores, show default suggestions
-              console.log("No assigned chores found, showing default suggestions");
-              setAllChores(defaultChoresList);
-            }
+            setAllChores(convertedChores);
           } else {
-            console.log("No chores data received, showing default suggestions");
-            setAllChores(defaultChoresList);
+            setAllChores([]);
           }
         } catch (err) {
           console.error("Failed to fetch chores:", err);
-          // On error, show default suggestions
-          setAllChores(defaultChoresList);
+          setAllChores([]);
         } finally {
           setLoading(false);
         }
@@ -153,15 +94,17 @@ const ChoreQuest = () => {
     }
   }, [goal]);
 
-  const weeklyTarget = goal ? (goal.amount / goal.duration).toFixed(2) : 0;
-  const earnedSoFar = selectedChores.reduce((sum, c) => sum + c.amount, 0);
+  // Calculate existing savings and potential new earnings
+  const overallGoalAmount = goal ? goal.amount : 0;
+  const existingSaved = goal ? (goal.saved || goal.currentAmount || 0) : 0;
+  const potentialEarnings = selectedChores.reduce((sum, c) => sum + c.amount, 0);
+  const totalSoFar = existingSaved + potentialEarnings;
 
   const toggleChore = (chore) => {
     setSelectedChores((prev) => {
-      const exists = prev.find((c) => c.name === chore.name);
+      const exists = prev.find((c) => c.id === chore.id);
       if (exists) {
-        // Remove chore if already selected
-        return prev.filter((c) => c.name !== chore.name);
+        return prev.filter((c) => c.id !== chore.id);
       } else {
         return [...prev, chore];
       }
@@ -181,7 +124,7 @@ const ChoreQuest = () => {
       
       // Get the IDs of selected chores
       const choreIds = selectedChores
-        .filter(chore => chore.id) // Only chores that have IDs (from database)
+        .filter(chore => chore.id)
         .map(chore => chore.id);
       
       if (choreIds.length > 0) {
@@ -205,12 +148,10 @@ const ChoreQuest = () => {
         }
       }
       
-      // Navigate to weekly progress with selected chores
       navigate("/weekly-progress", { state: { selectedChores, goal } });
       
     } catch (error) {
       console.error("Error assigning chores to goal:", error);
-      // Still navigate even if assignment fails
       navigate("/weekly-progress", { state: { selectedChores, goal } });
     } finally {
       setIsAssigning(false);
@@ -237,44 +178,66 @@ const ChoreQuest = () => {
           Chore Quest
         </h1>
         <p className={tw("text-sm text-center text-gray-500 mb-10")}>
-          Pick your missions to earn ${weeklyTarget}/week for "{goal?.title}"
+          Pick your missions to contribute to "{goal?.title}"
         </p>
 
-        {/* Weekly Target Progress Bar */}
+        {/* Overall Goal Progress Bar */}
         <div className={tw("mb-6 bg-white p-4 rounded-xl shadow")}>
           <h2 className={tw("text-lg font-bold text-black-700 text-center mb-6")}>
             🚀 Big Goals Start with Small Wins!
           </h2>
-          <div className={tw("w-full bg-gray-200 h-3 rounded-full")}>
-            <div
-              className={tw("bg-green-400 h-3 rounded-full transition-all duration-500")}
-              style={{ width: `${Math.min((earnedSoFar / weeklyTarget) * 100, 100)}%` }}
+          
+          {/* Progress bar with two segments */}
+          <div className={tw("w-full bg-gray-200 h-3 rounded-full flex overflow-hidden")}>
+            {/* Existing savings segment */}
+            <div 
+              className={tw("h-full")}
+              style={{ 
+                width: `${Math.min((existingSaved / overallGoalAmount) * 100, 100)}%`,
+                backgroundColor: '#4ade80'  // Green for existing savings
+              }}
+            />
+            {/* Potential new earnings segment */}
+            <div 
+              className={tw("h-full")}
+              style={{ 
+                width: `${Math.min((potentialEarnings / overallGoalAmount) * 100, 100 - (existingSaved / overallGoalAmount) * 100)}%`,
+                backgroundColor: '#22d3ee'  // Blue for potential earnings
+              }}
             />
           </div>
+          
           <p className={tw("mt-2 text-lg font-bold text-purple-700 text-right")}>
-            $ {earnedSoFar.toFixed(2)} / $ {weeklyTarget} <br />
+            $ {totalSoFar.toFixed(2)} / $ {overallGoalAmount.toFixed(2)} <br />
             <span className={tw("text-sm text-gray-500")}>
-              Your Weekly Goal!
+              {existingSaved > 0 ? `($${existingSaved.toFixed(2)} already saved)` : 'Your Goal Progress'}
             </span>
           </p>
         </div>
 
         {/* Show message if no chores available */}
         {allChores.length === 0 ? (
-          <div className={tw("text-center py-10")}>
-            <p className={tw("text-lg text-gray-600 mb-4")}>
-              No chores have been assigned to you yet!
+          <div className={tw("text-center py-10 bg-white rounded-xl shadow")}>
+            <div className={tw("text-5xl mb-4")}>🧹</div>
+            <p className={tw("text-lg font-medium text-gray-600 mb-2")}>
+              No chores available right now
             </p>
-            <p className={tw("text-sm text-gray-500")}>
-              Ask your parent to assign some chores for this goal.
+            <p className={tw("text-sm text-gray-500 mb-6")}>
+              Check back later or ask your parent to assign chores
             </p>
+            <button
+              onClick={() => navigate(-1)}
+              className={tw("px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors")}
+            >
+              Go Back
+            </button>
           </div>
         ) : (
           <>
             {/* Chore Selection Grid */}
             <div className={tw("grid grid-cols-1 md:grid-cols-3 gap-8 mb-8")}>
-              {allChores.map((chore, index) => {
-                const selected = !!selectedChores.find((c) => c.name === chore.name);
+              {allChores.map((chore) => {
+                const selected = !!selectedChores.find((c) => c.id === chore.id);
                 // Determine difficulty badge style
                 let diffStyleObj;
                 if (chore.difficulty.includes('Hard')) diffStyleObj = hardStyle;
@@ -283,11 +246,11 @@ const ChoreQuest = () => {
                 
                 return (
                   <div
-                    key={chore.id || index}
+                    key={chore.id}
                     onClick={() => toggleChore(chore)}
                     className={tw(
-                      `p-4 border rounded-xl shadow cursor-pointer transition-transform hover:scale-105 ${
-                        selected ? "bg-green-100 border-green-400" : "bg-white"
+                      `p-4 border rounded-xl shadow cursor-pointer transition-all duration-200 ${
+                        selected ? "bg-green-50 border-green-400 ring-2 ring-green-200" : "bg-white hover:bg-purple-50"
                       }`
                     )}
                   >
@@ -300,7 +263,7 @@ const ChoreQuest = () => {
                     {/* Amount and Time/Due aligned */}
                     <div className={tw("flex items-center justify-between mb-2")}>
                       <span
-                        className={tw("px-3 text-sm rounded-full font-bold text-green-600")}
+                        className={tw("px-3 py-1 text-sm rounded-full font-bold text-green-600")}
                         style={{ backgroundColor: "#DCFCE7" }}
                       >
                         $ {chore.amount}.00
@@ -333,10 +296,10 @@ const ChoreQuest = () => {
                 onClick={handleLaunchMission}
                 disabled={selectedChores.length === 0 || isAssigning}
                 className={tw(
-                  `px-20 py-3 rounded text-white font-semibold text-lg transition-all ${
+                  `px-20 py-3 rounded-lg text-white font-semibold text-lg transition-all shadow-lg ${
                     selectedChores.length === 0 || isAssigning
                       ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-teal-400 to-purple-500 hover:opacity-90"
+                      : "bg-gradient-to-r from-teal-500 to-purple-600 hover:opacity-90 hover:shadow-xl transform hover:-translate-y-0.5"
                   }`
                 )}
               >
