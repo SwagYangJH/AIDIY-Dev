@@ -294,7 +294,7 @@ const ChatPage = () => {
       {sidebarOpen && (
         <div className={tw`w-64 flex flex-col shadow-lg`} style={{ backgroundColor: "#CDC8E3" }}>
           <header className={tw`p-4 border-b border-gray-300 flex justify-between items-center`}>
-            <h2 className={tw`font-semibold text-gray-700 text-lg`}>Chat History</h2>
+            <h2 className={tw`font-semibold text-[#0a2150] text-lg`}>Chat History</h2>
             <button 
               onClick={() => setSidebarOpen(false)} 
               className={tw`text-gray-600 hover:text-gray-800`}
@@ -305,14 +305,14 @@ const ChatPage = () => {
 
           <button
             onClick={startNewChat}
-            className={tw`w-full text-left py-3 px-4 hover:bg-purple-200 text-primary-turquoise font-medium flex items-center`}
+            className={tw`w-full text-left py-3 px-4 hover:bg-purple-200 text-[#0a2150] font-medium flex items-center`}
           >
             ➕ New Chat
           </button>
 
           <div className={tw`flex-1 overflow-y-auto`}>
             {chatSessions.length === 0 && !isLoading && (
-              <p className={tw`p-4 text-center italic text-gray-500`}>No saved chats yet</p>
+              <p className={tw`p-4 text-center italic text-[#0a2150]`}>No saved chats yet</p>
             )}
             {chatSessions.map((s) => (
               <div
@@ -387,7 +387,7 @@ const ChatPage = () => {
           
           <div className={tw`flex-grow overflow-y-auto mb-4 space-y-4 max-h-[70vh]`}>
             {messages.length === 0 && !isLoading && (
-              <div className={tw`flex flex-col items-center justify-center h-full text-gray-500`}>
+              <div className={tw`flex flex-col items-center justify-center h-full text-[#0a2150]`}>
                 {/* <div className={tw`text-4xl mb-4`}>💬</div> */}
                      <AIAvatar size="medium" animated={true} />
                 <p>Start a conversation with your money coach</p>

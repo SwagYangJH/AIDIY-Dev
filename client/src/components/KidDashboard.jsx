@@ -632,19 +632,26 @@ const KidDashboard = () => {
                 ${totalRewards.toFixed(2)}
               </p>
             </div>
-            <div className={tw("bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 text-center border border-green-200")}>
-              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
-                <span className={tw("text-2xl")}>🏦</span>
-                <span className={tw("text-sm text-gray-600")}>Savings</span>
+
+            <div className={tw("bg-green-100 rounded-xl p-4 text-center")}>
+              <div
+                className={tw("flex items-center justify-center gap-2 mb-2")}
+              >
+                <span className={tw("text-2xl")}>🚀</span>
+                <span className={tw("text-sm text-gray-600")}>Active Goals</span>
+
               </div>
               <p className={tw("text-2xl font-bold text-green-700")}>
                 ${totalSavings.toFixed(2)}
               </p>
             </div>
-            <div className={tw("bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 text-center border border-blue-200")}>
-              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
-                <span className={tw("text-2xl")}>📈</span>
-                <span className={tw("text-sm text-gray-600")}>Investments</span>
+            <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
+              <div
+                className={tw("flex items-center justify-center gap-2 mb-2")}
+              >
+                <span className={tw("text-2xl")}>🏆</span>
+                <span className={tw("text-sm text-gray-600")}>Total Goals</span>
+
               </div>
               <p className={tw("text-2xl font-bold text-blue-700")}>
                 ${investments.toFixed(2)}
