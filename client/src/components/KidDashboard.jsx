@@ -566,8 +566,8 @@ const KidDashboard = () => {
               <div
                 className={tw("flex items-center justify-center gap-2 mb-2")}
               >
-                <span className={tw("text-2xl")}>🏦</span>
-                <span className={tw("text-sm text-gray-600")}>Savings</span>
+                <span className={tw("text-2xl")}>🚀</span>
+                <span className={tw("text-sm text-gray-600")}>Active Goals</span>
               </div>
               <p className={tw("text-2xl font-bold")}>
                 ${totalSavings.toFixed(2)}
@@ -577,8 +577,8 @@ const KidDashboard = () => {
               <div
                 className={tw("flex items-center justify-center gap-2 mb-2")}
               >
-                <span className={tw("text-2xl")}>📈</span>
-                <span className={tw("text-sm text-gray-600")}>Investments</span>
+                <span className={tw("text-2xl")}>🏆</span>
+                <span className={tw("text-sm text-gray-600")}>Total Goals</span>
               </div>
               <p className={tw("text-2xl font-bold")}>
                 ${investments.toFixed(2)}
