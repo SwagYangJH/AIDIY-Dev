@@ -1,6 +1,5 @@
-// WeeklyProgress.jsx - Fixed version with proper hook ordering
-
-import React, { useState, useEffect } from "react";
+// WeeklyProgress.jsx - Fixed version with proper chore merging
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
 import CelebrationEffect from "./CelebrationEffect";
@@ -12,7 +11,28 @@ const WeeklyProgress = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = location;
-  const selectedChores = state?.selectedChores || [];
+  
+  // Since ChoreQuest now passes ALL chores in selectedChores, we can use it directly
+  const selectedChores = useMemo(() => {
+    // If we have selectedChores from the state, use them
+    if (state?.selectedChores && state.selectedChores.length > 0) {
+      return state.selectedChores;
+    }
+    
+    // Fallback: merge new chores with existing ones (for backward compatibility)
+    const newChores = state?.newChores || [];
+    const existingChores = state?.prevChores || [];
+    
+    const merged = [...existingChores, ...newChores];
+    return merged.reduce((unique, chore) => {
+      if (!unique.some(c => c.id === chore.id)) {
+        unique.push(chore);
+      }
+      return unique;
+    }, []);
+  }, [state]);
+
+  // Rest of the component remains the same...
   const goal = state?.goal || {};
   const [completedChores, setCompletedChores] = useState([]);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -24,7 +44,7 @@ const WeeklyProgress = () => {
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [hasPendingApproval, setHasPendingApproval] = useState(false);
 
-  // Calculate deadline status - MOVED BEFORE CONDITIONAL RETURNS
+  // Calculate deadline status
   useEffect(() => {
     if (goal?.duration) {
       const createdDate = new Date(goal.created_at || goal.createdAt);
@@ -43,74 +63,73 @@ const WeeklyProgress = () => {
   }, [goal]);
 
   // Fetch current chore statuses
- // In WeeklyProgress.jsx, update the hasPendingApproval logic:
-useEffect(() => {
-  const fetchChoreStatuses = async () => {
-    if (!goal._id && !goal.id) return;
-    
-    try {
-      const token = sessionStorage.getItem('app_token');
-      const goalId = goal._id || goal.id;
+  useEffect(() => {
+    const fetchChoreStatuses = async () => {
+      if (!goal._id && !goal.id) return;
       
-      // Fetch chores assigned to this goal
-      const response = await fetch(`http://localhost:5500/api/goals/${goalId}/chores`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.chores) {
-        // Create a map of chore statuses
-        const statusMap = {};
-        let foundPending = false;
+      try {
+        const token = sessionStorage.getItem('app_token');
+        const goalId = goal._id || goal.id;
         
-        // Check if any of the selected chores are pending approval
-        selectedChores.forEach(chore => {
-          // Find the current status of this chore from the backend
-          const currentChore = data.chores.find(c => c.id === chore.id);
-          if (!currentChore) {
-            // If chore is not in the list, it might be archived or pending
-            statusMap[chore.id] = 'archived_or_pending';
-            foundPending = true;
-          } else {
-            statusMap[chore.id] = currentChore.status;
-            if (currentChore.status === 'pending_approval') {
-              foundPending = true;
-            }
+        // Fetch chores assigned to this goal
+        const response = await fetch(`http://localhost:5500/api/goals/${goalId}/chores`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
         });
         
-        setCurrentChoreStatuses(statusMap);
-        setHasPendingApproval(foundPending);
+        const data = await response.json();
         
-        // If all selected chores are archived, redirect to dashboard
-        const allArchived = selectedChores.every(chore => 
-          statusMap[chore.id] === 'archived_or_pending'
-        );
-        
-        if (allArchived) {
-          alert('All chores have been processed. Returning to dashboard.');
-          navigate('/kid-dashboard');
+        if (data.success && data.chores) {
+          // Create a map of chore statuses
+          const statusMap = {};
+          let foundPending = false;
+          
+          // Check if any of the selected chores are pending approval
+          selectedChores.forEach(chore => {
+            // Find the current status of this chore from the backend
+            const currentChore = data.chores.find(c => c.id === chore.id);
+            if (!currentChore) {
+              // If chore is not in the list, it might be archived or pending
+              statusMap[chore.id] = 'archived_or_pending';
+              foundPending = true;
+            } else {
+              statusMap[chore.id] = currentChore.status;
+              if (currentChore.status === 'pending_approval') {
+                foundPending = true;
+              }
+            }
+          });
+          
+          setCurrentChoreStatuses(statusMap);
+          setHasPendingApproval(foundPending);
+          
+          // If all selected chores are archived, redirect to dashboard
+          const allArchived = selectedChores.every(chore => 
+            statusMap[chore.id] === 'archived_or_pending'
+          );
+          
+          if (allArchived) {
+            alert('All chores have been processed. Returning to dashboard.');
+            navigate('/kid-dashboard');
+          }
         }
+      } catch (error) {
+        console.error('Error fetching chore statuses:', error);
+      } finally {
+        setLoadingStatuses(false);
       }
-    } catch (error) {
-      console.error('Error fetching chore statuses:', error);
-    } finally {
-      setLoadingStatuses(false);
-    }
-  };
-  
-  fetchChoreStatuses();
-  
-  // Also check if refreshing from submission
-  const shouldRefresh = sessionStorage.getItem('refreshKidDashboard');
-  if (shouldRefresh) {
+    };
+    
     fetchChoreStatuses();
-    sessionStorage.removeItem('refreshKidDashboard');
-  }
-}, [goal, selectedChores, navigate]);
+    
+    // Also check if refreshing from submission
+    const shouldRefresh = sessionStorage.getItem('refreshKidDashboard');
+    if (shouldRefresh) {
+      fetchChoreStatuses();
+      sessionStorage.removeItem('refreshKidDashboard');
+    }
+  }, [goal, selectedChores, navigate]);
 
   const toggleComplete = (name) => {
     const wasCompleted = completedChores.includes(name);
@@ -132,8 +151,13 @@ useEffect(() => {
   };
 
   const handleEditMissionList = () => {
-    // Navigate back to ChoreQuest with the current goal
-    navigate("/chore-quest", { state: { goal } });
+    // Navigate back with existing chores
+    navigate("/chore-quest", { 
+      state: { 
+        goal,
+        prevChores: selectedChores // Pass existing chores
+      } 
+    });
   };
 
   const handleSubmitProgress = async () => {
