@@ -193,10 +193,10 @@ const handleLaunchMission = async () => {
   return (
     <div className={tw("min-h-screen bg-gradient-to-br from-purple-100 to-blue-100")}>
       <div className={tw("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6")}>
-        <h1 className={tw("text-2xl font-bold text-center text-black-800 mb-4")}>
+        <h1 className={tw("text-3xl font-bold text-center text-[#0a2150] mb-4")}>
           Chore Quest
         </h1>
-        <p className={tw("text-sm text-center text-gray-500 mb-10")}>
+        <p className={tw("text-bg text-center text-gray-500 mb-10")}>
           Pick your missions to contribute to "{goal?.title}"
         </p>
 

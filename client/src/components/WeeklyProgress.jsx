@@ -299,9 +299,9 @@ const WeeklyProgress = () => {
       )}
 
       {/* Header */}
-      <div className={tw("max-w-4xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
+      <div className={tw("max-w-6xl mx-auto bg-white p-4 rounded-xl shadow-md mb-6")}>
         <h2 className={tw("text-lg font-bold text-purple-700 mb-1")}>🏆 OVERALL GOAL PROGRESS</h2>
-        <p className={tw("text-sm text-gray-500 mb-2")}>Working on: {goal.title}</p>
+        <p className={tw("text-sm text-[#0a2150] mb-2")}>Working on: {goal.title}</p>
         
         {/* Overall Goal Progress */}
         <div className={tw("mb-4")}>
@@ -331,7 +331,7 @@ const WeeklyProgress = () => {
 
       {/* Controls - only show if not submitted */}
       {!hasSubmitted && (
-        <div className={tw("max-w-4xl mx-auto mb-6 flex gap-4")}>
+        <div className={tw("max-w-6xl mx-auto mb-6 flex gap-4")}>
           <button
             onClick={markAllComplete}
             disabled={completedChores.length === selectedChores.length}

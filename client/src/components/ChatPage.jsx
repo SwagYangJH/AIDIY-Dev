@@ -325,7 +325,7 @@ const ChatPage = () => {
               >
                 <div className={tw`flex justify-between items-start`}>
                   <div className={tw`flex-1 min-w-0`}>
-                    <p className={tw`font-medium text-gray-700 truncate`}>{s.title}</p>
+                    <p className={tw`font-medium text-[#0a2150] truncate`}>{s.title}</p>
                     <p className={tw`text-xs text-gray-600 truncate`}>
                       {new Date(s.updated_at).toLocaleDateString()} – 
                       {new Date(s.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -366,7 +366,7 @@ const ChatPage = () => {
       <main className={tw`flex-1 flex flex-col px-4 py-6`}>
         {/* Header */}
         <div className={tw`flex justify-between items-center mb-4`}>
-          <h1 className={tw`text-2xl font-bold text-primary-turquoise`}>Ai DIY</h1>
+          <h1 className={tw`text-2xl font-bold text-[#0a2150]`}>Ai DIY</h1>
           {activeSession && (
             <input
               value={chatSessions.find((s) => s._id === activeSession)?.title || ""}
