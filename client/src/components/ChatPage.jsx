@@ -388,9 +388,9 @@ const ChatPage = () => {
           <div className={tw`flex-grow overflow-y-auto mb-4 space-y-4 max-h-[70vh]`}>
             {messages.length === 0 && !isLoading && (
               <div className={tw`flex flex-col items-center justify-center h-full text-gray-500`}>
-                <div className={tw`text-4xl mb-4`}>💬</div>
-                     {/* <AIAvatar size="large" animated={true} /> */}
-                <p>Start a conversation with your financial coach</p>
+                {/* <div className={tw`text-4xl mb-4`}>💬</div> */}
+                     <AIAvatar size="medium" animated={true} />
+                <p>Start a conversation with your money coach</p>
                 <p className={tw`text-sm mt-2`}>Ask about saving, budgeting, or money management!</p>
               </div>
             )}
