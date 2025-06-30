@@ -2386,7 +2386,13 @@ const ChoreManagementTab = ({
                         className={tw('form-radio h-5 w-5 text-blue-600')}
                       />
                       <div className={tw('flex items-center gap-2')}>
-                        <span className={tw('text-xl')}>{child.avatar}</span>
+                        <div className={tw('w-8 h-8 rounded-full overflow-hidden')}>
+                          <img
+                            src={getValidChildAvatar(child.avatar)}
+                            alt={`${child.nickName || child.firstName} avatar`}
+                            className="w-8 h-8 object-cover rounded-full"
+                          />
+                        </div>
                         <span className={tw('font-medium')}>{child.nickName || child.firstName}</span>
                       </div>
                     </label>
@@ -2606,7 +2612,13 @@ const ChoreManagementTab = ({
                         className={tw('form-radio h-5 w-5 text-blue-600')}
                       />
                       <div className={tw('flex items-center gap-2')}>
-                        <span className={tw('text-xl')}>{child.avatar}</span>
+                        <div className={tw('w-8 h-8 rounded-full overflow-hidden')}>
+                          <img
+                            src={getValidChildAvatar(child.avatar)}
+                            alt={`${child.nickName || child.firstName} avatar`}
+                            className="w-8 h-8 object-cover rounded-full"
+                          />
+                        </div>
                         <span className={tw('font-medium')}>{child.nickName || child.firstName}</span>
                       </div>
                     </label>
