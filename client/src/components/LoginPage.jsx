@@ -356,7 +356,7 @@ const LoginPage = () => {
 
                       {/* remember / forgot */}
                       <div className={tw("flex items-center justify-between")}>
-                        <label className={tw("flex items-center")}>
+                        <label classNafor me={tw("flex items-center")}>
                           <input
                             type="checkbox"
                             className={tw("mr-2")}

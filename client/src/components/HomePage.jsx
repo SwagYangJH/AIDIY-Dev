@@ -69,7 +69,7 @@ const HomePage = () => {
       </nav>
       Hero Section
       <section
-        className={tw("pt-32 pb-20 overflow-hidden")}
+        className={tw("pt-32 pb-3 overflow-hidden")}
         style={{
           background:
             "linear-gradient(to bottom right, rgba(183, 115, 190, 0.9), rgba(30, 234, 234, 0.9))",
