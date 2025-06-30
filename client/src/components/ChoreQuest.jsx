@@ -1,5 +1,3 @@
-// ChoreQuest.jsx - Updated version
-
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
@@ -96,8 +94,11 @@ const ChoreQuest = () => {
     }
   }, [goal]);
 
+  // Calculate existing savings and potential new earnings
   const overallGoalAmount = goal ? goal.amount : 0;
-  const earnedSoFar = selectedChores.reduce((sum, c) => sum + c.amount, 0);
+  const existingSaved = goal ? (goal.saved || goal.currentAmount || 0) : 0;
+  const potentialEarnings = selectedChores.reduce((sum, c) => sum + c.amount, 0);
+  const totalSoFar = existingSaved + potentialEarnings;
 
   const toggleChore = (chore) => {
     setSelectedChores((prev) => {
@@ -185,16 +186,31 @@ const ChoreQuest = () => {
           <h2 className={tw("text-lg font-bold text-black-700 text-center mb-6")}>
             🚀 Big Goals Start with Small Wins!
           </h2>
-          <div className={tw("w-full bg-gray-200 h-3 rounded-full")}>
-            <div
-              className={tw("bg-green-400 h-3 rounded-full transition-all duration-500")}
-              style={{ width: `${Math.min((earnedSoFar / overallGoalAmount) * 100, 100)}%` }}
+          
+          {/* Progress bar with two segments */}
+          <div className={tw("w-full bg-gray-200 h-3 rounded-full flex overflow-hidden")}>
+            {/* Existing savings segment */}
+            <div 
+              className={tw("h-full")}
+              style={{ 
+                width: `${Math.min((existingSaved / overallGoalAmount) * 100, 100)}%`,
+                backgroundColor: '#4ade80'  // Green for existing savings
+              }}
+            />
+            {/* Potential new earnings segment */}
+            <div 
+              className={tw("h-full")}
+              style={{ 
+                width: `${Math.min((potentialEarnings / overallGoalAmount) * 100, 100 - (existingSaved / overallGoalAmount) * 100)}%`,
+                backgroundColor: '#22d3ee'  // Blue for potential earnings
+              }}
             />
           </div>
+          
           <p className={tw("mt-2 text-lg font-bold text-purple-700 text-right")}>
-            $ {earnedSoFar.toFixed(2)} / $ {overallGoalAmount.toFixed(2)} <br />
+            $ {totalSoFar.toFixed(2)} / $ {overallGoalAmount.toFixed(2)} <br />
             <span className={tw("text-sm text-gray-500")}>
-              Your Goal Progress
+              {existingSaved > 0 ? `($${existingSaved.toFixed(2)} already saved)` : 'Your Goal Progress'}
             </span>
           </p>
         </div>
