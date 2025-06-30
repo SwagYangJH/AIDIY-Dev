@@ -1,3 +1,4 @@
+// ChoreQuest.jsx - Fixed version
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { tw } from "@twind/core";
@@ -5,10 +6,10 @@ import { tw } from "@twind/core";
 const ChoreQuest = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { goal } = location.state || {};
+  const { goal, prevChores = [] } = location.state || {}; // Get existing chores
 
   const [allChores, setAllChores] = useState([]);
-  const [selectedChores, setSelectedChores] = useState([]);
+  const [selectedChores, setSelectedChores] = useState(prevChores); // Initialize with existing chores
   const [loading, setLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -118,52 +119,63 @@ const ChoreQuest = () => {
     });
   };
 
-  const handleLaunchMission = async () => {
-    if (selectedChores.length === 0) {
-      alert("Please select at least one chore!");
-      return;
-    }
+const handleLaunchMission = async () => {
+  if (selectedChores.length === 0) {
+    alert("Please select at least one chore!");
+    return;
+  }
 
-    setIsAssigning(true);
+  setIsAssigning(true);
+  
+  try {
+    const token = sessionStorage.getItem('app_token');
     
-    try {
-      const token = sessionStorage.getItem('app_token');
-      
-      // Get the IDs of selected chores
-      const choreIds = selectedChores
-        .filter(chore => chore.id)
-        .map(chore => chore.id);
-      
-      if (choreIds.length > 0) {
-        // Assign these chores to the goal
-        const response = await fetch('http://localhost:5500/api/chores/assign-to-goal', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            goalId: goal._id || goal.id,
-            choreIds: choreIds
-          })
-        });
+    // Get the IDs of NEWLY selected chores (not in prevChores)
+    const newChoreIds = selectedChores
+      .filter(chore => chore.id && !prevChores.some(pc => pc.id === chore.id))
+      .map(chore => chore.id);
+    
+    // Only assign NEW chores to the goal (don't re-assign existing ones)
+    if (newChoreIds.length > 0) {
+      const response = await fetch('http://localhost:5500/api/chores/assign-to-goal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          goalId: goal._id || goal.id,
+          choreIds: newChoreIds
+        })
+      });
 
-        const data = await response.json();
-        
-        if (!data.success) {
-          console.error("Failed to assign chores to goal:", data.error);
-        }
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error("Failed to assign chores to goal:", data.error);
       }
-      
-      navigate("/weekly-progress", { state: { selectedChores, goal } });
-      
-    } catch (error) {
-      console.error("Error assigning chores to goal:", error);
-      navigate("/weekly-progress", { state: { selectedChores, goal } });
-    } finally {
-      setIsAssigning(false);
     }
-  };
+    
+    // Navigate with ALL selected chores (both existing and new)
+    navigate("/weekly-progress", { 
+      state: { 
+        goal,
+        selectedChores: selectedChores // Pass ALL chores, not just new ones
+      } 
+    });
+  } catch (error) {
+    console.error("Error assigning chores to goal:", error);
+    // Even if there's an error, navigate with all chores
+    navigate("/weekly-progress", { 
+      state: { 
+        goal,
+        selectedChores: selectedChores // Pass ALL chores
+      } 
+    });
+  } finally {
+    setIsAssigning(false);
+  }
+};
 
   // Styles for difficulty badges
   const easyStyle = { backgroundColor: "#DCFCE7", color: "#22C55E", borderColor: "#187235" };
