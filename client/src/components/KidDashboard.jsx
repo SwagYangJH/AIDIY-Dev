@@ -30,18 +30,89 @@ const KidDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Calculate total earnings from active goals
-  const totalEarnings = activeGoals.reduce(
-    (sum, goal) => sum + (goal.saved || 0),
-    0
+  // Enhanced total earnings calculation with multiple sources
+  const calculateTotalRewards = () => {
+    // Source 1: Active goals savings
+    const goalEarnings = activeGoals.reduce(
+      (sum, goal) => {
+        const saved = goal.saved || goal.currentAmount || 0;
+        return sum + saved;
+      },
+      0
+    );
+
+    // Source 2: User profile earnings
+    const profileEarnings = userProfile?.financial_info?.total_earnings || 0;
+    
+    // Source 3: Completed chores (if available)
+    const choreEarnings = assignedChores
+      .filter(chore => chore.status === 'completed' || chore.status === 'approved')
+      .reduce((sum, chore) => sum + (chore.reward || 0), 0);
+
+    // Use the highest value to ensure accuracy
+    const totalFromGoals = goalEarnings;
+    const totalFromProfile = profileEarnings;
+    const totalFromChores = choreEarnings;
+    
+    // Debug logging (can remove in production)
+    console.log('💰 Earnings Debug:', {
+      goalEarnings,
+      profileEarnings,
+      choreEarnings,
+      activeGoals: activeGoals.length,
+      userProfile: !!userProfile
+    });
+
+    // Return the maximum to ensure we don't lose any earnings
+    return Math.max(totalFromGoals, totalFromProfile, totalFromChores);
+  };
+
+  const totalRewards = calculateTotalRewards();
+
+  // Level system configuration
+  const LEVEL_CONFIG = {
+    threshold: 25,        // Dollars needed per level
+    maxDisplayLevel: 999, // Maximum level to display (essentially unlimited)
+    minLevel: 1          // Minimum level
+  };
+
+  // Calculate current level (unlimited)
+  const currentLevel = Math.max(
+    LEVEL_CONFIG.minLevel,
+    Math.floor(totalRewards / LEVEL_CONFIG.threshold) + 1
   );
 
-  // Calculate real values from goals and user profile
-  const totalSavings =
-    userProfile?.financial_info?.total_savings || totalEarnings;
-  const investments = 0; // Can be calculated later
-  const level = Math.floor(totalSavings / 50) + 1; // Level up every $50
-  const progress = Math.min((level - 1) * 10 + 1, 100); // Progress based on level
+  // Calculate progress within current level (0-100%)
+  const remainderInLevel = totalRewards % LEVEL_CONFIG.threshold;
+  const progressInCurrentLevel = (remainderInLevel / LEVEL_CONFIG.threshold) * 100;
+
+  // Calculate targets for next level
+  const currentLevelStart = (currentLevel - 1) * LEVEL_CONFIG.threshold;
+  const nextLevelTarget = currentLevel * LEVEL_CONFIG.threshold;
+  const amountToNextLevel = nextLevelTarget - totalRewards;
+
+  // Calculate other financial metrics
+  const totalSavings = userProfile?.financial_info?.total_savings || totalRewards;
+  const investments = userProfile?.financial_info?.investments || 0;
+
+  // Create level badge based on current level
+  const getLevelBadge = (level) => {
+    if (level >= 50) return "🏆"; // Master
+    if (level >= 25) return "💎"; // Diamond
+    if (level >= 15) return "🥇"; // Gold
+    if (level >= 10) return "🥈"; // Silver
+    if (level >= 5) return "🥉";  // Bronze
+    return "⭐"; // Beginner
+  };
+
+  const getLevelTitle = (level) => {
+    if (level >= 50) return "Money Master";
+    if (level >= 25) return "Savings Diamond";
+    if (level >= 15) return "Gold Earner";
+    if (level >= 10) return "Silver Saver";
+    if (level >= 5) return "Bronze Builder";
+    return "Rising Star";
+  };
 
   const choreCategories = [
     {
@@ -397,14 +468,8 @@ const KidDashboard = () => {
       }}
     >
       {/* Header */}
-      <header
-        className={tw(
-          "bg-white p-4"
-        )}
-      >
-        <div
-          className={tw("max-w-7xl mx-auto flex items-center justify-between")}
-        >
+      <header className={tw("bg-white p-4")}>
+        <div className={tw("max-w-7xl mx-auto flex items-center justify-between")}>
           <div
             className={tw("flex items-center space-x-2 cursor-pointer")}
             onClick={() => navigate("/")}
@@ -414,40 +479,36 @@ const KidDashboard = () => {
           <div className={tw("flex items-center gap-3")}>
             <button
               onClick={() => navigate("/chat")}
-              // className={tw("top-4  p-2 bg-white rounded-full shadow")}
               className={tw(`
-  px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
-  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
-  text-white`)}
+                px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
+                [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+                text-white`)}
               title="Open AI Chatbot"
             >
               ✨
             </button>
 
-<button
-  onClick={() => setShowNotifications(true)}
-  className={tw("p-2 rounded-full bg-yellow-200 hover:bg-white/30 text-white relative")}
->
-  {unreadCount > 0 && (
-    <span className={tw(
-      "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1",
-      notifications.some(n => n.type === "progress_declined" && !n.read) 
-        ? "animate-pulse" : ""
-    )}>
-      {unreadCount}
-    </span>
-  )}
-  <BellIcon size={24} />
-</button>
+            <button
+              onClick={() => setShowNotifications(true)}
+              className={tw("p-2 rounded-full bg-yellow-200 hover:bg-white/30 text-white relative")}
+            >
+              {unreadCount > 0 && (
+                <span className={tw(
+                  "absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1",
+                  notifications.some(n => n.type === "progress_declined" && !n.read) 
+                    ? "animate-pulse" : ""
+                )}>
+                  {unreadCount}
+                </span>
+              )}
+              <BellIcon size={24} />
+            </button>
 
             <div
-              // className={tw(
-              //   "flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
-              // )}
               className={tw(`
-  flex items-center gap-2 bg-white/20 rounded-full px-3 py-1
-  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
-  text-white`)}
+                flex items-center gap-2 bg-white/20 rounded-full px-3 py-1
+                [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+                text-white`)}
             >
               <div
                 className={tw(
@@ -478,13 +539,10 @@ const KidDashboard = () => {
             </div>
             <button
               onClick={handleLogout}
-              // className={tw(
-              //   "px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
-              // )}
               className={tw(`
-  px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
-  [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
-  text-white`)}
+                px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300
+                [background:linear-gradient(to_right,_#2dd4bf,_#a855f7)]
+                text-white`)}
             >
               Sign Out
             </button>
@@ -498,109 +556,153 @@ const KidDashboard = () => {
           Kid dashboard
         </h1>
 
-        {/* Welcome Card */}
+        {/* Enhanced Welcome Card */}
         <div className={tw("bg-white rounded-2xl shadow-lg p-6 mb-6")}>
           <div className={tw("flex items-center justify-between mb-4")}>
-            <div>
-              <h2 className={tw("text-xl font-bold text-[#0a2150]")}>
+            <div className={tw("flex-1")}>
+              <h2 className={tw("text-xl font-bold text-[#0a2150] flex items-center gap-2")}>
                 Welcome, {kidNickname}! 👋
+                <span className={tw("text-2xl")}>{getLevelBadge(currentLevel)}</span>
               </h2>
-              <p className={tw("text-[#0a2150]")}>
-                Journey unlocked! Let’s boost your money smarts!
+              <p className={tw("text-[#0a2150] mb-1")}>
+                Journey unlocked! Let's boost your money smarts!
+              </p>
+              <p className={tw("text-sm text-purple-600 font-semibold")}>
+                {getLevelTitle(currentLevel)} - Level {currentLevel}
               </p>
             </div>
+            
+            {/* Enhanced Progress Circle */}
             <div className={tw("text-center")}>
-              <div className={tw("relative w-24 h-24")}>
-                <svg className={tw("w-24 h-24 transform -rotate-90")}>
+              <div className={tw("relative w-28 h-28")}>
+                {/* Background circle */}
+                <svg className={tw("w-28 h-28 transform -rotate-90")}>
                   <circle
-                    cx="48"
-                    cy="48"
-                    r="36"
+                    cx="56"
+                    cy="56"
+                    r="44"
                     stroke="#e5e7eb"
                     strokeWidth="8"
                     fill="none"
                   />
+                  {/* Progress circle with animation */}
                   <circle
-                    cx="48"
-                    cy="48"
-                    r="36"
-                    stroke="#40e0d0"
+                    cx="56"
+                    cy="56"
+                    r="44"
+                    stroke="url(#gradient)"
                     strokeWidth="8"
                     fill="none"
-                    strokeDasharray={`${2 * Math.PI * 36}`}
-                    strokeDashoffset={`${
-                      2 * Math.PI * 36 * (1 - progress / 100)
-                    }`}
+                    strokeDasharray={`${2 * Math.PI * 44}`}
+                    strokeDashoffset={`${2 * Math.PI * 44 * (1 - progressInCurrentLevel / 100)}`}
+                    className={tw("transition-all duration-2000 ease-out")}
+                    strokeLinecap="round"
                   />
+                  {/* Gradient definition */}
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#40e0d0" />
+                      <stop offset="100%" stopColor="#a855f7" />
+                    </linearGradient>
+                  </defs>
                 </svg>
-                <div
-                  className={tw(
-                    "absolute inset-0 flex flex-col items-center justify-center"
-                  )}
-                >
-                  <span className={tw("text-sm text-gray-600")}>
-                    Level - {level}
+                
+                {/* Center content */}
+                <div className={tw("absolute inset-0 flex flex-col items-center justify-center")}>
+                  <span className={tw("text-lg font-bold text-purple-600")}>
+                    {currentLevel}
                   </span>
-                  <span className={tw("text-xl font-bold")}>{progress}%</span>
+                  <span className={tw("text-xs text-gray-500")}>Level</span>
+                  <span className={tw("text-sm font-semibold text-gray-700")}>
+                    {Math.round(progressInCurrentLevel)}%
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Earnings Summary */}
+          {/* Enhanced Earnings Summary */}
           <div className={tw("grid grid-cols-3 gap-4")}>
-            <div className={tw("bg-orange-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+            <div className={tw("bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-4 text-center border border-orange-200")}>
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>💰</span>
-                <span className={tw("text-sm text-gray-600")}>
-                  Total Earnings
-                </span>
+                <span className={tw("text-sm text-gray-600")}>Total Rewards</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
-                ${totalEarnings.toFixed(2)}
+              <p className={tw("text-2xl font-bold text-orange-700")}>
+                ${totalRewards.toFixed(2)}
               </p>
             </div>
-            <div className={tw("bg-green-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+            <div className={tw("bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 text-center border border-green-200")}>
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>🏦</span>
                 <span className={tw("text-sm text-gray-600")}>Savings</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
+              <p className={tw("text-2xl font-bold text-green-700")}>
                 ${totalSavings.toFixed(2)}
               </p>
             </div>
-            <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
-              <div
-                className={tw("flex items-center justify-center gap-2 mb-2")}
-              >
+            <div className={tw("bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 text-center border border-blue-200")}>
+              <div className={tw("flex items-center justify-center gap-2 mb-2")}>
                 <span className={tw("text-2xl")}>📈</span>
                 <span className={tw("text-sm text-gray-600")}>Investments</span>
               </div>
-              <p className={tw("text-2xl font-bold")}>
+              <p className={tw("text-2xl font-bold text-blue-700")}>
                 ${investments.toFixed(2)}
               </p>
             </div>
           </div>
 
-          {/* Level Progress */}
-          <div className={tw("mt-4")}>
-            <div className={tw("flex items-center justify-between mb-2")}>
-              <span className={tw("text-sm text-gray-600")}>
-                Level Progress
-              </span>
-              <span className={tw("text-sm text-gray-600")}>Learn 100 XP</span>
+          {/* Enhanced Level Progress Section */}
+          <div className={tw("mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-200")}>
+            <div className={tw("flex items-center justify-between mb-3")}>
+              <div className={tw("flex items-center gap-2")}>
+                <span className={tw("text-2xl")}>{getLevelBadge(currentLevel)}</span>
+                <span className={tw("text-lg font-bold text-purple-700")}>
+                  Level {currentLevel} Progress
+                </span>
+              </div>
+              <div className={tw("text-right")}>
+                <p className={tw("text-sm text-gray-600")}>
+                  ${totalRewards.toFixed(2)} / ${nextLevelTarget}
+                </p>
+                <p className={tw("text-xs text-purple-600 font-medium")}>
+                  ${amountToNextLevel.toFixed(2)} to next level
+                </p>
+              </div>
             </div>
-            <div className={tw("w-full bg-gray-200 rounded-full h-3")}>
-              <div
-                className={tw(
-                  "bg-gradient-to-r from-primary-turquoise to-accent-purple h-3 rounded-full"
-                )}
-                style={{ width: `${progress}%` }}
-              />
+            
+            {/* Progress Bar */}
+            <div className={tw("relative")}>
+              <div className={tw("w-full bg-gray-200 rounded-full h-4 overflow-hidden")}>
+                <div
+                  className={tw("h-4 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 rounded-full transition-all duration-2000 ease-out relative")}
+                  style={{ width: `${Math.max(2, progressInCurrentLevel)}%` }}
+                >
+                  {/* Animated shimmer effect */}
+                  <div className={tw("absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse")} />
+                </div>
+              </div>
+              
+              {/* Progress indicators */}
+              <div className={tw("flex justify-between text-xs text-gray-500 mt-2")}>
+                <span className={tw("font-medium")}>${currentLevelStart}</span>
+                <span className={tw("font-bold text-purple-600")}>
+                  Next: Level {currentLevel + 1}
+                </span>
+                <span className={tw("font-medium")}>${nextLevelTarget}</span>
+              </div>
+            </div>
+
+            {/* Motivational message */}
+            <div className={tw("mt-3 text-center")}>
+              <p className={tw("text-sm text-gray-600")}>
+                {amountToNextLevel <= 5 
+                  ? `🔥 Almost there! Just $${amountToNextLevel.toFixed(2)} more!`
+                  : amountToNextLevel <= 15
+                  ? `💪 You're doing great! $${amountToNextLevel.toFixed(2)} to go!`
+                  : `🌟 Keep earning! $${amountToNextLevel.toFixed(2)} until Level ${currentLevel + 1}!`
+                }
+              </p>
             </div>
           </div>
         </div>
@@ -639,16 +741,13 @@ const KidDashboard = () => {
           </div>
         </div>
 
-        {/* // My Assigned Chores Section */}
+        {/* My Assigned Chores Section */}
         <div className={tw("mb-6")}>
           <h3 className={tw("text-lg font-bold text-[#0a2150] mb-4")}>
             My Assigned Chores
           </h3>
-          {assignedChores.filter((chore) => !chore.assigned_goal_id).length ===
-          0 ? (
-            <div
-              className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}
-            >
+          {assignedChores.filter((chore) => !chore.assigned_goal_id).length === 0 ? (
+            <div className={tw("bg-white rounded-2xl shadow-lg p-8 text-center")}>
               <div className={tw("text-4xl mb-4")}>📋</div>
               <p className={tw("text-gray-600")}>
                 No standalone chores assigned! Check your goals for chores.
@@ -681,26 +780,16 @@ const KidDashboard = () => {
                         }`
                       )}
                     >
-                      <div
-                        className={tw("flex items-start justify-between mb-4")}
-                      >
+                      <div className={tw("flex items-start justify-between mb-4")}>
                         <div className={tw("flex-1")}>
-                          <h4
-                            className={tw(
-                              "text-lg font-bold text-gray-800 mb-2"
-                            )}
-                          >
+                          <h4 className={tw("text-lg font-bold text-gray-800 mb-2")}>
                             {chore.title}
                           </h4>
                           <p className={tw("text-sm text-gray-600 mb-3")}>
                             {chore.description}
                           </p>
 
-                          <div
-                            className={tw(
-                              "flex items-center gap-4 text-sm text-gray-600 mb-3"
-                            )}
-                          >
+                          <div className={tw("flex items-center gap-4 text-sm text-gray-600 mb-3")}>
                             <span className={tw("flex items-center gap-1")}>
                               <span>📂</span> {chore.category}
                             </span>
@@ -712,14 +801,8 @@ const KidDashboard = () => {
                             </span>
                           </div>
 
-                          <div
-                            className={tw("flex items-center justify-between")}
-                          >
-                            <div
-                              className={tw(
-                                "text-2xl font-bold text-green-600"
-                              )}
-                            >
+                          <div className={tw("flex items-center justify-between")}>
+                            <div className={tw("text-2xl font-bold text-green-600")}>
                               💰 ${chore.reward.toFixed(2)}
                             </div>
                             {isPending ? (
@@ -739,7 +822,6 @@ const KidDashboard = () => {
                                 ✅ Completed
                               </span>
                             ) : (
-                              // REMOVED THE MARK COMPLETE BUTTON HERE
                               <span className={tw("text-sm text-gray-600")}>
                                 Assigned
                               </span>
@@ -830,12 +912,8 @@ const KidDashboard = () => {
                       </div>
                     )}
 
-                    <div
-                      className={tw("flex items-center justify-between mb-2")}
-                    >
-                      <span
-                        className={tw("text-sm font-medium text-[#0a2150]")}
-                      >
+                    <div className={tw("flex items-center justify-between mb-2")}>
+                      <span className={tw("text-sm font-medium text-[#0a2150]")}>
                         {goal.title}
                       </span>
                       {isCompleted ? (
@@ -947,27 +1025,6 @@ const KidDashboard = () => {
               })}
           </div>
         </div>
-
-        {/* Completed Goals Section
-        {activeGoals.some(goal => {
-          const progressPercent = Math.min(((goal.saved || 0) / (goal.amount || 1)) * 100, 100);
-          return progressPercent >= 100;
-        }) && (
-          <div className={tw("mb-6")}>
-            <h3 className={tw("text-lg font-bold text-gray-800 mb-4 flex items-center gap-2")}>
-              <span>🏆</span> Completed Goals
-            </h3>
-            <div className={tw("bg-gradient-to-r from-yellow-50 to-green-50 rounded-2xl p-6 border-2 border-green-300")}>
-              <div className={tw("text-center")}>
-                <div className={tw("text-4xl mb-3")}>🎉</div>
-                <h4 className={tw("text-xl font-bold text-gray-800 mb-2")}>Congratulations!</h4>
-                <p className={tw("text-gray-600")}>
-                  You've achieved your savings goals! Keep up the great work!
-                </p>
-              </div>
-            </div>
-          </div>
-        )} */}
 
         {/* Chore Categories */}
         <div className={tw("mb-6")}>
@@ -1249,23 +1306,6 @@ const KidDashboard = () => {
                 </div>
               </div>
 
-              {/* <div className={tw("mb-6")}>
-                <label
-                  className={tw(
-                    "flex items-center gap-2 text-gray-700 font-medium mb-2"
-                  )}
-                >
-                  <span className={tw("text-xl")}>👤</span> Get Approval From
-                </label>
-                <input
-                  type="text"
-                  placeholder="Choose Parent"
-                  className={tw(
-                    "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
-                  )}
-                />
-              </div> */}
-
               <div className={tw("mb-6")}>
                 <label
                   className={tw(
@@ -1438,12 +1478,12 @@ const KidDashboard = () => {
       )}
 
       {showNotifications && (
-  <NotificationsModal
-    isOpen={showNotifications}
-    onClose={() => setShowNotifications(false)}
-    notifications={notifications}
-  />
-)}
+        <NotificationsModal
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notifications={notifications}
+        />
+      )}
     </div>
   );
 };
