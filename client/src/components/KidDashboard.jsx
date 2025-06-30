@@ -10,7 +10,7 @@ import aidiyLogo from "../images/aidiy_logo.png";
 const KidDashboard = () => {
   const navigate = useNavigate();
   const kidNickname = sessionStorage.getItem("kid_nickname") || "";
-  const kidAvatar = sessionStorage.getItem("kid_avatar") || avatarDaughter;
+  const kidAvatar = sessionStorage.getItem("kid_avatar") || "👧";
   const [userProfile, setUserProfile] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -572,7 +572,7 @@ const KidDashboard = () => {
                 <span className={tw("text-sm text-gray-600")}>Savings</span>
               </div>
               <p className={tw("text-2xl font-bold")}>
-                $0.00
+                ${totalSavings.toFixed(2)}
               </p>
             </div>
             <div className={tw("bg-blue-100 rounded-xl p-4 text-center")}>
@@ -1068,22 +1068,27 @@ const KidDashboard = () => {
       </div>
 
       {/* Goal Creation Modal */}
-{showGoalModal && (
-  <div className={tw(
-    "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-  )}>
-    <div className={tw(
-      "bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-y-auto max-h-[90vh] p-0"
-    )}>
-      <div className={tw(
-        "bg-gradient-to-r from-purple-400 to-pink-400 p-4 sm:p-6 rounded-t-2xl text-white text-center"
-      )}>
-        <h3 className={tw("text-2xl font-bold mb-2")}>CREATE A GOAL!</h3>
-        <p className={tw("text-sm opacity-90")}>
-          What Amazing Thing Do You Want To Save For?
-        </p>
-      </div>
-      <form onSubmit={handleCreateGoal} className={tw("p-4 sm:p-6")}>
+      {showGoalModal && (
+        <div
+          className={tw(
+            "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          )}
+        >
+          <div
+            className={tw("bg-white rounded-2xl shadow-2xl w-full max-w-md")}
+          >
+            <div
+              className={tw(
+                "bg-gradient-to-r from-purple-400 to-pink-400 p-6 rounded-t-2xl text-white text-center"
+              )}
+            >
+              <h3 className={tw("text-2xl font-bold mb-2")}>CREATE A GOAL!</h3>
+              <p className={tw("text-sm opacity-90")}>
+                What Amazing Thing Do You Want To Save For?
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateGoal} className={tw("p-6")}>
               <div className={tw("mb-4")}>
                 <label
                   className={tw(
@@ -1106,211 +1111,207 @@ const KidDashboard = () => {
                 />
               </div>
 
-                <div className={tw("grid grid-cols-3 gap-3")}>
-                  <button
-                    type="button"
-                    onClick={() => setGoalForm({ ...goalForm, category: "bike" })}
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "bike"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>🚲</span>
-                    <p className={tw("text-xs mt-1")}>New bike</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGoalForm({ ...goalForm, category: "game" })}
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "game"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>🎮</span>
-                    <p className={tw("text-xs mt-1")}>Video Game</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setGoalForm({ ...goalForm, category: "soccer" })
-                    }
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "soccer"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>⚽</span>
-                    <p className={tw("text-xs mt-1")}>Soccer Ball</p>
-                  </button>
-                </div>
+              <div className={tw("grid grid-cols-3 gap-3 mb-4")}>
+                <button
+                  type="button"
+                  onClick={() => setGoalForm({ ...goalForm, category: "bike" })}
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "bike"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>🚲</span>
+                  <p className={tw("text-xs mt-1")}>New bike</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGoalForm({ ...goalForm, category: "game" })}
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "game"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>🎮</span>
+                  <p className={tw("text-xs mt-1")}>Video Game</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGoalForm({ ...goalForm, category: "soccer" })
+                  }
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "soccer"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>⚽</span>
+                  <p className={tw("text-xs mt-1")}>Soccer Ball</p>
+                </button>
+              </div>
 
-                <div className={tw("grid grid-cols-3 gap-3")}>
-                  <button
-                    type="button"
-                    onClick={() => setGoalForm({ ...goalForm, category: "art" })}
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "art"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>🎨</span>
-                    <p className={tw("text-xs mt-1")}>Art Supplies</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGoalForm({ ...goalForm, category: "book" })}
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "book"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>📚</span>
-                    <p className={tw("text-xs mt-1")}>Book Collection</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGoalForm({ ...goalForm, category: "toy" })}
-                    className={tw(
-                      `p-3 rounded-lg border-2 ${
-                        goalForm.category === "toy"
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200"
-                      }`
-                    )}
-                  >
-                    <span className={tw("text-2xl")}>🧸</span>
-                    <p className={tw("text-xs mt-1")}>Toy</p>
-                  </button>
-                </div>
+              <div className={tw("grid grid-cols-3 gap-3 mb-4")}>
+                <button
+                  type="button"
+                  onClick={() => setGoalForm({ ...goalForm, category: "art" })}
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "art"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>🎨</span>
+                  <p className={tw("text-xs mt-1")}>Art Supplies</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGoalForm({ ...goalForm, category: "book" })}
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "book"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>📚</span>
+                  <p className={tw("text-xs mt-1")}>Book Collection</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGoalForm({ ...goalForm, category: "toy" })}
+                  className={tw(
+                    `p-3 rounded-lg border-2 ${
+                      goalForm.category === "toy"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200"
+                    }`
+                  )}
+                >
+                  <span className={tw("text-2xl")}>🧸</span>
+                  <p className={tw("text-xs mt-1")}>Toy</p>
+                </button>
+              </div>
 
-                <div>
-                  <label className={tw("block text-gray-700 font-medium mb-2")}>
-                    Describe your motivation
-                  </label>
-                  <textarea
-                    value={goalForm.description}
-                    onChange={(e) =>
-                      setGoalForm({ ...goalForm, description: e.target.value })
-                    }
-                    placeholder="Why do you want this?"
-                    className={tw(
-                      "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
-                    )}
-                    rows="3"
-                  />
-                </div>
+              <div className={tw("mb-4")}>
+                <label className={tw("block text-gray-700 font-medium mb-2")}>
+                  Describe your motivation
+                </label>
+                <textarea
+                  value={goalForm.description}
+                  onChange={(e) =>
+                    setGoalForm({ ...goalForm, description: e.target.value })
+                  }
+                  placeholder="Why do you want this?"
+                  className={tw(
+                    "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
+                  )}
+                  rows="3"
+                />
+              </div>
 
-                <div>
-                  <label
+              <div className={tw("mb-4")}>
+                <label
+                  className={tw(
+                    "flex items-center gap-2 text-gray-700 font-medium mb-2"
+                  )}
+                >
+                  <span className={tw("text-xl")}>💰</span> How Much Money?
+                </label>
+                <div className={tw("relative")}>
+                  <span
                     className={tw(
-                      "flex items-center gap-2 text-gray-700 font-medium mb-2"
+                      "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                     )}
                   >
-                    <span className={tw("text-xl")}>💰</span> How Much Money?
-                  </label>
-                  <div className={tw("relative")}>
-                    <span
-                      className={tw(
-                        "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                      )}
-                    >
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      value={goalForm.amount}
-                      onChange={(e) =>
-                        setGoalForm({ ...goalForm, amount: e.target.value })
-                      }
-                      placeholder="00"
-                      className={tw(
-                        "w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
-                      )}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* <div>
-                  <label
-                    className={tw(
-                      "flex items-center gap-2 text-gray-700 font-medium mb-2"
-                    )}
-                  >
-                    <span className={tw("text-xl")}>👤</span> Get Approval From
-                  </label>
+                    $
+                  </span>
                   <input
-                    type="text"
-                    placeholder="Choose Parent"
-                    className={tw(
-                      "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
-                    )}
-                  />
-                </div> */}
-
-                <div>
-                  <label
-                    className={tw(
-                      "flex items-center gap-2 text-gray-700 font-medium mb-2"
-                    )}
-                  >
-                    <span className={tw("text-xl")}>📅</span> How Many Weeks?
-                  </label>
-                  <select
-                    value={goalForm.duration}
+                    type="number"
+                    value={goalForm.amount}
                     onChange={(e) =>
-                      setGoalForm({ ...goalForm, duration: e.target.value })
+                      setGoalForm({ ...goalForm, amount: e.target.value })
                     }
+                    placeholder="00"
                     className={tw(
-                      "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400 appearance-none bg-white"
+                      "w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
                     )}
                     required
-                  >
-                    <option value="">Pick your timeline!</option>
-                    <option value="5">🏃 5 weeks ( Super fast )</option>
-                    <option value="10">🚶 10 weeks ( Steady pace )</option>
-                    <option value="15">🐢 15 weeks ( Take your time )</option>
-                    <option value="20">🐌 20 weeks ( Slow and steady )</option>
-                  </select>
+                  />
                 </div>
               </div>
 
-              {/* Fixed bottom buttons */}
-              <div className={tw("flex-shrink-0 p-6 border-t border-gray-100")}>
-                <div className={tw("flex gap-4")}>
-                  <button
-                    type="button"
-                    onClick={() => setShowGoalModal(false)}
-                    className={tw(
-                      "flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 transition-colors"
-                    )}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className={tw(
-                      "flex-1 px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
-                    )}
-                  >
-                    Get Approval
-                  </button>
-                </div>
+              {/* <div className={tw("mb-6")}>
+                <label
+                  className={tw(
+                    "flex items-center gap-2 text-gray-700 font-medium mb-2"
+                  )}
+                >
+                  <span className={tw("text-xl")}>👤</span> Get Approval From
+                </label>
+                <input
+                  type="text"
+                  placeholder="Choose Parent"
+                  className={tw(
+                    "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
+                  )}
+                />
+              </div> */}
+
+              <div className={tw("mb-6")}>
+                <label
+                  className={tw(
+                    "flex items-center gap-2 text-gray-700 font-medium mb-2"
+                  )}
+                >
+                  <span className={tw("text-xl")}>📅</span> How Many Weeks?
+                </label>
+                <select
+                  value={goalForm.duration}
+                  onChange={(e) =>
+                    setGoalForm({ ...goalForm, duration: e.target.value })
+                  }
+                  className={tw(
+                    "w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-400 appearance-none bg-white"
+                  )}
+                  required
+                >
+                  <option value="">Pick your timeline!</option>
+                  <option value="5">🏃 5 weeks ( Super fast )</option>
+                  <option value="10">🚶 10 weeks ( Steady pace )</option>
+                  <option value="15">🐢 15 weeks ( Take your time )</option>
+                  <option value="20">🐌 20 weeks ( Slow and steady )</option>
+                </select>
+              </div>
+
+              <div className={tw("flex gap-4")}>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalModal(false)}
+                  className={tw(
+                    "flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 transition-colors"
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={tw(
+                    "flex-1 px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                  )}
+                >
+                  Get Approval
+                </button>
               </div>
             </form>
           </div>
